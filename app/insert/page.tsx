@@ -1,0 +1,263 @@
+"use client"
+
+import { useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2 } from "lucide-react"
+
+import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType } from "@/lib/workout-data"
+import { saveWorkout } from "./action"
+
+const DRAFT_KEY = "workout_draft_v1"
+
+export default function InsertWorkoutPage() {
+  const router = useRouter()
+  const [isSaving, startSaving] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  // State general
+  const [mode, setMode] = useState<"strength" | "cardio">("strength")
+  const [sessionSets, setSessionSets] = useState<any[]>([])
+  const [cardioEntries, setCardioEntries] = useState<any[]>([])
+
+  // Formular Strength
+  const [split, setSplit] = useState<Split>("Push")
+  const [exercise, setExercise] = useState(EXERCISES[0])
+  const [setNumber, setSetNumber] = useState(1)
+  const [reps, setReps] = useState("")
+  const [weight, setWeight] = useState("")
+  const [rir, setRir] = useState("")
+  const [setType, setSetType] = useState<SetType>("Working Set")
+
+  // Formular Cardio
+  const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
+  const [cardioDuration, setCardioDuration] = useState("")
+
+  // --- LOGICA DE CIORNĂ (LOCAL STORAGE) ---
+  // 1. La prima încărcare, tragem datele din memorie
+  useEffect(() => {
+    const draft = localStorage.getItem(DRAFT_KEY)
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft)
+        if (parsed.length > 0) {
+          setSessionSets(parsed)
+          // setăm următorul număr de set automat
+          setSetNumber(parsed.length + 1)
+        }
+      } catch (e) {
+        console.error("Eroare la citirea ciornei:", e)
+      }
+    }
+  }, [])
+
+  // 2. Când adaugi un set, salvăm direct în memoria browserului
+  useEffect(() => {
+    if (sessionSets.length > 0) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(sessionSets))
+    } else {
+      localStorage.removeItem(DRAFT_KEY)
+    }
+  }, [sessionSets])
+
+  // --- HANDLERE FORMULARE ---
+  function handleAddSet(e: React.FormEvent) {
+    e.preventDefault()
+    if (!exercise || reps === "") return
+
+    const newSet = {
+      id: Math.random().toString(36).substring(2, 9), // ID temporar pentru listă
+      split,
+      exercise,
+      setNumber,
+      reps: Number(reps),
+      weight: weight === "" ? 0 : Number(weight),
+      rir: rir === "" ? 0 : Number(rir),
+      setType,
+    }
+
+    setSessionSets((prev) => [...prev, newSet])
+    setSetNumber((n) => n + 1)
+    setReps("") // Resetăm doar reps ca să meargă rapid
+    setRir("")
+  }
+
+  function handleAddCardio(e: React.FormEvent) {
+    e.preventDefault()
+    if (!cardioActivity || cardioDuration === "") return
+
+    const newEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      activity: cardioActivity,
+      durationMin: Number(cardioDuration),
+    }
+
+    setCardioEntries((prev) => [...prev, newEntry])
+    setCardioDuration("")
+  }
+
+  function handleFinish() {
+    if (mode === "strength" && sessionSets.length === 0) return
+    if (mode === "cardio" && cardioEntries.length === 0) return
+
+    setError(null)
+    startSaving(async () => {
+      const result = await saveWorkout(mode, split, sessionSets, cardioEntries)
+      
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+
+      // Ștergem ciorna la succes și ne întoarcem
+      localStorage.removeItem(DRAFT_KEY)
+      router.push("/")
+    })
+  }
+
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col p-5 bg-background">
+      <header className="flex flex-col gap-4 mb-6">
+        <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2 w-fit">
+          <ArrowLeft className="size-4" /> Înapoi
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">Antrenament Nou</h1>
+        
+        {/* Toggle Mode */}
+        <div className="grid grid-cols-2 gap-2 p-1 border rounded-lg bg-secondary/30">
+          <button
+            onClick={() => setMode("strength")}
+            className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === "strength" ? "bg-background border shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Dumbbell className="size-4" /> Strength
+          </button>
+          <button
+            onClick={() => setMode("cardio")}
+            className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === "cardio" ? "bg-background border shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Heart className="size-4" /> Cardio
+          </button>
+        </div>
+      </header>
+
+      {/* --- FORMULAR STRENGTH --- */}
+      {mode === "strength" && (
+        <form onSubmit={handleAddSet} className="flex flex-col gap-4 p-5 border rounded-xl bg-card shadow-sm mb-6">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Split</label>
+            <select value={split} onChange={(e) => setSplit(e.target.value as Split)} className="h-10 px-3 rounded-md border bg-background text-sm">
+              {SPLITS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Exercițiu / Aparat</label>
+            <select value={exercise} onChange={(e) => setExercise(e.target.value)} className="h-10 px-3 rounded-md border bg-background text-sm">
+              {EXERCISES.map((ex) => <option key={ex} value={ex}>{ex}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium">Set #</label>
+              <input type="number" min={1} value={setNumber} onChange={(e) => setSetNumber(Number(e.target.value))} className="h-10 px-2 rounded-md border text-center text-sm" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium">Kg</label>
+              <input type="number" step="0.5" min={0} value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" className="h-10 px-2 rounded-md border text-center text-sm" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium">Reps</label>
+              <input type="number" min={0} required value={reps} onChange={(e) => setReps(e.target.value)} placeholder="0" className="h-10 px-2 rounded-md border text-center text-sm" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium">RIR</label>
+              <input type="number" min={0} max={5} value={rir} onChange={(e) => setRir(e.target.value)} placeholder="0" className="h-10 px-2 rounded-md border text-center text-sm" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Tip Set</label>
+            <select value={setType} onChange={(e) => setSetType(e.target.value as SetType)} className="h-10 px-3 rounded-md border bg-background text-sm">
+              {SET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          <button type="submit" className="h-10 mt-2 bg-secondary text-secondary-foreground font-medium rounded-md hover:bg-secondary/80 transition-colors">
+            + Adaugă Setul
+          </button>
+        </form>
+      )}
+
+      {/* --- FORMULAR CARDIO --- */}
+      {mode === "cardio" && (
+        <form onSubmit={handleAddCardio} className="flex flex-col gap-4 p-5 border rounded-xl bg-card shadow-sm mb-6">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Activitate (LISS / HIIT)</label>
+            <select value={cardioActivity} onChange={(e) => setCardioActivity(e.target.value)} className="h-10 px-3 rounded-md border bg-background text-sm">
+              {CARDIO_ACTIVITIES.map((act) => <option key={act} value={act}>{act}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Durată (Minute)</label>
+            <input type="number" min={1} required value={cardioDuration} onChange={(e) => setCardioDuration(e.target.value)} placeholder="ex: 30" className="h-10 px-3 rounded-md border bg-background text-sm" />
+          </div>
+
+          <button type="submit" className="h-10 mt-2 bg-secondary text-secondary-foreground font-medium rounded-md hover:bg-secondary/80 transition-colors">
+            + Adaugă Activitate
+          </button>
+        </form>
+      )}
+
+      {/* --- LISTA DE SETURI / CARDIO DIN SESIUNE --- */}
+      <div className="flex-1 flex flex-col gap-2">
+        <h3 className="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">
+          Sesiunea Curentă
+        </h3>
+
+        {mode === "strength" && sessionSets.map((s) => (
+          <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg bg-card text-sm">
+            <div>
+              <span className="font-semibold mr-2">{s.setNumber}.</span>
+              <span className="font-medium">{s.exercise}</span>
+              <div className="text-muted-foreground text-xs mt-1">
+                {s.weight > 0 ? `${s.weight}kg x ` : ""}{s.reps} reps | RIR: {s.rir} | {s.setType}
+              </div>
+            </div>
+            <button onClick={() => setSessionSets(prev => prev.filter(x => x.id !== s.id))} className="p-2 text-muted-foreground hover:text-red-500">
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+
+        {mode === "cardio" && cardioEntries.map((c) => (
+          <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg bg-card text-sm">
+            <div className="font-medium">{c.activity} <span className="text-muted-foreground font-normal ml-2">({c.durationMin} min)</span></div>
+            <button onClick={() => setCardioEntries(prev => prev.filter(x => x.id !== c.id))} className="p-2 text-muted-foreground hover:text-red-500">
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-red-500 mt-4 font-medium">{error}</p>}
+
+      {/* BUTONUL FINAL DE SALVARE */}
+      {((mode === "strength" && sessionSets.length > 0) || (mode === "cardio" && cardioEntries.length > 0)) && (
+        <button
+          onClick={handleFinish}
+          disabled={isSaving}
+          className="h-12 w-full mt-6 bg-foreground text-background font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+        >
+          {isSaving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+          Finalizează și Salvează
+        </button>
+      )}
+    </main>
+  )
+}
