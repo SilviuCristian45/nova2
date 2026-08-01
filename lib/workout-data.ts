@@ -13,13 +13,18 @@ export const EXERCISES = [
   "Bench Press (Barbell)",
   "Incline Bench Press (Dumbbell)",
   "Chest Press Machine",
-  "Pec Deck Fly / Cable Crossovers",
+  "Pec Deck Fly",
+  "Cable Crossovers",
   "Overhead Press (Barbell / Dumbbell)",
   "Shoulder Press Machine",
-  "Lateral Raises (Dumbbell / Cable)",
-  "Triceps Pushdown (Cable)",
+  "Lateral Raises (Dumbbell)",
+  "Lateral Raises (Cable)",
+  "Triceps Pushdown straight bar (Cable)",
+  "Triceps Pushdown V bar (Cable)",
   "Skull Crushers (EZ Bar)",
-  "Dips",
+  "Dips Bodyweight",
+  "Dips machine",
+  "Dips with added weight",
   
   // --- PULL (Spate, Biceps, Trapez) ---
   "Deadlift (Barbell)",
@@ -33,6 +38,7 @@ export const EXERCISES = [
   "Hammer Curls",
   "Preacher Curl Machine",
   "Shrugs",
+  "Bicep curl cable",
 
   // --- LEGS (Picioare) ---
   "Squat (Barbell)",
@@ -45,7 +51,7 @@ export const EXERCISES = [
   "Hip Thrust (Barbell / Machine)",
   "Standing Calf Raises",
   "Seated Calf Raises",
-  "Pendulum",
+  "Pendulum Squat",
 
   // --- CORE & FULL BODY ---
   "Crunch Machine",
@@ -57,6 +63,7 @@ export const EXERCISES = [
 
 // Tipurile de Cardio (LISS = Low Intensity, HIIT = High Intensity)
 export const CARDIO_ACTIVITIES = [
+  "Outdoor walk LISS",
   "Treadmill - LISS (Mers / Jogging ușor)",
   "Treadmill - HIIT (Sprinturi)",
   "Stationary Bike - LISS",

@@ -99,6 +99,17 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
         </div>
       </header>
 
+   {/* --- CÂMPUL PENTRU DATA ANTRENAMENTULUI --- */}
+      <div className="flex flex-col gap-1.5 mb-6">
+        <label className="text-sm font-medium">Data Antrenamentului</label>
+        <input 
+          type="date" 
+          value={performedOn} 
+          onChange={(e) => setPerformedOn(e.target.value)}
+          className="h-10 px-3 rounded-md border bg-background text-sm font-medium"
+        />
+      </div>
+      
       {/* --- FORMULAR ADAUGARE (în funcție de mod) --- */}
       {mode === "strength" ? (
         <form onSubmit={handleAddSet} className="flex flex-col gap-4 p-5 border rounded-xl bg-card shadow-sm mb-6">
@@ -109,16 +120,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
               {SPLITS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          {/* --- CÂMPUL PENTRU DATA ANTRENAMENTULUI --- */}
-      <div className="flex flex-col gap-1.5 mb-6">
-        <label className="text-sm font-medium">Data Antrenamentului</label>
-        <input 
-          type="date" 
-          value={performedOn} 
-          onChange={(e) => setPerformedOn(e.target.value)}
-          className="h-10 px-3 rounded-md border bg-background text-sm font-medium"
-        />
-      </div>
+       
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Exercițiu / Aparat</label>
             <select value={exercise} onChange={(e) => setExercise(e.target.value)} className="h-10 px-3 rounded-md border bg-background text-sm">
