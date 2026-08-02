@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2 } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType } from "@/lib/workout-data"
 import { saveWorkout } from "./action"
@@ -29,9 +30,61 @@ export default function InsertWorkoutPage() {
   const [rir, setRir] = useState("")
   const [setType, setSetType] = useState<SetType>("Working Set")
 
+  // State pentru "Ultima Oară"
+  const [lastPerformance, setLastPerformance] = useState<string | null>(null)
   // Formular Cardio
   const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
   const [cardioDuration, setCardioDuration] = useState("")
+
+
+  // --- FETCH ULTIMA PERFORMANȚĂ ---
+  useEffect(() => {
+    if (mode !== "strength" || !exercise) return
+
+    async function fetchLastPerformance() {
+      setLastPerformance("Se caută în istoric...")
+      const supabase = createClient()
+      
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Tragem ultimele 10 seturi pentru exercițiul selectat
+      const { data, error } = await supabase
+        .from("workout_sets")
+        .select("weight, reps, rir, created_at, set_type")
+        .eq("user_id", user.id)
+        .eq("exercise", exercise)
+        //.eq("set_type", SET_TYPES[2])
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      if (error || !data || data.length === 0) {
+        setLastPerformance("Exercițiu nou. Setează primul record!")
+        return
+      }
+
+      // 1. Găsim data celui mai recent antrenament din aceste seturi
+      const mostRecentDate = data[0].created_at.split('T')[0]
+      
+      // 2. Filtrăm doar seturile din acea zi
+      const setsFromLastSession = data.filter(s => s.created_at.split('T')[0] === mostRecentDate)
+      
+      // 3. Găsim setul cu cea mai mare greutate din ziua respectivă
+      const bestSet = setsFromLastSession.reduce((prev, current) => {
+        const prevWeight = Number(prev.weight);
+        const currentWeight = Number(current.weight);
+        if (prevWeight > currentWeight || 
+          (prevWeight === currentWeight && Number(prev.reps) > Number(current.reps)) )
+          return prev; 
+        return current;
+      })
+
+      const weightText = bestSet.weight > 0 ? `${bestSet.weight}kg x ` : ""
+      setLastPerformance(`💡 Ultima oară: ${weightText}${bestSet.reps} reps (RIR ${bestSet.rir})`)
+    }
+
+    fetchLastPerformance()
+  }, [exercise, mode])
 
   // --- LOGICA DE CIORNĂ (LOCAL STORAGE) ---
   // 1. La prima încărcare, tragem datele din memorie
@@ -159,6 +212,15 @@ export default function InsertWorkoutPage() {
             <select value={exercise} onChange={(e) => setExercise(e.target.value)} className="h-10 px-3 rounded-md border bg-background text-sm">
               {EXERCISES.map((ex) => <option key={ex} value={ex}>{ex}</option>)}
             </select>
+
+            {/* AICI APARE MAGIA */}
+            {lastPerformance && (
+              <span className={`text-xs mt-0.5 ml-1 ${
+                lastPerformance.includes("Exercițiu nou") ? "text-muted-foreground" : "text-emerald-500 font-medium"
+              }`}>
+                {lastPerformance}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-4 gap-2">

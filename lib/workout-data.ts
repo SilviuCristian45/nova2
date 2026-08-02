@@ -1,7 +1,7 @@
 export const SPLITS = ["Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Core"] as const;
 export type Split = typeof SPLITS[number];
 
-export const SET_TYPES = ["Warmup", "Working Set", "Drop Set", "Failure"] as const;
+export const SET_TYPES = ["Warmup", "Feeder", "Working Set", "Drop Set"] as const;
 export type SetType = typeof SET_TYPES[number];
 
 export const WORKOUT_MODES = ["strength", "cardio"] as const;
