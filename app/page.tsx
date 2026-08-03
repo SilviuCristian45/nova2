@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Dumbbell, History, LineChart, LogOut } from "lucide-react"
+import { Dumbbell, History, LineChart, LogOut, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function Home() {
@@ -41,6 +41,14 @@ export default async function Home() {
           <LineChart className="size-8 text-emerald-500" />
           <span className="text-lg font-semibold">Progresie & Grafice</span>
         </Link>
+
+		<Link 
+  href="/records" 
+  className="flex items-center justify-center gap-2 rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-4 font-semibold border border-yellow-500/20 hover:bg-yellow-500/20 transition-colors"
+>
+  <Trophy className="size-5" />
+  Vezi Recorduri Personale
+</Link>
       </div>
 
       <form 
