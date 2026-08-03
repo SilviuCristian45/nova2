@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, Calendar, Dumbbell, Heart } from "lucide-react"
+import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./delete-button"
 
@@ -53,6 +53,18 @@ export default async function HistoryPage() {
               weekday: "short", day: "numeric", month: "short", year: "numeric"
             })
 
+            // --- LOGICA NOUĂ DE GRUPARE A EXERCIȚIILOR ---
+            // Adunăm toate seturile aceluiași exercițiu într-un singur array
+            const groupedSets: Record<string, any[]> = {}
+            if (!isCardio && workout.workout_sets) {
+              workout.workout_sets.forEach((set: any) => {
+                if (!groupedSets[set.exercise]) {
+                  groupedSets[set.exercise] = []
+                }
+                groupedSets[set.exercise].push(set)
+              })
+            }
+
             return (
               <div key={workout.id} className="flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden">
                 
@@ -72,7 +84,7 @@ export default async function HistoryPage() {
                       </div>
                     </div>
                   </div>
-                  {/* Butonul de Ștergere creat anterior */}
+                  {/* Butonul de Editare și Ștergere */}
                   <div className="flex items-center gap-2">
                     <Link 
                       href={`/edit/${workout.id}`}
@@ -96,17 +108,36 @@ export default async function HistoryPage() {
                       </div>
                     ))
                   ) : (
-                    // Afișăm detaliile de forță (grupate sau listate simplu)
-                    workout.workout_sets?.map((s: any) => (
-                      <div key={s.id} className="flex justify-between items-center text-sm py-1 border-b last:border-0 border-secondary/50">
-                        <div>
-                          <span className="font-semibold mr-2">{s.set_number}.</span>
-                          <span className="font-medium">{s.exercise}</span>
+                    // --- Afișăm exercițiile grupate cu Acordeon ---
+                    Object.entries(groupedSets).map(([exerciseName, sets]) => (
+                      <details 
+                        key={exerciseName} 
+                        className="group [&_summary::-webkit-details-marker]:hidden mb-2 last:mb-0 rounded-xl border border-secondary/60 bg-secondary/10 p-3 shadow-sm transition-all"
+                      >
+                        <summary className="flex cursor-pointer items-center justify-between font-semibold outline-none">
+                          <span className="text-sm">{exerciseName}</span>
+                          <ChevronDown className="size-4 text-muted-foreground transition-transform duration-300 group-open:rotate-180" />
+                        </summary>
+                        
+                        <div className="mt-3 flex flex-col gap-2 border-t border-secondary/50 pt-3 text-sm">
+                          {sets.map((set: any) => (
+                            <div key={set.id} className="flex items-center justify-between">
+                              <span className="text-muted-foreground font-medium flex items-center gap-2">
+                                Set {set.set_number} 
+                                <span className="text-[10px] uppercase tracking-wider bg-secondary px-1.5 py-0.5 rounded-md">
+                                  {set.set_type}
+                                </span>
+                              </span>
+                              <span className="font-bold">
+                                {set.weight > 0 ? `${set.weight}kg \u00D7 ` : ""}{set.reps} 
+                                <span className="font-normal text-muted-foreground ml-1">
+                                  (RIR {set.rir})
+                                </span>
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                        <span className="text-muted-foreground text-xs">
-                          {s.weight > 0 ? `${s.weight}kg x ` : ""}{s.reps} ({s.rir} RIR)
-                        </span>
-                      </div>
+                      </details>
                     ))
                   )}
                 </div>
