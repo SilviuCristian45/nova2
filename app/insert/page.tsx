@@ -15,6 +15,7 @@ export default function InsertWorkoutPage() {
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [notes, setNotes] = useState<string>("")
 
   // State general
   const [mode, setMode] = useState<"strength" | "cardio">("strength")
@@ -51,7 +52,7 @@ export default function InsertWorkoutPage() {
       // Tragem ultimele 10 seturi pentru exercițiul selectat
       const { data, error } = await supabase
         .from("workout_sets")
-        .select("weight, reps, rir, created_at, set_type")
+        .select("weight, reps, rir, created_at, set_type, notes")
         .eq("user_id", user.id)
         .eq("exercise", exercise)
         //.eq("set_type", SET_TYPES[2])
@@ -80,7 +81,9 @@ export default function InsertWorkoutPage() {
       })
 
       const weightText = bestSet.weight > 0 ? `${bestSet.weight}kg x ` : ""
-      setLastPerformance(`💡 Ultima oară: ${weightText}${bestSet.reps} reps (RIR ${bestSet.rir})`)
+	  const notesText = bestSet.notes ? ` 📝 (${bestSet.notes})` : "" // <--- Formatăm notița
+      
+      setLastPerformance(`💡 Ultima oară: ${weightText}${bestSet.reps} reps (RIR ${bestSet.rir})${notesText}`)
     }
 
     fetchLastPerformance()
@@ -127,12 +130,14 @@ export default function InsertWorkoutPage() {
       weight: weight === "" ? 0 : Number(weight),
       rir: rir === "" ? 0 : Number(rir),
       setType,
+	  notes: notes.trim(),
     }
 
     setSessionSets((prev) => [...prev, newSet])
     setSetNumber((n) => n + 1)
     setReps("") // Resetăm doar reps ca să meargă rapid
     setRir("")
+	setNotes("")
   }
 
   function handleAddCardio(e: React.FormEvent) {
@@ -247,6 +252,17 @@ export default function InsertWorkoutPage() {
             <select value={setType} onChange={(e) => setSetType(e.target.value as SetType)} className="h-10 px-3 rounded-md border bg-background text-sm">
               {SET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
+          </div>
+
+		  <div className="flex flex-col gap-1.5 mt-2">
+            <label className="text-sm font-medium text-muted-foreground">Notițe (opțional, ex: scaunul la 3)</label>
+            <input 
+              type="text" 
+              value={notes} 
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Scrie o notiță scurtă..."
+              className="h-9 px-3 rounded-md border bg-background text-sm"
+            />
           </div>
 
           <button type="submit" className="h-10 mt-2 bg-secondary text-secondary-foreground font-medium rounded-md hover:bg-secondary/80 transition-colors">

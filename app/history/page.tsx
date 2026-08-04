@@ -53,8 +53,7 @@ export default async function HistoryPage() {
               weekday: "short", day: "numeric", month: "short", year: "numeric"
             })
 
-            // --- LOGICA NOUĂ DE GRUPARE A EXERCIȚIILOR ---
-            // Adunăm toate seturile aceluiași exercițiu într-un singur array
+			
             const groupedSets: Record<string, any[]> = {}
             if (!isCardio && workout.workout_sets) {
               workout.workout_sets.forEach((set: any) => {

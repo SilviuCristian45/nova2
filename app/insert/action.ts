@@ -43,6 +43,7 @@ export async function saveWorkout(
       weight: s.weight,
       rir: s.rir,
       set_type: s.setType,
+	  notes: s.notes || null, // <--- ADĂUGĂM LINIA ASTA
     }))
 
     const { error: setsError } = await supabase.from("workout_sets").insert(setsToInsert)
