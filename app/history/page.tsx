@@ -53,7 +53,7 @@ export default async function HistoryPage() {
               weekday: "short", day: "numeric", month: "short", year: "numeric"
             })
 
-			
+
             const groupedSets: Record<string, any[]> = {}
             if (!isCardio && workout.workout_sets) {
               workout.workout_sets.forEach((set: any) => {
@@ -133,6 +133,12 @@ export default async function HistoryPage() {
                                   (RIR {set.rir})
                                 </span>
                               </span>
+							  {/* AFIȘAREA NOTIȚEI */}
+                              {set.notes && (
+                                <div className="text-xs text-blue-500/80 italic mt-1 bg-blue-500/10 px-2 py-1 rounded-md w-fit">
+                                  📝 {set.notes}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
