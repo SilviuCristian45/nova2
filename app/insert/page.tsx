@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
+import confetti from "canvas-confetti"
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType } from "@/lib/workout-data"
 import { saveWorkout } from "./action"
@@ -36,6 +37,14 @@ export default function InsertWorkoutPage() {
   // Formular Cardio
   const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
   const [cardioDuration, setCardioDuration] = useState("")
+  
+  // Obiectul care ține minte recordul setului
+  const [bestPerformance, setBestPerformance] = useState<{
+    weight: number;
+    reps: number;
+    rir: number;
+    notes?: string;
+  } | null>(null)
 
 
   // --- FETCH ULTIMA PERFORMANȚĂ ---
@@ -57,6 +66,8 @@ export default function InsertWorkoutPage() {
         .eq("exercise", exercise)
         //.eq("set_type", SET_TYPES[2])
         .order("created_at", { ascending: false })
+		.order("weight", { ascending: false })
+		.order("reps", { ascending: false })
         .limit(10)
 
       if (error || !data || data.length === 0) {
@@ -82,6 +93,14 @@ export default function InsertWorkoutPage() {
 
       const weightText = bestSet.weight > 0 ? `${bestSet.weight}kg x ` : ""
 	  const notesText = bestSet.notes ? ` 📝 (${bestSet.notes})` : "" // <--- Formatăm notița
+
+      // Salvăm totul grupat și curat în noul state
+      setBestPerformance({
+        weight: Number(bestSet.weight),
+        reps: Number(bestSet.reps),
+        rir: Number(bestSet.rir),
+        notes: bestSet.notes
+      })
       
       setLastPerformance(`💡 Ultima oară: ${weightText}${bestSet.reps} reps (RIR ${bestSet.rir})${notesText}`)
     }
@@ -122,7 +141,7 @@ export default function InsertWorkoutPage() {
     if (!exercise || reps === "") return
 
     const newSet = {
-      id: Math.random().toString(36).substring(2, 9), // ID temporar pentru listă
+      id: Math.random().toString(36).substring(2, 9),
       split,
       exercise,
       setNumber,
@@ -130,16 +149,52 @@ export default function InsertWorkoutPage() {
       weight: weight === "" ? 0 : Number(weight),
       rir: rir === "" ? 0 : Number(rir),
       setType,
-	  notes: notes.trim(),
+      notes: notes.trim(),
+    }
+
+    // --- MAGIA PR-ULUI AURIU ---
+    let isPersonalRecord = false;
+
+    if (bestPerformance) {
+      // E PR dacă ai pus greutate mai mare SAU dacă ai aceeași greutate dar mai multe reps
+      if (newSet.weight > bestPerformance.weight) {
+        isPersonalRecord = true;
+      } else if (newSet.weight === bestPerformance.weight && newSet.reps > bestPerformance.reps) {
+        isPersonalRecord = true;
+      }
+    }
+
+    if (isPersonalRecord) {
+      confetti({
+        particleCount: 40,
+        spread: 70,
+        origin: { y: 0.65 },
+        colors: ['#fbbf24', '#f59e0b', '#d97706'], 
+        zIndex: 100, 
+      }) 
+      
+      // Actualizăm obiectul cu noile date, ca să trebuiască să le depășești pe astea la următorul set!
+      setBestPerformance({
+        weight: newSet.weight,
+        reps: newSet.reps,
+        rir: newSet.rir,
+        notes: newSet.notes
+      });
+
+      const weightText = newSet.weight > 0 ? `${newSet.weight}kg x ` : ""
+      const notesText = newSet.notes ? ` 📝 (${newSet.notes})` : ""
+      
+      // Am schimbat textul în "Nou Record!" ca să te simți și mai bine
+      setLastPerformance(`🏆 Nou Record: ${weightText}${newSet.reps} reps (RIR ${newSet.rir})${notesText}`)
     }
 
     setSessionSets((prev) => [...prev, newSet])
     setSetNumber((n) => n + 1)
-    setReps("") // Resetăm doar reps ca să meargă rapid
+    setReps("") 
     setRir("")
-	setNotes("")
+    setNotes("")
   }
-
+  
   function handleAddCardio(e: React.FormEvent) {
     e.preventDefault()
     if (!cardioActivity || cardioDuration === "") return
@@ -167,9 +222,40 @@ export default function InsertWorkoutPage() {
         return
       }
 
-      // Ștergem ciorna la succes și ne întoarcem
+      // 1. Ștergem ciorna la succes
       localStorage.removeItem(DRAFT_KEY)
-      router.push("/")
+
+      // 2. DECLANȘĂM ARTIFICIILE! 🎉
+      const duration = 2000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#22c55e', '#eab308', '#3b82f6'] // Culori custom (verde, galben, albastru)
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#22c55e', '#eab308', '#3b82f6']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      
+      frame(); // Pornim animația
+
+      // 3. Așteptăm 1.5 secunde, apoi ne întoarcem la Istoric
+      setTimeout(() => {
+        router.push("/")
+      }, 1500)
     })
   }
 
@@ -265,7 +351,10 @@ export default function InsertWorkoutPage() {
             />
           </div>
 
-          <button type="submit" className="h-10 mt-2 bg-secondary text-secondary-foreground font-medium rounded-md hover:bg-secondary/80 transition-colors">
+          <button 
+            type="submit" 
+            className="h-10 mt-2 bg-secondary text-secondary-foreground font-medium rounded-md hover:bg-secondary/80 active:scale-95 transition-all"
+          >
             + Adaugă Setul
           </button>
         </form>

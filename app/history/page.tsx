@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown } from "lucide-react"
+import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./delete-button"
 
@@ -7,13 +7,55 @@ import { DeleteWorkoutButton } from "./delete-button"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
+// --- FUNCȚIA DE CALCUL STREAK ---
+function calculateWeeklyStreak(workouts: any[]) {
+  if (!workouts || workouts.length === 0) return 0;
+
+  // Transformă o dată în începutul ei de săptămână (luni, ora 00:00)
+  const getMondayTime = (dateString: string | Date) => {
+    const d = new Date(dateString);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajustăm la luni
+    return new Date(d.setDate(diff)).setHours(0, 0, 0, 0);
+  };
+
+  // Creăm un Set cu toate săptămânile (sub formă de timestamp-uri unice) în care ai antrenamente
+  const activeWeeks = new Set(workouts.map(w => getMondayTime(w.performed_on)));
+  
+  let checkDate = new Date();
+  let streak = 0;
+
+  // 1. Verificăm săptămâna curentă
+  if (activeWeeks.has(getMondayTime(checkDate))) {
+    streak++;
+  } else {
+    // Dacă nu avem antrenament săptămâna asta, poate încă e luni/marți și nu ai apucat să mergi.
+    // Trecem la săptămâna trecută să vedem dacă acolo ai fost.
+    checkDate.setDate(checkDate.getDate() - 7);
+    if (!activeWeeks.has(getMondayTime(checkDate))) {
+      return 0; // N-ai fost nici săptămâna asta, nici trecută. Lanțul e rupt.
+    }
+  }
+
+  // 2. Numărăm înapoi săptămânile consecutive în trecut
+  while (true) {
+    checkDate.setDate(checkDate.getDate() - 7);
+    if (activeWeeks.has(getMondayTime(checkDate))) {
+      streak++;
+    } else {
+      break; // Am găsit o săptămână goală, ne oprim.
+    }
+  }
+
+  return streak;
+}
+
 export default async function HistoryPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return null // Ești protejat deja de middleware
 
-  // Fetch la antrenamente + copiile lor (seturi / cardio)
   const { data: workouts, error } = await supabase
     .from("workouts")
     .select(`
@@ -28,13 +70,33 @@ export default async function HistoryPage() {
     return <div className="p-5 text-red-500 text-center">Eroare: {error.message}</div>
   }
 
+  // Calculăm flacăra folosind funcția noastră
+  const streak = calculateWeeklyStreak(workouts)
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col p-5 bg-background">
-      <header className="flex items-center gap-3 mb-8">
-        <Link href="/" className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Istoric Antrenamente</h1>
+      
+      {/* HEADER MODIFICAT CU FLACĂRĂ */}
+      <header className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors">
+            <ArrowLeft className="size-5" />
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight">Istoric</h1>
+        </div>
+        
+        {/* Dacă streak-ul e mai mare ca 0, afișăm badge-ul */}
+        {streak > 0 ? (
+          <div 
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-500 rounded-full border border-orange-500/20 shadow-sm"
+            title={`Nu ai ratat nicio săptămână de ${streak} săptămâni!`}
+          >
+            <Flame className="size-4 fill-orange-500/20 text-orange-500 animate-pulse" />
+            <span className="text-sm font-bold">{streak} <span className="hidden sm:inline">săpt.</span></span>
+          </div>
+        ) : (
+			<div> 🧊 0 </div>
+		)}
       </header>
 
       {workouts?.length === 0 ? (
@@ -53,7 +115,6 @@ export default async function HistoryPage() {
               weekday: "short", day: "numeric", month: "short", year: "numeric"
             })
 
-
             const groupedSets: Record<string, any[]> = {}
             if (!isCardio && workout.workout_sets) {
               workout.workout_sets.forEach((set: any) => {
@@ -66,8 +127,6 @@ export default async function HistoryPage() {
 
             return (
               <div key={workout.id} className="flex flex-col border rounded-xl bg-card shadow-sm overflow-hidden">
-                
-                {/* Partea de sus a cardului (Titlu, Dată, Buton Ștergere) */}
                 <div className="flex items-center justify-between p-4 border-b bg-secondary/20">
                   <div className="flex items-center gap-3">
                     <div className="flex size-10 items-center justify-center rounded-full bg-background border shadow-sm">
@@ -83,7 +142,6 @@ export default async function HistoryPage() {
                       </div>
                     </div>
                   </div>
-                  {/* Butonul de Editare și Ștergere */}
                   <div className="flex items-center gap-2">
                     <Link 
                       href={`/edit/${workout.id}`}
@@ -96,10 +154,8 @@ export default async function HistoryPage() {
                   </div>
                 </div>
 
-                {/* Partea de jos a cardului (Detaliile exercițiilor) */}
                 <div className="p-4 flex flex-col gap-2">
                   {isCardio ? (
-                    // Afișăm detaliile de cardio
                     workout.cardio_sessions?.map((c: any) => (
                       <div key={c.id} className="flex justify-between items-center text-sm">
                         <span className="font-medium">{c.activity}</span>
@@ -107,7 +163,6 @@ export default async function HistoryPage() {
                       </div>
                     ))
                   ) : (
-                    // --- Afișăm exercițiile grupate cu Acordeon ---
                     Object.entries(groupedSets).map(([exerciseName, sets]) => (
                       <details 
                         key={exerciseName} 
@@ -120,20 +175,21 @@ export default async function HistoryPage() {
                         
                         <div className="mt-3 flex flex-col gap-2 border-t border-secondary/50 pt-3 text-sm">
                           {sets.map((set: any) => (
-                            <div key={set.id} className="flex items-center justify-between">
-                              <span className="text-muted-foreground font-medium flex items-center gap-2">
-                                Set {set.set_number} 
-                                <span className="text-[10px] uppercase tracking-wider bg-secondary px-1.5 py-0.5 rounded-md">
-                                  {set.set_type}
+                            <div key={set.id} className="flex flex-col py-1 border-b last:border-0 border-secondary/50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground font-medium flex items-center gap-2">
+                                  Set {set.set_number} 
+                                  <span className="text-[10px] uppercase tracking-wider bg-secondary px-1.5 py-0.5 rounded-md">
+                                    {set.set_type}
+                                  </span>
                                 </span>
-                              </span>
-                              <span className="font-bold">
-                                {set.weight > 0 ? `${set.weight}kg \u00D7 ` : ""}{set.reps} 
-                                <span className="font-normal text-muted-foreground ml-1">
-                                  (RIR {set.rir})
+                                <span className="font-bold">
+                                  {set.weight > 0 ? `${set.weight}kg \u00D7 ` : ""}{set.reps} 
+                                  <span className="font-normal text-muted-foreground ml-1">
+                                    (RIR {set.rir})
+                                  </span>
                                 </span>
-                              </span>
-							  {/* AFIȘAREA NOTIȚEI */}
+                              </div>
                               {set.notes && (
                                 <div className="text-xs text-blue-500/80 italic mt-1 bg-blue-500/10 px-2 py-1 rounded-md w-fit">
                                   📝 {set.notes}
