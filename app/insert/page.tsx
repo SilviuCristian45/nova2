@@ -12,7 +12,22 @@ import { saveWorkout } from "./action"
 
 const DRAFT_KEY = "workout_draft_v1"
 
+// --- FUNCȚIE PENTRU ETICHETE COLORATE ---
+const getSetTypeBadge = (type: string) => {
+  const t = type?.toLowerCase() || ""
+  if (t.includes("warm") || t.includes("încălzire")) return <span className="bg-blue-500/15 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Warmup</span>
+  if (t.includes("feeder")) return <span className="bg-yellow-500/15 text-yellow-600 dark:text-yellow-500 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Feeder</span>
+  if (t.includes("work")) return <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-500 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Working</span>
+  if (t.includes("top")) return <span className="bg-purple-500/15 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Top Set</span>
+  if (t.includes("back") || t.includes("backoff")) return <span className="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">Backoff</span>
+  if (t.includes("drop") || t.includes("fail")) return <span className="bg-red-500/15 text-red-600 dark:text-red-500 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">{type}</span>
+  
+  // Default (dacă adaugi alte tipuri de seturi în viitor)
+  return <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">{type}</span>
+}
+
 export default function InsertWorkoutPage() {
+// ... restul codului tău rămâne la fel
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -194,7 +209,7 @@ export default function InsertWorkoutPage() {
     setRir("")
     setNotes("")
   }
-  
+
   function handleAddCardio(e: React.FormEvent) {
     e.preventDefault()
     if (!cardioActivity || cardioDuration === "") return
@@ -388,15 +403,36 @@ export default function InsertWorkoutPage() {
         </h3>
 
         {mode === "strength" && sessionSets.map((s) => (
-          <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg bg-card text-sm">
-            <div>
-              <span className="font-semibold mr-2">{s.setNumber}.</span>
-              <span className="font-medium">{s.exercise}</span>
-              <div className="text-muted-foreground text-xs mt-1">
-                {s.weight > 0 ? `${s.weight}kg x ` : ""}{s.reps} reps | RIR: {s.rir} | {s.setType}
+          <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg bg-card text-sm shadow-sm">
+            <div className="flex flex-col gap-1.5">
+              {/* RÂNDUL 1: Nume exercițiu + Badge Colorat */}
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-muted-foreground">{s.setNumber}.</span>
+                <span className="font-semibold">{s.exercise}</span>
+                {getSetTypeBadge(s.setType)}
+              </div>
+              
+              {/* RÂNDUL 2: Greutate, Repetări, RIR și Notițe */}
+              <div className="text-muted-foreground text-xs flex items-center flex-wrap gap-x-2 gap-y-1">
+                <span>
+                  {s.weight > 0 ? <span className="font-bold text-foreground">{s.weight}kg</span> : ""}
+                  {s.weight > 0 ? " \u00D7 " : ""}
+                  <span className="font-bold text-foreground">{s.reps}</span> reps
+                </span>
+                <span className="opacity-50">•</span> 
+                <span>RIR: {s.rir}</span>
+                
+                {/* Dacă a lăsat o notiță, o afișăm și aici! */}
+                {s.notes && (
+                  <>
+                    <span className="opacity-50">•</span>
+                    <span className="text-blue-500/80 italic">📝 {s.notes}</span>
+                  </>
+                )}
               </div>
             </div>
-            <button onClick={() => setSessionSets(prev => prev.filter(x => x.id !== s.id))} className="p-2 text-muted-foreground hover:text-red-500">
+            
+            <button onClick={() => setSessionSets(prev => prev.filter(x => x.id !== s.id))} className="p-2 text-muted-foreground hover:text-red-500 transition-colors bg-secondary/20 hover:bg-red-500/10 rounded-md">
               <Trash2 className="size-4" />
             </button>
           </div>
