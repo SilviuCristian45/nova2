@@ -3,12 +3,12 @@
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2 } from "lucide-react"
+import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2, Search } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import confetti from "canvas-confetti"
 
-import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType } from "@/lib/workout-data"
 import { saveWorkout } from "./action"
+import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 
 const DRAFT_KEY = "workout_draft_v1"
 
@@ -27,7 +27,6 @@ const getSetTypeBadge = (type: string) => {
 }
 
 export default function InsertWorkoutPage() {
-// ... restul codului tău rămâne la fel
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -40,19 +39,34 @@ export default function InsertWorkoutPage() {
 
   // Formular Strength
   const [split, setSplit] = useState<Split>("Push")
-  const [exercise, setExercise] = useState(EXERCISES[0])
+  // NOU: Lista de exerciții care se schimbă dinamic
+  const [availableExercises, setAvailableExercises] = useState<string[]>(getExercisesForSplit("Push"))
+  const [exercise, setExercise] = useState(availableExercises[0])
   const [setNumber, setSetNumber] = useState(1)
   const [reps, setReps] = useState("")
   const [weight, setWeight] = useState("")
   const [rir, setRir] = useState("")
   const [setType, setSetType] = useState<SetType>("Working Set")
 
+  // --- NOU: State pentru căutarea exercițiilor ---
+  const [exerciseQuery, setExerciseQuery] = useState("")
+  const [isExerciseOpen, setIsExerciseOpen] = useState(false)
+
   // State pentru "Ultima Oară"
   const [lastPerformance, setLastPerformance] = useState<string | null>(null)
+  
   // Formular Cardio
   const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
   const [cardioDuration, setCardioDuration] = useState("")
   
+  // --- LOGICĂ NOUĂ: Când se schimbă SPLIT-ul, resetăm exercițiile ---
+  useEffect(() => {
+    const newExercises = getExercisesForSplit(split)
+    setAvailableExercises(newExercises)
+    setExercise(newExercises[0]) // Auto-selectează primul exercițiu din noul split
+    setExerciseQuery("") // Golește textul căutat dacă exista
+  }, [split])
+
   // Obiectul care ține minte recordul setului
   const [bestPerformance, setBestPerformance] = useState<{
     weight: number;
@@ -60,7 +74,6 @@ export default function InsertWorkoutPage() {
     rir: number;
     notes?: string;
   } | null>(null)
-
 
   // --- FETCH ULTIMA PERFORMANȚĂ ---
   useEffect(() => {
@@ -79,14 +92,14 @@ export default function InsertWorkoutPage() {
         .select("weight, reps, rir, created_at, set_type, notes")
         .eq("user_id", user.id)
         .eq("exercise", exercise)
-        //.eq("set_type", SET_TYPES[2])
         .order("created_at", { ascending: false })
-		.order("weight", { ascending: false })
-		.order("reps", { ascending: false })
+        .order("weight", { ascending: false })
+        .order("reps", { ascending: false })
         .limit(10)
 
       if (error || !data || data.length === 0) {
         setLastPerformance("Exercițiu nou. Setează primul record!")
+        setBestPerformance(null)
         return
       }
 
@@ -107,7 +120,7 @@ export default function InsertWorkoutPage() {
       })
 
       const weightText = bestSet.weight > 0 ? `${bestSet.weight}kg x ` : ""
-	  const notesText = bestSet.notes ? ` 📝 (${bestSet.notes})` : "" // <--- Formatăm notița
+      const notesText = bestSet.notes ? ` 📝 (${bestSet.notes})` : "" 
 
       // Salvăm totul grupat și curat în noul state
       setBestPerformance({
@@ -124,7 +137,6 @@ export default function InsertWorkoutPage() {
   }, [exercise, mode])
 
   // --- LOGICA DE CIORNĂ (LOCAL STORAGE) ---
-  // 1. La prima încărcare, tragem datele din memorie
   useEffect(() => {
     const draft = localStorage.getItem(DRAFT_KEY)
     if (draft) {
@@ -132,7 +144,6 @@ export default function InsertWorkoutPage() {
         const parsed = JSON.parse(draft)
         if (parsed.length > 0) {
           setSessionSets(parsed)
-          // setăm următorul număr de set automat
           setSetNumber(parsed.length + 1)
         }
       } catch (e) {
@@ -141,7 +152,6 @@ export default function InsertWorkoutPage() {
     }
   }, [])
 
-  // 2. Când adaugi un set, salvăm direct în memoria browserului
   useEffect(() => {
     if (sessionSets.length > 0) {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(sessionSets))
@@ -171,7 +181,6 @@ export default function InsertWorkoutPage() {
     let isPersonalRecord = false;
 
     if (bestPerformance) {
-      // E PR dacă ai pus greutate mai mare SAU dacă ai aceeași greutate dar mai multe reps
       if (newSet.weight > bestPerformance.weight) {
         isPersonalRecord = true;
       } else if (newSet.weight === bestPerformance.weight && newSet.reps > bestPerformance.reps) {
@@ -188,7 +197,6 @@ export default function InsertWorkoutPage() {
         zIndex: 100, 
       }) 
       
-      // Actualizăm obiectul cu noile date, ca să trebuiască să le depășești pe astea la următorul set!
       setBestPerformance({
         weight: newSet.weight,
         reps: newSet.reps,
@@ -199,7 +207,6 @@ export default function InsertWorkoutPage() {
       const weightText = newSet.weight > 0 ? `${newSet.weight}kg x ` : ""
       const notesText = newSet.notes ? ` 📝 (${newSet.notes})` : ""
       
-      // Am schimbat textul în "Nou Record!" ca să te simți și mai bine
       setLastPerformance(`🏆 Nou Record: ${weightText}${newSet.reps} reps (RIR ${newSet.rir})${notesText}`)
     }
 
@@ -237,10 +244,8 @@ export default function InsertWorkoutPage() {
         return
       }
 
-      // 1. Ștergem ciorna la succes
       localStorage.removeItem(DRAFT_KEY)
 
-      // 2. DECLANȘĂM ARTIFICIILE! 🎉
       const duration = 2000;
       const end = Date.now() + duration;
 
@@ -250,7 +255,7 @@ export default function InsertWorkoutPage() {
           angle: 60,
           spread: 55,
           origin: { x: 0 },
-          colors: ['#22c55e', '#eab308', '#3b82f6'] // Culori custom (verde, galben, albastru)
+          colors: ['#22c55e', '#eab308', '#3b82f6']
         });
         confetti({
           particleCount: 5,
@@ -265,9 +270,8 @@ export default function InsertWorkoutPage() {
         }
       };
       
-      frame(); // Pornim animația
+      frame(); 
 
-      // 3. Așteptăm 1.5 secunde, apoi ne întoarcem la Istoric
       setTimeout(() => {
         router.push("/")
       }, 1500)
@@ -313,11 +317,57 @@ export default function InsertWorkoutPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 relative">
             <label className="text-sm font-medium">Exercițiu / Aparat</label>
-            <select value={exercise} onChange={(e) => setExercise(e.target.value)} className="h-10 px-3 rounded-md border bg-background text-sm">
-              {EXERCISES.map((ex) => <option key={ex} value={ex}>{ex}</option>)}
-            </select>
+            
+            {/* SEARCHABLE DROPDOWN */}
+            <div className="relative">
+              <input
+                type="text"
+                value={isExerciseOpen ? exerciseQuery : exercise}
+                onChange={(e) => {
+                  setExerciseQuery(e.target.value)
+                  setIsExerciseOpen(true)
+                }}
+                onFocus={() => {
+                  setExerciseQuery("") 
+                  setIsExerciseOpen(true)
+                }}
+                onBlur={() => {
+                  setTimeout(() => setIsExerciseOpen(false), 150)
+                }}
+                placeholder="Caută exercițiul..."
+                className="h-10 w-full pl-3 pr-10 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow shadow-sm"
+              />
+              <Search className="absolute right-3 top-3 size-4 text-muted-foreground pointer-events-none" />
+            </div>
+
+            {/* LISTA DE EXERCIȚII FILTRATĂ */}
+            {isExerciseOpen && (
+              <ul className="absolute z-[999] top-[70px] left-0 right-0 max-h-56 overflow-y-auto rounded-md border bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 p-1.5 shadow-2xl">
+                {availableExercises.filter(ex => ex.toLowerCase().includes(exerciseQuery.toLowerCase())).length > 0 ? (
+                  availableExercises.filter(ex => ex.toLowerCase().includes(exerciseQuery.toLowerCase())).map((ex) => (
+                    <li
+                      key={ex}
+                      onMouseDown={(e) => {
+                        e.preventDefault() 
+                        setExercise(ex)
+                        setIsExerciseOpen(false)
+                      }}
+                      className={`cursor-pointer rounded-md px-3 py-2 text-sm transition-colors ${
+                        exercise === ex 
+                          ? 'bg-primary/15 text-primary font-medium' 
+                          : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                      }`}
+                    >
+                      {ex}
+                    </li>
+                  ))
+                ) : (
+                  <li className="px-3 py-4 text-sm text-muted-foreground text-center">Nu s-a găsit niciun exercițiu.</li>
+                )}
+              </ul>
+            )}
 
             {/* AICI APARE MAGIA */}
             {lastPerformance && (
@@ -329,7 +379,7 @@ export default function InsertWorkoutPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 mt-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium">Set #</label>
               <input type="number" min={1} value={setNumber} onChange={(e) => setSetNumber(Number(e.target.value))} className="h-10 px-2 rounded-md border text-center text-sm" />
@@ -355,7 +405,7 @@ export default function InsertWorkoutPage() {
             </select>
           </div>
 
-		  <div className="flex flex-col gap-1.5 mt-2">
+          <div className="flex flex-col gap-1.5 mt-2">
             <label className="text-sm font-medium text-muted-foreground">Notițe (opțional, ex: scaunul la 3)</label>
             <input 
               type="text" 
