@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, BarChart3 as ChartIcon, Search, Activity, Footprints, BarChart, Zap } from "lucide-react"
+import { ArrowLeft, BarChart3 as ChartIcon, Search, Activity, Footprints, Zap } from "lucide-react"
 // Am importat componentele necesare pentru Scatter/Line Chart
-import { ComposedChart, Bar, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ZAxis } from "recharts"
+import { ComposedChart, BarChart, Bar, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ZAxis } from "recharts"
 
 import { EXERCISES, CARDIO_ACTIVITIES } from "@/lib/workout-data"
 import { createClient } from "@/utils/supabase/client"
