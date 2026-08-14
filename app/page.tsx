@@ -1,7 +1,11 @@
 import Link from "next/link"
-import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp } from "lucide-react"
+import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp, Zap } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./history/delete-button"
+import { getDailySteps } from "./steps/steps"
+import StepsInput from "./components/steps-input"
+import { getDailyGoal } from "./profiles/profile"
+import GoalSetting from "./components/goal-setting"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -69,6 +73,15 @@ export default async function HistoryPage(props: any) {
   const streak = calculateWeeklyStreak(allWorkouts || [])
   const totalSessions = allWorkouts?.length || 0
 
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todaySteps = await getDailySteps(todayStr)
+
+  // --- NOU: Preluăm target-ul personalizat ---
+  const todayGoal = await getDailyGoal()
+  
+  const isGoalAchieved = todaySteps >= todayGoal
+  const progressPercentage = Math.min(100, (todaySteps / todayGoal) * 100)
+
   // Dacă utilizatorul este pe Dashboard-ul principal (fără filtre/paginare active)
   if (!isHistoryView) {
     return (
@@ -109,6 +122,27 @@ export default async function HistoryPage(props: any) {
             )}
           </div>
         </header>
+
+		<div className="relative z-10 mb-4">
+            {/* Input-ul de pași (Component Client) */}
+            <StepsInput initialSteps={todaySteps} date={todayStr} />
+            
+            {/* BARA DE PROGRES MODERNĂ */}
+            <div className="mt-3.5 px-1">
+              <div className="flex items-center justify-between text-xs font-medium text-zinc-500 mb-1.5 font-mono">
+                <span>0</span>
+                <span className={isGoalAchieved ? 'text-emerald-400 font-bold' : ''}>
+                  {todaySteps.toLocaleString('ro-RO')} / {todayGoal.toLocaleString('ro-RO')}
+                </span>
+              </div>
+              <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden border border-zinc-700/50">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${isGoalAchieved ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-amber-500'}`}
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
 
         {/* MENIU PRINCIPAL - BUTOANE MARI STYLE APP STORE */}
         <div className="flex flex-col gap-4 my-auto py-6">
@@ -183,7 +217,10 @@ export default async function HistoryPage(props: any) {
           </Link>
         </div>
 
-		
+		{/* Componentul Client pentru setarea obiectivului */}
+		<div className="relative z-10">
+			<GoalSetting currentGoal={todayGoal} />
+		</div>
 
         {/* FOOTER DISCRET */}
         <footer className="text-center pb-2">
