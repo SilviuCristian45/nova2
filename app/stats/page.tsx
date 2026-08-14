@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, BarChart3 as ChartIcon, Search, Activity, Footprints, BarChart } from "lucide-react"
+import { ArrowLeft, BarChart3 as ChartIcon, Search, Activity, Footprints, BarChart, Zap } from "lucide-react"
 // Am importat componentele necesare pentru Scatter/Line Chart
 import { ComposedChart, Bar, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ZAxis } from "recharts"
 
