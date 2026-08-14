@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp, Zap } from "lucide-react"
+import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp, Zap} from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./history/delete-button"
 import { getDailySteps } from "./steps/steps"
