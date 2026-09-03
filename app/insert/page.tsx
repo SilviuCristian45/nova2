@@ -1,9 +1,10 @@
+
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2, Search, Zap } from "lucide-react"
+import { ArrowLeft, Dumbbell, Heart, Loader2, Save, Trash2, Search, Zap, Play, Pause, Square } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import confetti from "canvas-confetti"
 
@@ -55,6 +56,44 @@ export default function InsertWorkoutPage() {
   // Formular Cardio
   const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
   const [cardioDuration, setCardioDuration] = useState("")
+
+  // --- STATE PENTRU TIMER ---
+  const [time, setTime] = useState(0) // Timpul în secunde
+  const [isRunning, setIsRunning] = useState(false)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Curăță timerul când componenta este demontată
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
+
+  const startTimer = () => {
+    if (!isRunning) {
+      setIsRunning(true)
+      timerRef.current = setInterval(() => {
+        setTime(prev => prev + 1)
+      }, 1000)
+    }
+  }
+
+  const pauseTimer = () => {
+    setIsRunning(false)
+    if (timerRef.current) clearInterval(timerRef.current)
+  }
+
+  const resetTimer = () => {
+    pauseTimer()
+    setTime(0)
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  // --------------------------
   
   // Reset exerciții la schimbarea split-ului
   useEffect(() => {
@@ -282,6 +321,39 @@ export default function InsertWorkoutPage() {
         </div>
       </header>
 
+      {/* --- TIMER PREMIUM --- */}
+      <div className="flex items-center justify-between p-4 mb-6 border border-zinc-800/80 rounded-2xl bg-zinc-900/40 shadow-md backdrop-blur-sm">
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Timer</span>
+          <span className={`text-2xl font-mono font-bold ${isRunning ? 'text-emerald-400' : 'text-zinc-100'}`}>
+            {formatTime(time)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isRunning ? (
+            <button 
+              onClick={startTimer}
+              className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+            >
+              <Play className="size-5" />
+            </button>
+          ) : (
+            <button 
+              onClick={pauseTimer}
+              className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/20 transition-colors"
+            >
+              <Pause className="size-5" />
+            </button>
+          )}
+          <button 
+            onClick={resetTimer}
+            className="p-2.5 rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors border border-zinc-700/50"
+          >
+            <Square className="size-4" />
+          </button>
+        </div>
+      </div>
+
       {/* --- FORMULAR STRENGTH --- */}
       {mode === "strength" && (
         <form onSubmit={handleAddSet} className="flex flex-col gap-4 p-5 border border-zinc-800/80 rounded-3xl bg-zinc-900/40 shadow-xl backdrop-blur-sm mb-6">
@@ -402,7 +474,7 @@ export default function InsertWorkoutPage() {
       {mode === "cardio" && (
         <form onSubmit={handleAddCardio} className="flex flex-col gap-4 p-5 border border-zinc-800/80 rounded-3xl bg-zinc-900/40 shadow-xl backdrop-blur-sm mb-6">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1">Activitate</label>
+            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1">Activitate (LISS / HIIT)</label>
             <select value={cardioActivity} onChange={(e) => setCardioActivity(e.target.value)} className="h-12 px-4 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-200 text-sm focus:border-rose-500 outline-none transition-all">
               {CARDIO_ACTIVITIES.map((act) => <option key={act} value={act}>{act}</option>)}
             </select>
@@ -484,3 +556,4 @@ export default function InsertWorkoutPage() {
     </main>
   )
 }
+

@@ -20,7 +20,8 @@ function calculateWeeklyStreak(workouts: any[]) {
     return new Date(d.setDate(diff)).setHours(0, 0, 0, 0);
   };
   const activeWeeks = new Set(workouts.map(w => getMondayTime(w.performed_on)));
-  let checkDate = new Date();
+  console.log('active weeks', new Array(activeWeeks));   
+  let checkDate = new Date(); 
   let streak = 0;
   if (activeWeeks.has(getMondayTime(checkDate))) {
     streak++;
