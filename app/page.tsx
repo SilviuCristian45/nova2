@@ -6,6 +6,7 @@ import { getDailySteps } from "./steps/steps"
 import StepsInput from "./components/steps-input"
 import { getDailyGoal } from "./profiles/profile"
 import GoalSetting from "./components/goal-setting"
+import { Utensils } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -215,6 +216,23 @@ export default async function HistoryPage(props: any) {
               </div>
             </div>
             <span className="text-xl font-bold text-amber-500/40 group-hover:translate-x-1 transition-transform">→</span>
+          </Link>
+
+          {/* BUTON 5: NUTRIȚIE & MESE */}
+          <Link href="/meals" className="group relative flex items-center justify-between p-4 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 hover:bg-zinc-800 hover:border-orange-500/50 transition-all shadow-lg backdrop-blur-sm overflow-hidden">
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-500 group-hover:scale-110 transition-transform shadow-inner">
+                <Utensils className="size-6" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-zinc-100">Nutriție & Mese</span>
+                <span className="text-xs font-medium text-zinc-400">Jurnal alimentar și calorii</span>
+              </div>
+            </div>
+            <div className="flex size-8 items-center justify-center rounded-full bg-zinc-950 border border-zinc-800 text-zinc-500 group-hover:text-orange-400 group-hover:border-orange-500/30 transition-all relative z-10">
+              <Plus className="size-4" />
+            </div>
           </Link>
         </div>
 
