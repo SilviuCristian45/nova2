@@ -27,26 +27,29 @@ export async function saveCompleteMeal(mealType: string, items: any[]) {
     // 2. Trecem prin fiecare aliment din ciorna (draft)
     for (const item of items) {
       const { food, grams } = item
-      let foodId = food.id
+        let foodId = food.id
 
-      // Upsert produs în catalogul local (dacă vine din Open Food Facts)
-      if (!foodId && food.barcode) {
-        const { data: existingFood } = await supabase
-          .from("foods")
-          .select("id")
-          .eq("barcode", food.barcode)
-          .single()
+      // Upsert produs în catalogul local (dacă vine de pe API SAU e creat manual)
+      if (!foodId) {
+        let existingFood = null
+        
+        // Dacă are barcode, verificăm dacă nu cumva l-am mai salvat între timp
+        if (food.barcode) {
+          const { data } = await supabase.from("foods").select("id").eq("barcode", food.barcode).single()
+          existingFood = data
+        }
 
         if (existingFood) {
           foodId = existingFood.id
         } else {
+          // Inserăm produsul nou (fie că e de pe API, fie că e creat manual de user)
           const { data: newFood, error: insertError } = await supabase
             .from("foods")
             .insert({
               user_id: user.id,
               name: food.name,
-              brand: food.brand,
-              barcode: food.barcode,
+              brand: food.brand || "Creat Manual",
+              barcode: food.barcode || null,
               kcal_per_100g: food.kcal_per_100g || 0,
               protein_per_100g: food.protein_per_100g || 0,
               carbs_per_100g: food.carbs_per_100g || 0,
@@ -85,4 +88,48 @@ export async function saveCompleteMeal(mealType: string, items: any[]) {
     console.error("Eroare la salvarea mesei:", error)
     return { error: error.message || "A apărut o eroare la salvare." }
   }
+}
+
+// --- FUNCȚII PENTRU ȘABLOANE (TEMPLATES) ---
+
+export async function saveMealTemplate(name: string, items: any[]) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Neautorizat" }
+
+  try {
+    const { error } = await supabase
+      .from("meal_templates")
+      .insert({
+        user_id: user.id,
+        name: name,
+        items: items // Salvăm tot array-ul exact așa cum e în ciornă!
+      })
+
+    if (error) throw error
+    
+    revalidatePath("/meals/insert")
+    return { success: true }
+  } catch (error: any) {
+    console.error("Eroare la salvarea șablonului:", error)
+    return { error: "Nu am putut salva șablonul." }
+  }
+}
+
+export async function getUserTemplates() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from("meal_templates")
+    .select("*")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Eroare la preluarea șabloanelor:", error)
+    return []
+  }
+
+  return data || []
 }
