@@ -133,3 +133,54 @@ export async function getUserTemplates() {
 
   return data || []
 }
+
+// --- ADAUGĂ ASTEA LA FINALUL FIȘIERULUI app/meals/actions.ts ---
+
+export async function getUserTargets() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Neautorizat" }
+
+  const { data, error } = await supabase
+    .from("user_targets")
+    .select("*")
+    .eq("user_id", user.id)
+    .single()
+
+  // Dacă utilizatorul nu și-a setat încă un target (PGRST116 înseamnă Not Found în Supabase)
+  if (error && error.code !== 'PGRST116') {
+    console.error(error)
+    return { error: "Eroare la citire targeturi." }
+  }
+
+  // Returnăm datele din DB sau niște valori default de bun simț
+  return { 
+    targets: data || { kcal: 2200, protein: 160, carbs: 250, fat: 70, fiber: 30 } 
+  }
+}
+
+export async function saveUserTargets(targets: any) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Neautorizat" }
+
+  try {
+    const { error } = await supabase
+      .from("user_targets")
+      .upsert({ 
+        user_id: user.id, 
+        kcal: targets.kcal, 
+        protein: targets.protein, 
+        carbs: targets.carbs, 
+        fat: targets.fat,
+        fiber: targets.fiber,
+        updated_at: new Date().toISOString()
+      })
+      
+    if (error) throw error
+    return { success: true }
+  } catch (error: any) {
+    console.error(error)
+    return { error: "Nu s-au putut salva targeturile." }
+  }
+}
