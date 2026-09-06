@@ -17,27 +17,21 @@ const ITEMS_PER_PAGE = 5
 export default function MealsHistoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   
-  // Stocăm TOATE datele returnate de query
   const [allHistoryData, setAllHistoryData] = useState<any>({})
-  
-  // Stocăm doar ZILELE care trebuie afișate pe pagina curentă
   const [displayedDates, setDisplayedDates] = useState<string[]>([])
   
-  // State pentru Paginare și Filtre
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
-  // Funcția principală de fetch
   async function fetchHistory(isManualFilter = false) {
     setIsLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // 1. Logica pentru ultimele 30 de zile (dacă inputurile sunt goale)
     let fetchStart = startDate
     let fetchEnd = endDate
 
@@ -50,7 +44,6 @@ export default function MealsHistoryPage() {
       fetchStart = fetchStart || thirtyDaysAgo.toISOString().split('T')[0]
     }
 
-    // 2. Query-ul către Supabase cu filtrele de dată aplicate
     const { data: meals, error } = await supabase
       .from("meals")
       .select(`
@@ -84,13 +77,20 @@ export default function MealsHistoryPage() {
       return
     }
 
-    // 3. Gruparea Datelor pe Zile
     const grouped: any = {}
 
     meals?.forEach((meal: any) => {
       const date = meal.performed_on
+      
+      // Am adăugat contoare și pentru P, C, G pe întreaga zi
       if (!grouped[date]) {
-        grouped[date] = { totalKcal: 0, mealsList: [] }
+        grouped[date] = { 
+          totalKcal: 0, 
+          totalP: 0, 
+          totalC: 0, 
+          totalF: 0, 
+          mealsList: [] 
+        }
       }
 
       const items = (meal.meal_items || []).map((item: any) => {
@@ -129,27 +129,27 @@ export default function MealsHistoryPage() {
         }
       })
 
+      // Adunăm valorile în totalul zilei
       grouped[date].totalKcal += mealTotalKcal
+      grouped[date].totalP += mealTotalProtein
+      grouped[date].totalC += mealTotalCarbs
+      grouped[date].totalF += mealTotalFat
     })
 
     setAllHistoryData(grouped)
     
-    // 4. Calculăm paginarea
     const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
     setTotalPages(Math.ceil(sortedDates.length / ITEMS_PER_PAGE) || 1)
     
-    // Dacă am apăsat butonul de filtrare manual, resetăm la prima pagină
     if (isManualFilter) setPage(1)
     
     setIsLoading(false)
   }
 
-  // Se execută doar la prima încărcare a paginii
   useEffect(() => {
     fetchHistory()
   }, [])
 
-  // Când se schimbă pagina (sau datele), actualizăm zilele afișate pe ecran
   useEffect(() => {
     const sortedDates = Object.keys(allHistoryData).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
     const startIndex = (page - 1) * ITEMS_PER_PAGE
@@ -180,7 +180,6 @@ export default function MealsHistoryPage() {
             </div>
           </header>
 
-          {/* FILTRE DE DATĂ */}
           <div className="flex flex-col gap-3 mb-6 p-4 rounded-3xl bg-zinc-900/60 border border-zinc-800/80">
             <div className="flex items-center gap-2">
               <div className="flex flex-col flex-1 gap-1">
@@ -211,7 +210,6 @@ export default function MealsHistoryPage() {
             </button>
           </div>
 
-          {/* LISTA ZILELOR */}
           {isLoading ? (
             <div className="flex justify-center py-20 text-orange-500">
               <Loader2 className="size-8 animate-spin" />
@@ -228,19 +226,30 @@ export default function MealsHistoryPage() {
                   onClick={() => setSelectedDate(date)}
                   className="group flex items-center justify-between p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 hover:bg-zinc-800 hover:border-orange-500/50 transition-all text-left shadow-md"
                 >
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-2">
                     <span className="text-sm font-bold text-zinc-200 capitalize">{formatDate(date)}</span>
-                    <div className="flex items-center gap-2">
+                    
+                    {/* NOU: Rândul cu Macros și numărul de mese */}
+                    <div className="flex items-center flex-wrap gap-2">
                       <span className="text-xs text-orange-400 font-mono font-bold">
-                        {Math.round(allHistoryData[date].totalKcal)} KCAL
+                        {Math.round(allHistoryData[date].totalKcal)} Kcal
                       </span>
-                      <span className="text-zinc-600 text-xs">•</span>
-                      <span className="text-xs text-zinc-400 font-medium">
-                        {allHistoryData[date].mealsList.length} {allHistoryData[date].mealsList.length === 1 ? "masă" : "mese"}
+                      <span className="text-zinc-700 text-[10px]">|</span>
+                      
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                        <span className="text-emerald-400 font-bold">{Math.round(allHistoryData[date].totalP)}g P</span>
+                        <span className="text-cyan-400 font-bold">{Math.round(allHistoryData[date].totalC)}g C</span>
+                        <span className="text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}g G</span>
+                      </div>
+                      
+                      <span className="text-zinc-700 text-[10px]">|</span>
+                      <span className="text-[10px] text-zinc-400 font-medium">
+                        {allHistoryData[date].mealsList.length} mese
                       </span>
                     </div>
+
                   </div>
-                  <ChevronRight className="size-5 text-zinc-500 group-hover:text-orange-400 transition-colors" />
+                  <ChevronRight className="size-5 text-zinc-500 group-hover:text-orange-400 transition-colors shrink-0 ml-2" />
                 </button>
               ))}
             </div>
@@ -273,7 +282,7 @@ export default function MealsHistoryPage() {
         </div>
       )}
 
-      {/* VEDEREA 2: DETALII ZI (Rămâne aproape la fel, doar citește din allHistoryData) */}
+      {/* VEDEREA 2: DETALII ZI */}
       {selectedDate && (
         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
           <header className="flex flex-col gap-6 mb-6 mt-2">
@@ -298,7 +307,7 @@ export default function MealsHistoryPage() {
                 </span>
               </div>
               <div className="text-xs font-bold text-zinc-400 font-mono bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-800">
-                {allHistoryData[selectedDate].mealsList.length} Mese Salvate
+                {allHistoryData[selectedDate].mealsList.length} Mese
               </div>
             </div>
           </header>
