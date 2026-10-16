@@ -163,24 +163,24 @@ export default function MealsHistoryPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col p-5 bg-zinc-950 text-zinc-100">
+    <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col p-5 lg:px-10 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       
       {/* VEDEREA 1: LISTA ZILELOR + FILTRE */}
       {!selectedDate && (
         <div className="animate-in fade-in slide-in-from-left-4 duration-300 flex flex-col min-h-[90dvh]">
           <header className="flex flex-col gap-6 mb-4 mt-2">
-            <Link href="/meals" className="p-2.5 -ml-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 rounded-xl transition-all w-fit">
+            <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all w-fit">
               <ArrowLeft className="size-5" />
             </Link>
             <div className="flex items-center gap-3">
               <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-inner">
-                <CalendarDays className="size-6 text-orange-500" />
+                <CalendarDays className="size-6 text-orange-700 dark:text-orange-500" />
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight">Istoric Mese</h1>
             </div>
           </header>
 
-          <div className="flex flex-col gap-3 mb-6 p-4 rounded-3xl bg-zinc-900/60 border border-zinc-800/80">
+          <div className="flex flex-col gap-3 mb-6 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80">
             <div className="flex items-center gap-2">
               <div className="flex flex-col flex-1 gap-1">
                 <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1">De la</label>
@@ -188,7 +188,7 @@ export default function MealsHistoryPage() {
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 outline-none focus:border-orange-500"
+                  className="h-10 px-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-orange-500"
                 />
               </div>
               <div className="flex flex-col flex-1 gap-1">
@@ -197,13 +197,13 @@ export default function MealsHistoryPage() {
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 outline-none focus:border-orange-500"
+                  className="h-10 px-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-orange-500"
                 />
               </div>
             </div>
             <button 
               onClick={() => fetchHistory(true)}
-              className="h-10 w-full bg-zinc-800 text-orange-400 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-700 transition-all text-sm"
+              className="h-10 w-full bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all text-sm"
             >
               <Search className="size-4" />
               Aplică Filtre
@@ -211,45 +211,45 @@ export default function MealsHistoryPage() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-20 text-orange-500">
+            <div className="flex justify-center py-20 text-orange-700 dark:text-orange-500">
               <Loader2 className="size-8 animate-spin" />
             </div>
           ) : displayedDates.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 font-medium text-sm px-4 bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-800">
+            <div className="text-center py-10 text-zinc-500 font-medium text-sm px-4 bg-zinc-100 dark:bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
               Nu am găsit mese înregistrate pentru perioada selectată.
             </div>
           ) : (
-            <div className="flex flex-col gap-3 flex-1">
+            <div className="grid grid-cols-1 gap-3 flex-1 md:grid-cols-2">
               {displayedDates.map((date) => (
                 <button
                   key={date}
                   onClick={() => setSelectedDate(date)}
-                  className="group flex items-center justify-between p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 hover:bg-zinc-800 hover:border-orange-500/50 transition-all text-left shadow-md"
+                  className="group flex items-center justify-between p-5 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:border-orange-500/50 transition-all text-left shadow-md"
                 >
                   <div className="flex flex-col gap-2">
-                    <span className="text-sm font-bold text-zinc-200 capitalize">{formatDate(date)}</span>
+                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 capitalize">{formatDate(date)}</span>
                     
                     {/* NOU: Rândul cu Macros și numărul de mese */}
                     <div className="flex items-center flex-wrap gap-2">
-                      <span className="text-xs text-orange-400 font-mono font-bold">
+                      <span className="text-xs text-orange-700 dark:text-orange-400 font-mono font-bold">
                         {Math.round(allHistoryData[date].totalKcal)} Kcal
                       </span>
-                      <span className="text-zinc-700 text-[10px]">|</span>
+                      <span className="text-zinc-600 dark:text-zinc-700 text-[10px]">|</span>
                       
                       <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                        <span className="text-emerald-400 font-bold">{Math.round(allHistoryData[date].totalP)}g P</span>
-                        <span className="text-cyan-400 font-bold">{Math.round(allHistoryData[date].totalC)}g C</span>
-                        <span className="text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}g G</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">{Math.round(allHistoryData[date].totalP)}g P</span>
+                        <span className="text-cyan-700 dark:text-cyan-400 font-bold">{Math.round(allHistoryData[date].totalC)}g C</span>
+                        <span className="text-yellow-700 dark:text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}g G</span>
                       </div>
                       
-                      <span className="text-zinc-700 text-[10px]">|</span>
-                      <span className="text-[10px] text-zinc-400 font-medium">
+                      <span className="text-zinc-600 dark:text-zinc-700 text-[10px]">|</span>
+                      <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
                         {allHistoryData[date].mealsList.length} mese
                       </span>
                     </div>
 
                   </div>
-                  <ChevronRight className="size-5 text-zinc-500 group-hover:text-orange-400 transition-colors shrink-0 ml-2" />
+                  <ChevronRight className="size-5 text-zinc-500 group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors shrink-0 ml-2" />
                 </button>
               ))}
             </div>
@@ -257,11 +257,11 @@ export default function MealsHistoryPage() {
 
           {/* PAGINARE */}
           {!isLoading && totalPages > 1 && (
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center justify-between pb-6">
+            <div className="mt-6 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-between pb-6">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="size-10 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -273,7 +273,7 @@ export default function MealsHistoryPage() {
               <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="size-10 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -289,11 +289,11 @@ export default function MealsHistoryPage() {
             <div className="flex items-center justify-between">
               <button 
                 onClick={() => setSelectedDate(null)}
-                className="p-2.5 -ml-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 rounded-xl transition-all"
+                className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all"
               >
                 <ArrowLeft className="size-5" />
               </button>
-              <h1 className="text-sm font-bold tracking-tight text-zinc-300 capitalize">
+              <h1 className="text-sm font-bold tracking-tight text-zinc-700 dark:text-zinc-300 capitalize">
                 {formatDate(selectedDate)}
               </h1>
               <div className="size-10"></div>
@@ -301,28 +301,28 @@ export default function MealsHistoryPage() {
 
             <div className="flex items-center justify-between p-4 border border-orange-500/20 bg-orange-500/10 rounded-2xl shadow-inner">
               <div className="flex flex-col">
-                <span className="text-[10px] text-orange-500 font-bold uppercase tracking-widest">Total Zilnic</span>
-                <span className="text-2xl font-black text-zinc-100">
-                  {Math.round(allHistoryData[selectedDate].totalKcal)} <span className="text-sm text-zinc-400 font-medium">kcal</span>
+                <span className="text-[10px] text-orange-700 dark:text-orange-500 font-bold uppercase tracking-widest">Total Zilnic</span>
+                <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
+                  {Math.round(allHistoryData[selectedDate].totalKcal)} <span className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">kcal</span>
                 </span>
               </div>
-              <div className="text-xs font-bold text-zinc-400 font-mono bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-800">
+              <div className="text-xs font-bold text-zinc-600 dark:text-zinc-400 font-mono bg-white dark:bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
                 {allHistoryData[selectedDate].mealsList.length} Mese
               </div>
             </div>
           </header>
 
-          <div className="flex flex-col gap-5 pb-10">
+          <div className="grid grid-cols-1 gap-5 pb-10 lg:grid-cols-2">
             {allHistoryData[selectedDate].mealsList.map((meal: any, index: number) => (
-              <div key={meal.id} className="flex flex-col gap-3 p-4 rounded-3xl bg-zinc-900/50 border border-zinc-800/80 shadow-md">
+              <div key={meal.id} className="flex flex-col gap-3 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800/80 shadow-md">
                 
-                <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
+                <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-zinc-800/60 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="size-7 rounded-lg bg-orange-500 text-zinc-950 font-black text-xs flex items-center justify-center shadow-sm">
                       #{index + 1}
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-sm font-extrabold text-zinc-100">
+                      <span className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100">
                         Masa {index + 1}
                       </span>
                       <span className="text-[10px] text-zinc-500 font-medium">
@@ -332,45 +332,45 @@ export default function MealsHistoryPage() {
                   </div>
 
                   <div className="flex items-center gap-2 font-mono text-xs">
-                    <span className="text-orange-400 font-bold">{meal.totals.kcal} kcal</span>
-                    <span className="text-zinc-600">|</span>
-                    <span className="text-emerald-400 font-medium">{meal.totals.protein}g P</span>
+                    <span className="text-orange-700 dark:text-orange-400 font-bold">{meal.totals.kcal} kcal</span>
+                    <span className="text-zinc-500 dark:text-zinc-600">|</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">{meal.totals.protein}g P</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   {meal.items.map((item: any) => (
-                    <div key={item.id} className="p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800/50 flex flex-col gap-2">
+                    <div key={item.id} className="p-3 rounded-2xl bg-white dark:bg-zinc-950/70 border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-2">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col">
-                          <span className="font-bold text-xs text-zinc-200 leading-tight">{item.name}</span>
+                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 leading-tight">{item.name}</span>
                           {item.brand && item.brand !== "Fără Brand" && (
                             <span className="text-[9px] text-zinc-500 font-mono uppercase">{item.brand}</span>
                           )}
                         </div>
-                        <span className="text-[11px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 shrink-0 font-mono">
+                        <span className="text-[11px] font-bold bg-zinc-200 dark:bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-700 dark:text-zinc-300 shrink-0 font-mono">
                           {item.weight}g
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-5 gap-1 pt-2 border-t border-zinc-900 text-[10px] font-mono">
-                        <div className="flex items-center gap-1 text-zinc-300">
-                          <Flame className="size-3 text-orange-500" />
+                      <div className="grid grid-cols-5 gap-1 pt-2 border-t border-zinc-200 dark:border-zinc-900 text-[10px] font-mono">
+                        <div className="flex items-center gap-1 text-zinc-700 dark:text-zinc-300">
+                          <Flame className="size-3 text-orange-700 dark:text-orange-500" />
                           <span>{item.kcal}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-emerald-400">
+                        <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                           <span className="font-bold">P:</span>
                           <span>{item.protein}g</span>
                         </div>
-                        <div className="flex items-center gap-1 text-cyan-400">
+                        <div className="flex items-center gap-1 text-cyan-700 dark:text-cyan-400">
                           <span className="font-bold">C:</span>
                           <span>{item.carbs}g</span>
                         </div>
-                        <div className="flex items-center gap-1 text-yellow-400">
+                        <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400">
                           <span className="font-bold">G:</span>
                           <span>{item.fat}g</span>
                         </div>
-                        <div className="flex items-center gap-1 text-purple-400">
+                        <div className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
                           <Cookie className="size-3" />
                           <span>{item.fiber}g</span>
                         </div>

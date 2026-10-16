@@ -20,7 +20,7 @@ export default async function EditWorkoutPage({ params }: { params: Promise<{ id
     .single()
 
   if (error || !workout) {
-    return <div className="p-5 text-center text-red-500">Antrenamentul nu a fost găsit.</div>
+    return <div className="p-5 text-center text-red-700 dark:text-red-500">Antrenamentul nu a fost găsit.</div>
   }
 
   return <EditWorkoutForm initialWorkout={workout} />

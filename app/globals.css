@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
+  color-scheme: light;
+  --background: #fafafa;
   --foreground: #171717;
+  --card: #ffffff;
+  --secondary: #e4e4e7;
+  --muted-foreground: #52525b;
+  --primary: #047857;
+  --primary-foreground: #ffffff;
+  --chart-grid: #e4e4e7;
+  --chart-axis: #71717a;
+  --chart-cyan: #0e7490;
+  --chart-green: #047857;
+  --chart-rose: #be123c;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #18181b;
+  --secondary: #27272a;
+  --muted-foreground: #a1a1aa;
+  --primary: #34d399;
+  --primary-foreground: #09090b;
+  --chart-grid: #27272a;
+  --chart-axis: #a1a1aa;
+  --chart-cyan: #22d3ee;
+  --chart-green: #10b981;
+  --chart-rose: #fb7185;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--secondary);
+  }
+
+  button:not(:disabled), a, summary, select {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

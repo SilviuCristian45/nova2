@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "./components/theme-provider";
+import { ThemeToggle } from "./components/theme-toggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,11 +16,12 @@ const geistMono = Geist_Mono({
 
 // Setările pentru culorile telefonului (Status bar)
 export const viewport: Viewport = {
-  themeColor: "#000000", // Schimbă cu culoarea ta principală dacă vrei (ex: codul de la bg-background)
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Împiedică zoom-ul pe mobil când apeși rapid butoane
 };
 
 export const metadata: Metadata = {
@@ -40,9 +43,22 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system" // Poate fi "light", "dark" sau "system" (ia setarea iOS/Android)
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="mx-auto flex w-full max-w-7xl justify-end px-5 pt-3 sm:px-8">
+            <ThemeToggle />
+          </div>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
