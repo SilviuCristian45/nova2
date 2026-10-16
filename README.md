@@ -23,10 +23,25 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - In **Evoluție & Grafice → Forță**, select an exercise and period, then click **Export CSV** beside the graph. The UTF-8 CSV contains one row per plotted session with the full date, exercise, maximum working-set weight (kg), and maximum working-set repetitions. These maxima are independent, just like the graph; they need not come from the same set. Warm-up sets are excluded. The button is disabled while loading or when no data is available.
 - **ALL** includes all recorded dates through today. Chart queries are paginated to include data beyond Supabase's per-response limit.
 
+## Body weight, steps, and language
+
+- Use the English/Romanian selector next to the theme switch to change interface text. English is the default; the saved browser cookie seeds server rendering so the initial page matches your preference. Workout exercise/activity names and saved notes remain unchanged.
+- The dashboard has daily **Steps** and **Body weight** cards, each with a **View chart** link. Weight is recorded in **kg**, with up to two decimal places; either `75.5` or `75,5` is accepted. Select a date to enter or correct a past weigh-in. Saving again updates that day's entry rather than adding a duplicate.
+- **Progress & Charts** has separate **Strength**, **Cardio**, **Steps**, and **Weight** views, with the same period filters. Steps shows recorded counts and the current daily goal. Weight shows recorded weigh-ins only; unrecorded days are not zero. Each view fetches only its own data, so a weight-storage setup issue does not block the steps or strength graph.
+- Direct chart links: `/stats?mode=steps` and `/stats?mode=weight`.
+
+### Database setup for weight tracking
+
+Before using weight tracking, apply [`supabase/migrations/202610160001_daily_weight.sql`](./supabase/migrations/202610160001_daily_weight.sql) to the app's Supabase project using the **SQL Editor** (or your normal Supabase migration workflow).
+
+The migration creates `public.daily_weight`, with one record per authenticated user/date, a positive decimal kg value, and row-level security policies restricting reads and writes to the owner. It does not change the existing steps or workouts tables. No additional environment variables are needed.
+
+Until the migration is applied, the weight card and weight chart show an explicit setup error rather than claiming a weight was saved.
+
 Run the progression/export checks with Node.js 22.18+:
 
 ```bash
-node --test lib/strength-progression.test.mjs
+node --test lib/strength-progression.test.mjs lib/daily-metrics.test.mjs lib/weight-actions.test.mjs lib/language.test.mjs
 ```
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

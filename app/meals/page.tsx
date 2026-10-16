@@ -1,3 +1,4 @@
+import { Text } from "@/app/components/language-provider"
 import Link from "next/link"
 import { ArrowLeft, Plus, History, PieChart, Utensils, ScanBarcode } from "lucide-react"
 
@@ -9,12 +10,12 @@ export default function MealsHubPage() {
       <header className="flex flex-col gap-6 mb-8 mt-2">
         <Link href="/" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 w-fit">
           <ArrowLeft className="size-5" />
-        </Link>
+        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-inner">
             <Utensils className="size-6 text-orange-700 dark:text-orange-500" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Mese & Nutriție</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight"><Text ro="Mese & Nutriție" en="Meals & Nutrition" /></h1>
         </div>
       </header>
 
@@ -29,8 +30,8 @@ export default function MealsHubPage() {
               <ScanBarcode className="size-6" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Adaugă Masă</span>
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Caută RAW sau Scanează cod</span>
+              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Adaugă Masă" en="Add meal" /></span>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400"><Text ro="Caută RAW sau Scanează cod" en="Search foods or scan a barcode" /></span>
             </div>
           </div>
           <div className="flex size-8 items-center justify-center rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-500 relative z-10">
@@ -45,8 +46,8 @@ export default function MealsHubPage() {
               <History className="size-6" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Istoric Mese</span>
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Jurnalul tău alimentar</span>
+              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Istoric Mese" en="Meal history" /></span>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400"><Text ro="Jurnalul tău alimentar" en="Your food diary" /></span>
             </div>
           </div>
         </Link>
@@ -58,8 +59,8 @@ export default function MealsHubPage() {
               <PieChart className="size-6" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Statistici & Macros</span>
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Total Kcal, Proteine, Carbo</span>
+              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Statistici & Macros" en="Statistics & Macros" /></span>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400"><Text ro="Total Kcal, Proteine, Carbo" en="Calories, protein and carbs" /></span>
             </div>
           </div>
         </Link>

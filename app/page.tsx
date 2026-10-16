@@ -1,9 +1,14 @@
+import { Text } from "@/app/components/language-provider"
+import { WorkoutLabel } from "@/app/components/workout-label"
+import { getLanguage } from "@/app/language"
+import { localDate } from "@/lib/daily-metrics"
 import Link from "next/link"
 import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp, Zap} from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./history/delete-button"
 import { getDailySteps } from "./steps/steps"
 import StepsInput from "./components/steps-input"
+import WeightInput from "./components/weight-input"
 import { getDailyGoal } from "./profiles/profile"
 import GoalSetting from "./components/goal-setting"
 import { Utensils } from "lucide-react"
@@ -44,16 +49,18 @@ function calculateWeeklyStreak(workouts: any[]) {
 const PAGE_SIZE = 5 // Setat pe 5 așa cum ai agreat
 
 export default async function HistoryPage(props: any) {
+  const { t, locale } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-5 text-center bg-background text-foreground">
-        <h1 className="text-2xl font-bold mb-2">Sesiune Expirată</h1>
-        <p className="text-muted-foreground mb-6">Trebuie să te loghezi din nou pentru a continua.</p>
+        <h1 className="text-2xl font-bold mb-2"><Text ro="Sesiune Expirată" en="Session expired" /></h1>
+        <p className="text-muted-foreground mb-6"><Text ro="Trebuie să te loghezi din nou pentru a continua." en="Please sign in again to continue." /></p>
         <Link href="/login" className="px-6 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl font-bold hover:bg-emerald-400 transition-all">
-          Mergi la Login
+          <Text ro="Mergi la Login" en="Go to sign in" />
         </Link>
       </div>
     )
@@ -75,7 +82,7 @@ export default async function HistoryPage(props: any) {
   const streak = calculateWeeklyStreak(allWorkouts || [])
   const totalSessions = allWorkouts?.length || 0
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = localDate()
   const todaySteps = await getDailySteps(todayStr)
 
   // --- NOU: Preluăm target-ul personalizat ---
@@ -93,16 +100,16 @@ export default async function HistoryPage(props: any) {
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-bold">
-                {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }).toUpperCase()}
+                {new Date().toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" }).toUpperCase()}
               </span>
-              <h1 className="text-3xl font-extrabold tracking-tight mt-0.5">Ready to train?</h1>
+              <h1 className="text-3xl font-extrabold tracking-tight mt-0.5"><Text ro="Pregătit de antrenament?" en="Ready to train?" /></h1>
             </div>
             
             <div className="flex items-center gap-2">
               <Link 
                 href="/login" 
                 className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
-                title="Deconectare"
+                title={t("Deconectare", "Sign out")}
               >
                 <LogOut className="size-4" />
               </Link>
@@ -113,19 +120,26 @@ export default async function HistoryPage(props: any) {
           <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md shadow-lg">
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{user.email}</span>
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{totalSessions} sesiuni înregistrate</span>
+              <span className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{totalSessions} <Text ro="sesiuni înregistrate" en="sessions logged" /></span>
             </div>
             
             {streak > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full border border-orange-500/20 shadow-inner">
                 <Flame className="size-4 fill-orange-500/20 animate-pulse text-orange-700 dark:text-orange-500" />
-                <span className="text-xs font-extrabold">{streak} săpt.</span>
+                <span className="text-xs font-extrabold">{streak} <Text ro="săpt." en="wk" /></span>
               </div>
             )}
           </div>
         </header>
 
-		<div className="relative z-10 mb-4">
+        <div className="relative z-10 my-6 grid gap-4 md:grid-cols-2">
+          <section aria-labelledby="daily-steps-title" className="rounded-2xl border border-secondary bg-card p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="daily-steps-title" className="text-lg font-bold"><Text ro="Pași" en="Steps" /></h2>
+              <Link href="/stats?mode=steps" className="text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                <Text ro="Vezi graficul" en="View chart" />
+              </Link>
+            </div>
             {/* Input-ul de pași (Component Client) */}
             <StepsInput initialSteps={todaySteps} date={todayStr} />
             
@@ -134,7 +148,7 @@ export default async function HistoryPage(props: any) {
               <div className="flex items-center justify-between text-xs font-medium text-zinc-500 mb-1.5 font-mono">
                 <span>0</span>
                 <span className={isGoalAchieved ? 'text-emerald-700 dark:text-emerald-400 font-bold' : ''}>
-                  {todaySteps.toLocaleString('ro-RO')} / {todayGoal.toLocaleString('ro-RO')}
+                  {todaySteps.toLocaleString(locale)} / {todayGoal.toLocaleString(locale)}
                 </span>
               </div>
               <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden border border-zinc-300/50 dark:border-zinc-700/50">
@@ -144,7 +158,9 @@ export default async function HistoryPage(props: any) {
                 />
               </div>
             </div>
-          </div>
+          </section>
+          <WeightInput />
+        </div>
 
         {/* MENIU PRINCIPAL - BUTOANE MARI STYLE APP STORE */}
         <div className="my-auto grid grid-cols-1 gap-4 py-6 md:grid-cols-2">
@@ -157,8 +173,8 @@ export default async function HistoryPage(props: any) {
                 <Plus className="size-6 stroke-[3]" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-lg">Insert Workout</span>
-                <span className="text-xs font-medium opacity-80">Log today's sets & exercises</span>
+                <span className="text-lg"><Text ro="Adaugă Antrenament" en="Insert Workout" /></span>
+                <span className="text-xs font-medium opacity-80"><Text ro="Înregistrează seturile și exercițiile de azi" en="Log today's sets & exercises" /></span>
               </div>
             </div>
             <span className="text-xl font-bold opacity-60 group-hover:translate-x-1 transition-transform">→</span>
@@ -177,8 +193,8 @@ export default async function HistoryPage(props: any) {
                 <History className="size-6" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-lg">View Workouts</span>
-                <span className="text-xs text-zinc-600 dark:text-zinc-400 font-normal">Revizuiește istoricul tău</span>
+                <span className="text-lg"><Text ro="Vezi Antrenamentele" en="View Workouts" /></span>
+                <span className="text-xs text-zinc-600 dark:text-zinc-400 font-normal"><Text ro="Revizuiește istoricul tău" en="Review your workout history" /></span>
               </div>
             </div>
             <span className="text-xl font-bold text-zinc-500 group-hover:translate-x-1 transition-transform">→</span>
@@ -194,8 +210,8 @@ export default async function HistoryPage(props: any) {
                 <TrendingUp className="size-6" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-lg">Progresie & Grafice</span>
-                <span className="text-xs text-zinc-600 dark:text-zinc-400 font-normal">Urmărește-ți evoluția în timp</span>
+                <span className="text-lg"><Text ro="Progresie & Grafice" en="Progress & Charts" /></span>
+                <span className="text-xs text-zinc-600 dark:text-zinc-400 font-normal"><Text ro="Urmărește-ți evoluția în timp" en="Track your progress over time" /></span>
               </div>
             </div>
             <span className="text-xl font-bold text-zinc-500 group-hover:translate-x-1 transition-transform">→</span>
@@ -211,8 +227,8 @@ export default async function HistoryPage(props: any) {
                 <Trophy className="size-6" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-lg">Recorduri Personale</span>
-                <span className="text-xs text-amber-700/70 dark:text-amber-500/70 font-normal">Cele mai bune performanțe absolute</span>
+                <span className="text-lg"><Text ro="Recorduri Personale" en="Personal Records" /></span>
+                <span className="text-xs text-amber-700/70 dark:text-amber-500/70 font-normal"><Text ro="Cele mai bune performanțe absolute" en="Your all-time best performances" /></span>
               </div>
             </div>
             <span className="text-xl font-bold text-amber-700/40 dark:text-amber-500/40 group-hover:translate-x-1 transition-transform">→</span>
@@ -226,8 +242,8 @@ export default async function HistoryPage(props: any) {
                 <Utensils className="size-6" />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Nutriție & Mese</span>
-                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Jurnal alimentar și calorii</span>
+                <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Nutriție & Mese" en="Nutrition & Meals" /></span>
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400"><Text ro="Jurnal alimentar și calorii" en="Food diary and calories" /></span>
               </div>
             </div>
             <div className="flex size-8 items-center justify-center rounded-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-500 group-hover:text-orange-700 dark:group-hover:text-orange-400 group-hover:border-orange-500/30 transition-all relative z-10">
@@ -243,7 +259,7 @@ export default async function HistoryPage(props: any) {
 
         {/* FOOTER DISCRET */}
         <footer className="text-center pb-2">
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-600 font-mono tracking-wider">REPLOG FITNESS TRACKER</p>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-600 font-mono tracking-wider"><Text ro="REPLOG MONITORIZARE FITNESS" en="REPLOG FITNESS TRACKER" /></p>
         </footer>
       </main>
     )
@@ -280,7 +296,7 @@ export default async function HistoryPage(props: any) {
   }
 
   if (error) {
-    return <div className="p-5 text-red-700 dark:text-red-500 text-center mt-10">Eroare Supabase: {error.message}</div>
+    return <div className="p-5 text-red-700 dark:text-red-500 text-center mt-10"><Text ro="Eroare Supabase:" en="Database error:" /> {error.message}</div>
   }
 
   const totalPages = Math.ceil((count || 0) / PAGE_SIZE)
@@ -293,14 +309,14 @@ export default async function HistoryPage(props: any) {
         <div className="flex items-center gap-3">
           <Link href="/" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800">
             <ArrowLeft className="size-5" />
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight">Your Workouts</h1>
+          <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
+          <h1 className="text-2xl font-bold tracking-tight"><Text ro="Antrenamentele Tale" en="Your Workouts" /></h1>
         </div>
         
         {streak > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full border border-orange-500/20 shadow-sm">
             <Flame className="size-4 fill-orange-500/20 animate-pulse text-orange-700 dark:text-orange-500" />
-            <span className="text-xs font-bold">{streak} <span className="hidden sm:inline">săpt.</span></span>
+            <span className="text-xs font-bold">{streak} <span className="hidden sm:inline"><Text ro="săpt." en="wk" /></span></span>
           </div>
         )}
       </header>
@@ -309,21 +325,21 @@ export default async function HistoryPage(props: any) {
       <form method="GET" className="flex flex-col gap-3 mb-6 bg-zinc-100 dark:bg-zinc-900/60 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-lg backdrop-blur-md">
         <input type="hidden" name="history" value="true" />
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1">
-          <Filter className="size-3.5 text-emerald-700 dark:text-emerald-400" /> Filtrează perioada
+          <Filter className="size-3.5 text-emerald-700 dark:text-emerald-400" /> <Text ro="Filtrează perioada" en="Filter by date" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] text-zinc-500 font-medium">De la</label>
+            <label className="text-[11px] text-zinc-500 font-medium"><Text ro="De la" en="From" /></label>
             <input type="date" name="startDate" defaultValue={startDate} className="h-10 px-3 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 focus:border-emerald-500 focus:outline-none" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] text-zinc-500 font-medium">Până la</label>
+            <label className="text-[11px] text-zinc-500 font-medium"><Text ro="Până la" en="To" /></label>
             <input type="date" name="endDate" defaultValue={endDate} className="h-10 px-3 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 focus:border-emerald-500 focus:outline-none" />
           </div>
         </div>
         <input type="hidden" name="page" value="1" />
         <button type="submit" className="h-10 w-full bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs font-bold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all border border-zinc-300/50 dark:border-zinc-700/50 mt-1">
-          Aplică Filtrele
+          <Text ro="Aplică Filtrele" en="Apply filters" />
         </button>
       </form>
 
@@ -331,13 +347,13 @@ export default async function HistoryPage(props: any) {
       {workouts?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-zinc-500 text-center border border-dashed rounded-2xl border-zinc-200 dark:border-zinc-800 bg-zinc-100/20 dark:bg-zinc-900/20">
           <Dumbbell className="size-10 mb-3 opacity-20 text-emerald-700 dark:text-emerald-400" />
-          <p className="text-sm font-medium">Nu am găsit antrenamente în această perioadă.</p>
+          <p className="text-sm font-medium"><Text ro="Nu am găsit antrenamente în această perioadă." en="No workouts found for this period." /></p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {workouts?.map((workout) => {
             const isCardio = workout.workout_mode === "cardio"
-            const date = new Date(workout.performed_on).toLocaleDateString("en-US", {
+            const date = new Date(workout.performed_on).toLocaleDateString(locale, {
               weekday: "short", month: "short", day: "numeric", year: "numeric"
             }).toUpperCase()
 
@@ -362,7 +378,7 @@ export default async function HistoryPage(props: any) {
                     </div>
                     <div>
                       <h2 className="font-extrabold text-lg leading-tight text-zinc-900 dark:text-zinc-100">
-                        {isCardio ? "Cardio Session" : workout.split}
+                        {isCardio ? t("Sesiune Cardio", "Cardio session") : <WorkoutLabel value={workout.split} />}
                       </h2>
                       <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 mt-0.5">
                         <Calendar className="size-3 text-zinc-500" />
@@ -374,11 +390,11 @@ export default async function HistoryPage(props: any) {
                   <div className="flex items-center gap-2">
                     {!isCardio && (
                       <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/50 dark:border-zinc-700/50">
-                        {totalSetsCount} sets
+                        {totalSetsCount} <Text ro="seturi" en="sets" />
                       </span>
                     )}
                     <div className="flex items-center border-l border-zinc-200 dark:border-zinc-800 pl-2 ml-1 gap-1">
-                      <Link href={`/edit/${workout.id}`} className="p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-lg transition-all" title="Editează">
+                      <Link href={`/edit/${workout.id}`} className="p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-lg transition-all" title={t("Editează", "Edit")}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                       </Link>
                       <DeleteWorkoutButton id={workout.id} />
@@ -412,11 +428,11 @@ export default async function HistoryPage(props: any) {
                                 <span className="text-zinc-500 font-sans font-semibold flex items-center gap-2">
                                   #{set.set_number} 
                                   <span className="text-[10px] uppercase tracking-wider font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-300/50 dark:border-zinc-700/50">
-                                    {set.set_type}
+                                    <WorkoutLabel value={set.set_type} />
                                   </span>
                                 </span>
                                 <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                                  {set.weight > 0 ? `${set.weight} kg × ` : ""}{set.reps} reps
+                                  {set.weight > 0 ? `${set.weight} kg × ` : ""}{set.reps} <Text ro="repetări" en="reps" />
                                   <span className="font-normal text-zinc-500 ml-1.5 text-xs">
                                     ({set.rir} RIR)
                                   </span>
@@ -447,18 +463,18 @@ export default async function HistoryPage(props: any) {
             href={`?history=true&page=${Math.max(1, currentPage - 1)}&startDate=${startDate}&endDate=${endDate}`}
             className={`flex items-center gap-1 text-xs font-bold p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 transition-all ${currentPage <= 1 ? "pointer-events-none opacity-30" : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200"}`}
           >
-            <ChevronLeft className="size-4" /> Înapoi
+            <ChevronLeft className="size-4" /> <Text ro="Înapoi" en="Back" />
           </Link>
           
           <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400">
-            Pagina <strong className="text-emerald-700 dark:text-emerald-400">{currentPage}</strong> / {totalPages}
+            <Text ro="Pagina" en="Page" /> <strong className="text-emerald-700 dark:text-emerald-400">{currentPage}</strong> / {totalPages}
           </span>
           
           <Link 
             href={`?history=true&page=${Math.min(totalPages, currentPage + 1)}&startDate=${startDate}&endDate=${endDate}`}
             className={`flex items-center gap-1 text-xs font-bold p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 transition-all ${currentPage >= totalPages ? "pointer-events-none opacity-30" : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200"}`}
           >
-            Înainte <ChevronRight className="size-4" />
+            <Text ro="Înainte" en="Next" /> <ChevronRight className="size-4" />
           </Link>
         </div>
       )}

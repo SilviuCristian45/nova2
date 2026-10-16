@@ -1,5 +1,7 @@
 "use client"
 
+import { Text, useLanguage } from "@/app/components/language-provider"
+import { FoodLabel } from "@/app/components/food-label"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -21,6 +23,8 @@ const MEAL_TYPES = [
 const DRAFT_KEY = "meal_draft_v1"
 
 export default function InsertMealPage() {
+  const { t } = useLanguage()
+
   const router = useRouter()
   
   // State pentru Ciornă (Draft)
@@ -63,11 +67,11 @@ export default function InsertMealPage() {
     
     const result = await saveMealTemplate(templateName, draftItems)
     if (result.success) {
-      alert("Șablon salvat cu succes!")
+      alert(t("Șablon salvat cu succes!", "Template saved successfully!"))
       setTemplateName("")
       setShowTemplateInput(false)
     } else {
-      alert("Eroare: " + result.error)
+      alert(t("Eroare: ", "Error: ") + result.error)
     }
     setIsSavingTemplate(false)
   }
@@ -89,14 +93,14 @@ export default function InsertMealPage() {
 
     // 1. Validare Nume
     if (!customFood.name.trim()) {
-      setCustomFoodError("Te rog să introduci un nume pentru aliment.")
+      setCustomFoodError(t("Te rog să introduci un nume pentru aliment.", "Please enter a food name."))
       return
     }
 
     // 2. Validare Calorii (Kcal este obligatoriu)
     const parsedKcal = Number(customFood.kcal)
     if (customFood.kcal === "" || isNaN(parsedKcal) || parsedKcal < 0) {
-      setCustomFoodError("Caloriile trebuie să fie un număr valid (ex: 150).")
+      setCustomFoodError(t("Caloriile trebuie să fie un număr valid (ex: 150).", "Calories must be a valid number (e.g. 150)."))
       return
     }
 
@@ -106,14 +110,14 @@ export default function InsertMealPage() {
     const f = customFood.fat ? Number(customFood.fat) : 0
 
     if (isNaN(p) || isNaN(c) || isNaN(f)) {
-      setCustomFoodError("Macronutrienții (Proteine, Carbo, Grăsimi) trebuie să fie numere valide.")
+      setCustomFoodError(t("Macronutrienții (Proteine, Carbo, Grăsimi) trebuie să fie numere valide.", "Macronutrients (protein, carbs, fat) must be valid numbers."))
       return
     }
 
     // 4. Validare Gramaj
     const parsedGrams = Number(grams)
     if (!grams || isNaN(parsedGrams) || parsedGrams <= 0) {
-      setCustomFoodError("Porția mâncată trebuie să fie un număr mai mare ca zero.")
+      setCustomFoodError(t("Porția mâncată trebuie să fie un număr mai mare ca zero.", "The portion must be greater than zero."))
       return
     }
 
@@ -198,7 +202,7 @@ export default function InsertMealPage() {
         setSelectedFood(data.data)
         setResults([]) 
       } else {
-        alert("Produsul nu a fost găsit.")
+        alert(t("Produsul nu a fost găsit.", "Product not found."))
       }
     } catch (err) {
       console.error(err)
@@ -242,7 +246,7 @@ export default function InsertMealPage() {
         router.push("/meals/history")
       }, 1500)
     } else {
-      alert("Eroare: " + result.error)
+      alert(t("Eroare: ", "Error: ") + result.error)
       setIsSavingComplete(false)
     }
   }
@@ -265,8 +269,8 @@ export default function InsertMealPage() {
         <div className="flex items-center justify-between">
           <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all">
             <ArrowLeft className="size-5" />
-          </Link>
-          <h1 className="text-xl font-bold tracking-tight">Adaugă Masă</h1>
+          <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
+          <h1 className="text-xl font-bold tracking-tight"><Text ro="Adaugă Masă" en="Add meal" /></h1>
           <div className="size-10"></div>
         </div>
         
@@ -281,7 +285,7 @@ export default function InsertMealPage() {
                   : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-transparent"
               }`}
             >
-              {type.label}
+              {t(type.label, type.id)}
             </button>
           ))}
         </div>
@@ -292,37 +296,37 @@ export default function InsertMealPage() {
       {/* SEARCH BAR */}
       {/* TABS: CĂUTARE / ȘABLOANE */}
       <div className="flex bg-zinc-100 dark:bg-zinc-900/60 p-1 rounded-2xl mb-4 border border-zinc-200/80 dark:border-zinc-800/80">
-        <button onClick={() => setActiveTab("search")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${activeTab === "search" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}>Căutare Aliment</button>
-        <button onClick={() => setActiveTab("templates")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === "templates" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}><Bookmark className="size-3"/> Mesele Mele</button>
+        <button onClick={() => setActiveTab("search")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${activeTab === "search" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}><Text ro="Căutare Aliment" en="Find food" /></button>
+        <button onClick={() => setActiveTab("templates")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === "templates" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}><Bookmark className="size-3"/> <Text ro="Mesele Mele" en="My meals" /></button>
       </div>
 
       {activeTab === "search" ? (
         <form onSubmit={handleSearch} className="flex items-center gap-2 mb-6">
           <div className="relative flex-1">
-            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Caută (ex: orez)..." className="h-14 w-full pl-12 pr-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/80 text-zinc-900 dark:text-zinc-100 font-semibold focus:border-orange-500 outline-none shadow-inner" />
+            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Caută (ex: orez)...", "Search (e.g. rice)...")} className="h-14 w-full pl-12 pr-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/80 text-zinc-900 dark:text-zinc-100 font-semibold focus:border-orange-500 outline-none shadow-inner" />
             <Search className="absolute left-4 top-4 size-5 text-zinc-500" />
           </div>
           <button type="button" onClick={() => setIsScanning(true)} className="size-14 flex items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-orange-700 dark:text-orange-400 shrink-0">
             <ScanBarcode className="size-6" />
-          </button>
+          <span className="sr-only"><Text ro="Scanează codul de bare" en="Scan barcode" /></span></button>
         </form>
       ) : (
         /* LISTA DE ȘABLOANE SALVATE */
         <div className="flex flex-col gap-3 mb-6 animate-in fade-in">
           {templates.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 text-sm">Nu ai niciun șablon salvat încă.</div>
+            <div className="text-center py-10 text-zinc-500 text-sm"><Text ro="Nu ai niciun șablon salvat încă." en="You have no saved templates yet." /></div>
           ) : (
             templates.map(tpl => (
               <div key={tpl.id} className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-3 hover:border-orange-500/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-zinc-900 dark:text-zinc-100">{tpl.name}</span>
-                  <span className="text-xs font-mono text-orange-700 dark:text-orange-400">{tpl.items.length} alimente</span>
+                  <span className="text-xs font-mono text-orange-700 dark:text-orange-400">{tpl.items.length} <Text ro="alimente" en="foods" /></span>
                 </div>
                 <div className="text-xs text-zinc-500 line-clamp-1">
                   {tpl.items.map((i: any) => i.food.name).join(", ")}
                 </div>
                 <button onClick={() => loadTemplateIntoDraft(tpl.items)} className="mt-1 h-10 w-full bg-orange-500/10 text-orange-700 dark:text-orange-400 font-bold rounded-xl border border-orange-500/20 hover:bg-orange-500/20 transition-all flex justify-center items-center gap-2">
-                  <Plus className="size-4"/> Adaugă în Ciornă
+                  <Plus className="size-4"/> <Text ro="Adaugă în Ciornă" en="Add to draft" />
                 </button>
               </div>
             ))
@@ -337,15 +341,15 @@ export default function InsertMealPage() {
           <div className="relative z-10">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 leading-tight">{selectedFood.name}</h3>
-                <p className="text-xs text-orange-700/80 dark:text-orange-400/80 font-mono mb-4">{selectedFood.brand}</p>
+                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 leading-tight"><FoodLabel value={selectedFood.name} /></h3>
+                <p className="text-xs text-orange-700/80 dark:text-orange-400/80 font-mono mb-4"><FoodLabel value={selectedFood.brand || ""} /></p>
               </div>
-              <button onClick={() => setSelectedFood(null)} className="p-1 text-zinc-500 hover:text-red-700 dark:hover:text-red-400"><Trash2 className="size-4"/></button>
+              <button onClick={() => setSelectedFood(null)} className="p-1 text-zinc-500 hover:text-red-700 dark:hover:text-red-400"><Trash2 className="size-4"/><span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
             </div>
             
             <div className="flex items-end gap-3">
               <div className="flex flex-col gap-1.5 flex-1">
-                <label className="text-[11px] uppercase font-bold text-zinc-500 pl-1">Grame</label>
+                <label className="text-[11px] uppercase font-bold text-zinc-500 pl-1"><Text ro="Grame" en="Grams" /></label>
                 <input 
                   type="number" min="1" value={grams} onChange={(e) => setGrams(e.target.value)}
                   className="h-12 px-4 rounded-xl border border-orange-500/30 bg-white dark:bg-zinc-950 text-orange-700 dark:text-orange-400 text-lg font-bold outline-none"
@@ -356,7 +360,7 @@ export default function InsertMealPage() {
                 onClick={handleAddToDraft}
                 className="h-12 px-6 flex items-center gap-2 rounded-xl bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30 font-bold hover:bg-orange-500 hover:text-zinc-950 transition-all active:scale-95"
               >
-                <Plus className="size-5" /> Adaugă
+                <Plus className="size-5" /> <Text ro="Adaugă" en="Add" />
               </button>
             </div>
           </div>
@@ -373,9 +377,9 @@ export default function InsertMealPage() {
           {/* Formularul de Creare Manuală */}
           {isCreatingCustom ? (
             <div className="p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/80 border border-orange-500/30 flex flex-col gap-3 animate-in fade-in">
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Creare Aliment Manual (per 100g)</h3>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Creare Aliment Manual (per 100g)" en="Create custom food (per 100g)" /></h3>
               
-              <input type="text" placeholder="Nume aliment..." value={customFood.name} onChange={e => setCustomFood({...customFood, name: e.target.value})} className="h-12 px-4 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-sm outline-none focus:border-orange-500" />
+              <input type="text" placeholder={t("Nume aliment...", "Food name...")} value={customFood.name} onChange={e => setCustomFood({...customFood, name: e.target.value})} className="h-12 px-4 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-sm outline-none focus:border-orange-500" />
               
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
@@ -383,29 +387,29 @@ export default function InsertMealPage() {
                   <input type="number" placeholder="0" value={customFood.kcal} onChange={e => setCustomFood({...customFood, kcal: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-orange-500 text-orange-700 dark:text-orange-400 font-bold" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1">Proteine</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Proteine" en="Protein" /></label>
                   <input type="number" placeholder="0" value={customFood.protein} onChange={e => setCustomFood({...customFood, protein: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 font-bold" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1">Carbo</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Carbo" en="Carbs" /></label>
                   <input type="number" placeholder="0" value={customFood.carbs} onChange={e => setCustomFood({...customFood, carbs: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-cyan-500 text-cyan-700 dark:text-cyan-400 font-bold" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1">Grăsimi</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Grăsimi" en="Fat" /></label>
                   <input type="number" placeholder="0" value={customFood.fat} onChange={e => setCustomFood({...customFood, fat: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-500 text-yellow-700 dark:text-yellow-400 font-bold" />
                 </div>
               </div>
 
               <div className="flex items-end gap-2 mt-2">
                 <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1">Porție mâncată (g)</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Porție mâncată (g)" en="Portion eaten (g)" /></label>
                   <input type="number" value={grams} onChange={e => setGrams(e.target.value)} className="h-12 px-3 rounded-xl bg-white dark:bg-zinc-950 border border-orange-500/30 outline-none text-zinc-900 dark:text-zinc-100 font-bold" />
                 </div>
                 <button onClick={handleAddCustomFoodToDraft} className="h-12 px-6 bg-orange-500 text-zinc-950 font-bold rounded-xl flex items-center gap-2 hover:bg-orange-400">
-                  <Plus className="size-4" /> Adaugă
+                  <Plus className="size-4" /> <Text ro="Adaugă" en="Add" />
                 </button>
               </div>
-              <button onClick={() => setIsCreatingCustom(false)} className="text-xs text-zinc-500 mt-2 hover:text-zinc-700 dark:hover:text-zinc-300">Anulează</button>
+              <button onClick={() => setIsCreatingCustom(false)} className="text-xs text-zinc-500 mt-2 hover:text-zinc-700 dark:hover:text-zinc-300"><Text ro="Anulează" en="Cancel" /></button>
             </div>
           ) : (
             <>
@@ -416,7 +420,7 @@ export default function InsertMealPage() {
                   className="flex items-center justify-between p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all text-left"
                 >
                   <div className="flex flex-col pr-4">
-                    <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 line-clamp-1">{food.name}</span>
+                    <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 line-clamp-1"><FoodLabel value={food.name} /></span>
                     <span className="text-xs text-zinc-500 font-mono">{food.kcal_per_100g} kcal / 100g</span>
                   </div>
                   <Plus className="size-4 text-zinc-500 shrink-0" />
@@ -428,7 +432,7 @@ export default function InsertMealPage() {
                   onClick={() => setIsCreatingCustom(true)}
                   className="mt-2 p-3 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:text-orange-700 dark:hover:text-orange-400 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all flex items-center justify-center gap-2"
                 >
-                  <Plus className="size-4" /> Nu găsești ce cauți? Creează aliment
+                  <Plus className="size-4" /> <Text ro="Nu găsești ce cauți? Creează aliment" en="Can't find your food? Create it" />
                 </button>
               )}
             </>
@@ -446,14 +450,14 @@ export default function InsertMealPage() {
           {/* HEADER TOTALURI MASĂ */}
           <div className="flex flex-col gap-1.5 px-2 mt-4 bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-2xl shadow-inner">
             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-200/60 dark:border-zinc-800/60 pb-1.5 mb-1">
-              Total Masă
+              <Text ro="Total Masă" en="Meal total" />
             </h3>
             <div className="flex items-center justify-between text-xs font-mono font-bold">
               <span className="text-orange-700 dark:text-orange-400 text-sm">{Math.round(draftTotals.kcal)} kcal</span>
               <div className="flex gap-3">
                 <span className="text-emerald-700 dark:text-emerald-400">{Math.round(draftTotals.p * 10) / 10}g P</span>
                 <span className="text-cyan-700 dark:text-cyan-400">{Math.round(draftTotals.c * 10) / 10}g C</span>
-                <span className="text-yellow-700 dark:text-yellow-400">{Math.round(draftTotals.f * 10) / 10}g G</span>
+                <span className="text-yellow-700 dark:text-yellow-400">{Math.round(draftTotals.f * 10) / 10}<Text ro="g G" en="g F" /></span>
               </div>
             </div>
           </div>
@@ -472,7 +476,7 @@ export default function InsertMealPage() {
                 <div key={item.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/40 relative overflow-hidden">
                   <div className="flex items-start justify-between z-10 relative">
                     <div className="flex flex-col">
-                      <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 leading-tight">{item.food.name}</span>
+                      <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 leading-tight"><FoodLabel value={item.food.name} /></span>
                       <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{item.grams}g</span>
                     </div>
                     <button 
@@ -480,7 +484,7 @@ export default function InsertMealPage() {
                       className="p-1.5 text-red-700/70 dark:text-red-500/70 hover:text-red-700 dark:hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors active:scale-95 shrink-0"
                     >
                       <Trash2 className="size-4" />
-                    </button>
+                    <span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
                   </div>
 
                   {/* RANDUL CU MACRO-URI PENTRU ITEM-UL CURENT */}
@@ -498,7 +502,7 @@ export default function InsertMealPage() {
                       <span>{itemC}g</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] font-mono text-yellow-700 dark:text-yellow-400">
-                      <span className="font-bold">G:</span>
+                      <span className="font-bold"><Text ro="G:" en="F:" /></span>
                       <span>{itemF}g</span>
                     </div>
                   </div>
@@ -524,7 +528,7 @@ export default function InsertMealPage() {
             className="h-14 w-full mt-4 bg-emerald-500 text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20"
           >
             {isSavingComplete ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-            Finalizează Masa
+            <Text ro="Finalizează Masa" en="Finish meal" />
           </button>
           {/* SECȚIUNE SALVARE ȘABLON (TEMPLATE) */}
           <div className="mt-2 flex flex-col gap-2">
@@ -533,13 +537,13 @@ export default function InsertMealPage() {
                 onClick={() => setShowTemplateInput(true)}
                 className="h-12 w-full border border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-zinc-600 dark:text-zinc-400 text-sm font-bold flex items-center justify-center gap-2 hover:border-orange-500/50 hover:text-orange-700 dark:hover:text-orange-400 transition-all"
               >
-                <BookmarkPlus className="size-4" /> Salvează combinația ca Șablon
+                <BookmarkPlus className="size-4" /> <Text ro="Salvează combinația ca Șablon" en="Save this combination as a template" />
               </button>
             ) : (
               <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-900 rounded-2xl border border-orange-500/30 animate-in fade-in">
                 <input 
                   type="text" 
-                  placeholder="Nume (ex: Omletă dimineață)..."
+                  placeholder={t("Nume (ex: Omletă dimineață)...", "Name (e.g. Morning omelette)...")}
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   className="flex-1 h-10 bg-transparent px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
@@ -549,9 +553,9 @@ export default function InsertMealPage() {
                   disabled={isSavingTemplate}
                   className="h-10 px-4 bg-orange-500 text-zinc-950 text-xs font-bold rounded-xl hover:bg-orange-400"
                 >
-                  {isSavingTemplate ? "..." : "Salvează"}
+                  {isSavingTemplate ? "..." : t("Salvează", "Save")}
                 </button>
-                <button onClick={() => setShowTemplateInput(false)} className="px-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"><Trash2 className="size-4"/></button>
+                <button onClick={() => setShowTemplateInput(false)} className="px-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"><Trash2 className="size-4"/><span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
               </div>
             )}
           </div>

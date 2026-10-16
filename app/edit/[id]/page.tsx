@@ -1,3 +1,4 @@
+import { Text } from "@/app/components/language-provider"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EditWorkoutForm from "./edit-form"
@@ -20,7 +21,7 @@ export default async function EditWorkoutPage({ params }: { params: Promise<{ id
     .single()
 
   if (error || !workout) {
-    return <div className="p-5 text-center text-red-700 dark:text-red-500">Antrenamentul nu a fost găsit.</div>
+    return <div className="p-5 text-center text-red-700 dark:text-red-500"><Text ro="Antrenamentul nu a fost găsit." en="Workout not found." /></div>
   }
 
   return <EditWorkoutForm initialWorkout={workout} />

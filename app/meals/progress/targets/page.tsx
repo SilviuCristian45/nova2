@@ -1,5 +1,6 @@
 "use client"
 
+import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -7,6 +8,8 @@ import { ArrowLeft, Target, Save, Loader2, Flame, Wheat, Droplet, Cookie } from 
 import { getUserTargets, saveUserTargets } from "@/app/meals/action"
 
 export default function EditTargetsPage() {
+  const { t } = useLanguage()
+
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -27,7 +30,7 @@ export default function EditTargetsPage() {
     if (res.success) {
       router.push("/meals/progress") // Ne întoarcem la dashboard
     } else {
-      alert("Eroare la salvare!")
+      alert(t("Eroare la salvare!", "Could not save!"))
       setIsSaving(false)
     }
   }
@@ -40,9 +43,9 @@ export default function EditTargetsPage() {
       <header className="flex items-center gap-4 mb-8 mt-2">
         <Link href="/meals/progress" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all">
           <ArrowLeft className="size-5" />
-        </Link>
+        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
         <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-          <Target className="size-6 text-orange-700 dark:text-orange-500" /> Obiectivele Tale
+          <Target className="size-6 text-orange-700 dark:text-orange-500" /> <Text ro="Obiectivele Tale" en="Your goals" />
         </h1>
       </header>
 
@@ -51,7 +54,7 @@ export default function EditTargetsPage() {
         {/* KCAL */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-orange-500/30">
           <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-            <Flame className="size-4 text-orange-700 dark:text-orange-500" /> Total Calorii (Kcal)
+            <Flame className="size-4 text-orange-700 dark:text-orange-500" /> <Text ro="Total Calorii (Kcal)" en="Total calories (kcal)" />
           </label>
           <input 
             type="number" 
@@ -65,7 +68,7 @@ export default function EditTargetsPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <div className="size-3 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-[6px]">P</div> Proteine (g)
+              <div className="size-3 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-[6px]">P</div> <Text ro="Proteine (g)" en="Protein (g)" />
             </label>
             <input 
               type="number" value={targets.protein} onChange={e => setTargets({...targets, protein: Number(e.target.value)})}
@@ -75,7 +78,7 @@ export default function EditTargetsPage() {
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Wheat className="size-3 text-cyan-700 dark:text-cyan-400" /> Carbohidrați (g)
+              <Wheat className="size-3 text-cyan-700 dark:text-cyan-400" /> <Text ro="Carbohidrați (g)" en="Carbohydrates (g)" />
             </label>
             <input 
               type="number" value={targets.carbs} onChange={e => setTargets({...targets, carbs: Number(e.target.value)})}
@@ -85,7 +88,7 @@ export default function EditTargetsPage() {
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Droplet className="size-3 text-yellow-700 dark:text-yellow-400" /> Grăsimi (g)
+              <Droplet className="size-3 text-yellow-700 dark:text-yellow-400" /> <Text ro="Grăsimi (g)" en="Fat (g)" />
             </label>
             <input 
               type="number" value={targets.fat} onChange={e => setTargets({...targets, fat: Number(e.target.value)})}
@@ -95,7 +98,7 @@ export default function EditTargetsPage() {
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Cookie className="size-3 text-purple-700 dark:text-purple-400" /> Fibre (g)
+              <Cookie className="size-3 text-purple-700 dark:text-purple-400" /> <Text ro="Fibre (g)" en="Fibre (g)" />
             </label>
             <input 
               type="number" value={targets.fiber} onChange={e => setTargets({...targets, fiber: Number(e.target.value)})}
@@ -110,7 +113,7 @@ export default function EditTargetsPage() {
           className="mt-6 h-14 w-full bg-emerald-500 text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-400 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
         >
           {isSaving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-          Salvează Obiectivele
+          <Text ro="Salvează Obiectivele" en="Save goals" />
         </button>
 
       </div>

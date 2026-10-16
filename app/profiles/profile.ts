@@ -1,6 +1,7 @@
 // app/actions/profile.ts
 "use server"
 
+import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -21,15 +22,17 @@ export async function getDailyGoal() {
 
 // Actualizează targetul zilnic
 export async function updateDailyGoal(formData: FormData) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Neautorizat" }
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
 
   const goalStr = formData.get("dailyGoal") as string
   const goal = parseInt(goalStr, 10)
 
   if (isNaN(goal) || goal <= 0) {
-    return { error: "Targetul trebuie să fie un număr pozitiv" }
+    return { error: t("Targetul trebuie să fie un număr pozitiv", "The goal must be a positive number") }
   }
 
   const { error } = await supabase

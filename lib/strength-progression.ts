@@ -20,6 +20,7 @@ export type StrengthPoint = {
 export function getStrengthProgression(
   workouts: StrengthWorkout[],
   exercise: string,
+  locale = "en-US",
 ): StrengthPoint[] {
   return workouts.flatMap((workout) => {
     if (workout.workout_mode !== "strength") return [];
@@ -34,7 +35,7 @@ export function getStrengthProgression(
     return [{
       performedOn: workout.performed_on,
       date: new Date(`${workout.performed_on}T00:00:00`).toLocaleDateString(
-        "en-US",
+        locale,
         { month: "short", day: "numeric" },
       ),
       weight: Math.max(...sets.map((set) => Number(set.weight) || 0)),

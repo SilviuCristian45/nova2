@@ -1,3 +1,5 @@
+import { Text } from "@/app/components/language-provider"
+import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -14,6 +16,8 @@ function calculate1RM(weight: number, reps: number) {
 }
 
 export default async function RecordsPage() {
+  const { locale } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -29,7 +33,7 @@ export default async function RecordsPage() {
     .gt("weight", 0) // Ignorăm seturile cu greutate 0 (ex: bodyweight fără extra greutate)
 
   if (error) {
-    return <div className="p-5 text-red-700 dark:text-red-500 font-bold">Eroare la încărcarea recordurilor: {error.message}</div>
+    return <div className="p-5 text-red-700 dark:text-red-500 font-bold"><Text ro="Eroare la încărcarea recordurilor:" en="Could not load records:" /> {error.message}</div>
   }
 
   // Grupăm și calculăm cel mai bun set pentru fiecare exercițiu
@@ -44,7 +48,7 @@ export default async function RecordsPage() {
         weight: set.weight,
         reps: set.reps,
         rir: set.rir,
-        date: new Date(set.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        date: new Date(set.created_at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }),
         oneRM: current1RM
       })
     }
@@ -62,12 +66,12 @@ export default async function RecordsPage() {
       <header className="flex flex-col gap-6 mb-6 mt-2">
         <Link href="/" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 w-fit">
           <ArrowLeft className="size-5" />
-        </Link>
+        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
             <Trophy className="size-6 text-amber-700 dark:text-amber-500" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Recorduri Personale</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight"><Text ro="Recorduri Personale" en="Personal Records" /></h1>
         </div>
       </header>
 
@@ -78,17 +82,17 @@ export default async function RecordsPage() {
         
         <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-xs">
           <AlertTriangle className="size-4 shrink-0" />
-          Atenție
+          <Text ro="Atenție" en="Caution" />
         </div>
         <p className="text-amber-700/80 dark:text-amber-500/80 leading-relaxed font-medium">
-          <strong>1RM (One Rep Max)</strong> este doar o estimare matematică bazată pe cel mai bun set al tău. Nu încerca niciodată greutatea maximă estimată fără o încălzire completă și progresivă!
+          <strong><Text ro="1RM (O repetare maximă)" en="1RM (One Rep Max)" /></strong> <Text ro="este doar o estimare matematică bazată pe cel mai bun set al tău. Nu încerca niciodată greutatea maximă estimată fără o încălzire completă și progresivă!" en="is only a mathematical estimate based on your best set. Never attempt the estimated maximum weight without a full, progressive warmup!" />
         </p>
       </div>
 
       {sortedRecords.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-zinc-500 text-center border border-dashed rounded-3xl border-zinc-200 dark:border-zinc-800 bg-zinc-100/20 dark:bg-zinc-900/20">
           <Trophy className="size-10 mb-3 opacity-20 text-amber-700 dark:text-amber-500" />
-          <p className="text-sm font-medium px-8">Nu ai setat încă niciun record. Înregistrează primul tău antrenament!</p>
+          <p className="text-sm font-medium px-8"><Text ro="Nu ai setat încă niciun record. Înregistrează primul tău antrenament!" en="You have no records yet. Log your first workout!" /></p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -121,9 +125,9 @@ export default async function RecordsPage() {
                 
                 <div className="flex items-end justify-between relative z-10 bg-white dark:bg-zinc-950/40 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50">
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Cel mai bun set</span>
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"><Text ro="Cel mai bun set" en="Best set" /></span>
                     <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
-                      {record.weight} <span className="text-sm text-zinc-500 font-normal">kg ×</span> {record.reps} <span className="text-sm text-zinc-500 font-normal">reps</span>
+                      {record.weight} <span className="text-sm text-zinc-500 font-normal">kg ×</span> {record.reps} <span className="text-sm text-zinc-500 font-normal"><Text ro="repetări" en="reps" /></span>
                     </span>
                     <span className="text-[11px] font-mono text-zinc-500 mt-1 flex items-center gap-1.5">
                       <span className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">{record.rir} RIR</span>
@@ -132,7 +136,7 @@ export default async function RecordsPage() {
                   </div>
 
                   <div className="flex flex-col items-end gap-0.5 text-right">
-                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest">Est. 1RM</span>
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest"><Text ro="1RM estimat" en="Est. 1RM" /></span>
                     <span className="text-3xl font-black text-amber-700 dark:text-amber-400 drop-shadow-sm">
                       {record.oneRM} <span className="text-sm font-bold opacity-70">kg</span>
                     </span>

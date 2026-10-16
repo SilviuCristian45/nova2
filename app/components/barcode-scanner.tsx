@@ -1,5 +1,6 @@
 "use client";
 
+import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, ScanLine } from "lucide-react";
@@ -13,7 +14,9 @@ export default function BarcodeScanner({
   onResult,
   onClose,
 }: BarcodeScannerProps) {
-  const [error, setError] = useState<string>("");
+  const { t } = useLanguage()
+
+  const [hasError, setHasError] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
@@ -45,9 +48,7 @@ export default function BarcodeScanner({
           },
         )
         .catch((err) => {
-          setError(
-            "Nu am putut accesa camera. Te rugăm să permiți accesul din browser.",
-          );
+          setHasError(true);
           console.error(err);
         });
     }
@@ -66,9 +67,10 @@ export default function BarcodeScanner({
       <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-zinc-50 dark:from-zinc-950 to-transparent">
         <h2 className="text-zinc-900 dark:text-zinc-100 font-bold text-lg flex items-center gap-2">
           <ScanLine className="size-5 text-orange-700 dark:text-orange-500" />
-          Scanează Produsul
+          <Text ro="Scanează Produsul" en="Scan product" />
         </h2>
         <button
+          aria-label={t("Închide scannerul", "Close scanner")}
           onClick={onClose}
           className="size-10 bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-full flex items-center justify-center transition-all backdrop-blur-md"
         >
@@ -77,9 +79,9 @@ export default function BarcodeScanner({
       </div>
 
       {/* ZONA DE EROARE (dacă nu e permisă camera) */}
-      {error && (
+      {hasError && (
         <div className="absolute z-10 bg-red-500/90 text-white p-4 rounded-xl max-w-[80%] text-center shadow-2xl backdrop-blur-md font-bold text-sm">
-          {error}
+          {t("Nu am putut accesa camera. Te rugăm să permiți accesul din browser.", "Could not access the camera. Please allow camera access in your browser.")}
         </div>
       )}
 
@@ -89,8 +91,7 @@ export default function BarcodeScanner({
       </div>
 
       <p className="mt-8 text-zinc-600 dark:text-zinc-400 font-medium text-sm text-center px-6">
-        Încadrează codul de bare în dreptunghiul luminos pentru scanare
-        automată.
+        <Text ro="Încadrează codul de bare în dreptunghiul luminos pentru scanare automată." en="Position the barcode inside the highlighted rectangle to scan automatically." />
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client"
 
+import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight, Flame, Activity, Plus, Settings } from "lucide-react"
@@ -7,6 +8,8 @@ import { createClient } from "@/utils/supabase/client"
 import { getUserTargets } from "@/app/meals/action"
 
 export default function ProgressDashboardPage() {
+  const { t, locale } = useLanguage()
+
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isLoading, setIsLoading] = useState(true)
   
@@ -83,9 +86,9 @@ export default function ProgressDashboardPage() {
   const getDisplayDate = () => {
     const today = new Date().toISOString().split('T')[0]
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-    if (dateString === today) return "Astăzi"
-    if (dateString === yesterday) return "Ieri"
-    return currentDate.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
+    if (dateString === today) return t("Astăzi", "Today")
+    if (dateString === yesterday) return t("Ieri", "Yesterday")
+    return currentDate.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
   }
 
   const kcalPercent = Math.min((totals.kcal / (goals.kcal || 1)) * 100, 100)
@@ -99,17 +102,17 @@ export default function ProgressDashboardPage() {
       <header className="flex items-center justify-between mb-8 mt-2">
         <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all">
           <ArrowLeft className="size-5" />
-        </Link>
+        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
         <div className="flex items-center gap-4 bg-zinc-100 dark:bg-zinc-900/60 px-2 py-1.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80">
           <button onClick={() => changeDate(-1)} className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-orange-700 dark:hover:text-orange-400 transition-colors">
             <ChevronLeft className="size-5" />
-          </button>
+          <span className="sr-only"><Text ro="Înapoi" en="Previous" /></span></button>
           <span className="font-bold text-sm min-w-[80px] text-center text-zinc-800 dark:text-zinc-200">
             {getDisplayDate()}
           </span>
           <button onClick={() => changeDate(1)} className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-orange-700 dark:hover:text-orange-400 transition-colors" disabled={dateString === new Date().toISOString().split('T')[0]}>
             <ChevronRight className="size-5" />
-          </button>
+          <span className="sr-only"><Text ro="Înainte" en="Next" /></span></button>
         </div>
         <div className="size-10"></div>
       </header>
@@ -137,7 +140,9 @@ export default function ProgressDashboardPage() {
               / {goals.kcal} KCAL
             </span>
             <span className={`text-[10px] font-bold mt-2 px-2 py-0.5 rounded-full ${totals.kcal > goals.kcal ? 'bg-red-500/20 text-red-700 dark:text-red-400' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'}`}>
-              {totals.kcal > goals.kcal ? `+${totals.kcal - goals.kcal} peste target` : `${goals.kcal - totals.kcal} rămase`}
+              {totals.kcal > goals.kcal
+                ? `+${totals.kcal - goals.kcal} ${t("peste obiectiv", "over goal")}`
+                : `${goals.kcal - totals.kcal} ${t("rămase", "remaining")}`}
             </span>
           </div>
         </div>
@@ -147,20 +152,20 @@ export default function ProgressDashboardPage() {
       <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-bottom-6 fade-in duration-700 md:grid-cols-2">
         <div className="flex items-center justify-between mb-2 md:col-span-2">
           <h2 className="text-sm font-bold text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
-            <Activity className="size-4" /> Macronutrienți
+            <Activity className="size-4" /> <Text ro="Macronutrienți" en="Macronutrients" />
           </h2>
           <Link 
             href="/meals/progress/targets"
             className="flex items-center gap-1.5 text-xs font-bold text-orange-700 dark:text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg hover:bg-orange-500/20 transition-all border border-orange-500/20"
           >
-            <Settings className="size-3.5" /> Editează Obiective
+            <Settings className="size-3.5" /> <Text ro="Editează Obiective" en="Edit goals" />
           </Link>
         </div>
 
         {/* PROTEINE */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 shadow-sm">
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-zinc-800 dark:text-zinc-200">Proteine</span>
+            <span className="font-bold text-zinc-800 dark:text-zinc-200"><Text ro="Proteine" en="Protein" /></span>
             <div className="font-mono text-xs">
               <span className="text-emerald-700 dark:text-emerald-400 font-bold">{totals.p}g</span><span className="text-zinc-500 dark:text-zinc-600 mx-1">/</span><span className="text-zinc-500">{goals.protein}g</span>
             </div>
@@ -173,7 +178,7 @@ export default function ProgressDashboardPage() {
         {/* CARBO */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 shadow-sm">
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-zinc-800 dark:text-zinc-200">Carbohidrați</span>
+            <span className="font-bold text-zinc-800 dark:text-zinc-200"><Text ro="Carbohidrați" en="Carbohydrates" /></span>
             <div className="font-mono text-xs">
               <span className="text-cyan-700 dark:text-cyan-400 font-bold">{totals.c}g</span><span className="text-zinc-500 dark:text-zinc-600 mx-1">/</span><span className="text-zinc-500">{goals.carbs}g</span>
             </div>
@@ -186,7 +191,7 @@ export default function ProgressDashboardPage() {
         {/* GRĂSIMI */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 shadow-sm">
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-zinc-800 dark:text-zinc-200">Grăsimi</span>
+            <span className="font-bold text-zinc-800 dark:text-zinc-200"><Text ro="Grăsimi" en="Fat" /></span>
             <div className="font-mono text-xs">
               <span className="text-yellow-700 dark:text-yellow-400 font-bold">{totals.f}g</span><span className="text-zinc-500 dark:text-zinc-600 mx-1">/</span><span className="text-zinc-500">{goals.fat}g</span>
             </div>
@@ -199,7 +204,7 @@ export default function ProgressDashboardPage() {
         {/* FIBRE (Adăugat special!) */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 shadow-sm">
           <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-zinc-800 dark:text-zinc-200">Fibre</span>
+            <span className="font-bold text-zinc-800 dark:text-zinc-200"><Text ro="Fibre" en="Fibre" /></span>
             <div className="font-mono text-xs">
               <span className="text-purple-700 dark:text-purple-400 font-bold">{totals.fiber}g</span><span className="text-zinc-500 dark:text-zinc-600 mx-1">/</span><span className="text-zinc-500">{goals.fiber}g</span>
             </div>
@@ -216,7 +221,7 @@ export default function ProgressDashboardPage() {
         className="fixed bottom-6 right-6 size-14 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/20 transition-all active:scale-90 z-50"
       >
         <Plus className="size-6 stroke-[3]" />
-      </Link>
+      <span className="sr-only"><Text ro="Adaugă masă" en="Add meal" /></span></Link>
     </main>
   )
 }

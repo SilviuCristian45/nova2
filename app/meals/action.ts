@@ -1,15 +1,18 @@
 "use server"
 
+import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 // Funcție pentru salvarea în masă a unei liste de alimente
 export async function saveCompleteMeal(mealType: string, items: any[]) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Neautorizat" }
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
 
-  if (!items || items.length === 0) return { error: "Masa este goală." }
+  if (!items || items.length === 0) return { error: t("Masa este goală.", "The meal is empty.") }
 
   try {
     const today = new Date().toISOString().split('T')[0]
@@ -86,16 +89,18 @@ export async function saveCompleteMeal(mealType: string, items: any[]) {
     return { success: true }
   } catch (error: any) {
     console.error("Eroare la salvarea mesei:", error)
-    return { error: error.message || "A apărut o eroare la salvare." }
+    return { error: error.message || t("A apărut o eroare la salvare.", "An error occurred while saving.") }
   }
 }
 
 // --- FUNCȚII PENTRU ȘABLOANE (TEMPLATES) ---
 
 export async function saveMealTemplate(name: string, items: any[]) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Neautorizat" }
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
 
   try {
     const { error } = await supabase
@@ -112,7 +117,7 @@ export async function saveMealTemplate(name: string, items: any[]) {
     return { success: true }
   } catch (error: any) {
     console.error("Eroare la salvarea șablonului:", error)
-    return { error: "Nu am putut salva șablonul." }
+    return { error: t("Nu am putut salva șablonul.", "Could not save the template.") }
   }
 }
 
@@ -137,9 +142,11 @@ export async function getUserTemplates() {
 // --- ADAUGĂ ASTEA LA FINALUL FIȘIERULUI app/meals/actions.ts ---
 
 export async function getUserTargets() {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Neautorizat" }
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
 
   const { data, error } = await supabase
     .from("user_targets")
@@ -150,7 +157,7 @@ export async function getUserTargets() {
   // Dacă utilizatorul nu și-a setat încă un target (PGRST116 înseamnă Not Found în Supabase)
   if (error && error.code !== 'PGRST116') {
     console.error(error)
-    return { error: "Eroare la citire targeturi." }
+    return { error: t("Eroare la citire targeturi.", "Could not load goals.") }
   }
 
   // Returnăm datele din DB sau niște valori default de bun simț
@@ -160,9 +167,11 @@ export async function getUserTargets() {
 }
 
 export async function saveUserTargets(targets: any) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Neautorizat" }
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
 
   try {
     const { error } = await supabase
@@ -181,6 +190,6 @@ export async function saveUserTargets(targets: any) {
     return { success: true }
   } catch (error: any) {
     console.error(error)
-    return { error: "Nu s-au putut salva targeturile." }
+    return { error: t("Nu s-au putut salva targeturile.", "Could not save goals.") }
   }
 }

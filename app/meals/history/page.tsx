@@ -1,5 +1,7 @@
 "use client"
 
+import { Text, useLanguage } from "@/app/components/language-provider"
+import { FoodLabel } from "@/app/components/food-label"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, ChevronRight, Loader2, Utensils, Flame, Wheat, Droplet, Cookie, Search, ChevronLeft } from "lucide-react"
@@ -15,6 +17,8 @@ const MEAL_LABELS: Record<string, string> = {
 const ITEMS_PER_PAGE = 5
 
 export default function MealsHistoryPage() {
+  const { t, locale } = useLanguage()
+
   const [isLoading, setIsLoading] = useState(true)
   
   const [allHistoryData, setAllHistoryData] = useState<any>({})
@@ -100,7 +104,7 @@ export default function MealsHistoryPage() {
 
         return {
           id: item.id,
-          name: item.foods?.name || "Necunoscut",
+          name: item.foods?.name || "",
           brand: item.foods?.brand,
           weight: item.consumed_weight_g,
           kcal: Number(item.total_kcal) || 0,
@@ -159,7 +163,7 @@ export default function MealsHistoryPage() {
 
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
-    return new Date(dateString).toLocaleDateString('ro-RO', options)
+    return new Date(dateString).toLocaleDateString(locale, options)
   }
 
   return (
@@ -171,19 +175,19 @@ export default function MealsHistoryPage() {
           <header className="flex flex-col gap-6 mb-4 mt-2">
             <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all w-fit">
               <ArrowLeft className="size-5" />
-            </Link>
+            <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
             <div className="flex items-center gap-3">
               <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-inner">
                 <CalendarDays className="size-6 text-orange-700 dark:text-orange-500" />
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Istoric Mese</h1>
+              <h1 className="text-3xl font-extrabold tracking-tight"><Text ro="Istoric Mese" en="Meal history" /></h1>
             </div>
           </header>
 
           <div className="flex flex-col gap-3 mb-6 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80">
             <div className="flex items-center gap-2">
               <div className="flex flex-col flex-1 gap-1">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1">De la</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1"><Text ro="De la" en="From" /></label>
                 <input 
                   type="date" 
                   value={startDate}
@@ -192,7 +196,7 @@ export default function MealsHistoryPage() {
                 />
               </div>
               <div className="flex flex-col flex-1 gap-1">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1">Până la</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1"><Text ro="Până la" en="To" /></label>
                 <input 
                   type="date" 
                   value={endDate}
@@ -206,7 +210,7 @@ export default function MealsHistoryPage() {
               className="h-10 w-full bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all text-sm"
             >
               <Search className="size-4" />
-              Aplică Filtre
+              <Text ro="Aplică Filtre" en="Apply filters" />
             </button>
           </div>
 
@@ -216,7 +220,7 @@ export default function MealsHistoryPage() {
             </div>
           ) : displayedDates.length === 0 ? (
             <div className="text-center py-10 text-zinc-500 font-medium text-sm px-4 bg-zinc-100 dark:bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
-              Nu am găsit mese înregistrate pentru perioada selectată.
+              <Text ro="Nu am găsit mese înregistrate pentru perioada selectată." en="No meals found for the selected period." />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 flex-1 md:grid-cols-2">
@@ -239,12 +243,12 @@ export default function MealsHistoryPage() {
                       <div className="flex items-center gap-1.5 text-[10px] font-mono">
                         <span className="text-emerald-700 dark:text-emerald-400 font-bold">{Math.round(allHistoryData[date].totalP)}g P</span>
                         <span className="text-cyan-700 dark:text-cyan-400 font-bold">{Math.round(allHistoryData[date].totalC)}g C</span>
-                        <span className="text-yellow-700 dark:text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}g G</span>
+                        <span className="text-yellow-700 dark:text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}<Text ro="g G" en="g F" /></span>
                       </div>
                       
                       <span className="text-zinc-600 dark:text-zinc-700 text-[10px]">|</span>
                       <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
-                        {allHistoryData[date].mealsList.length} mese
+                        {allHistoryData[date].mealsList.length} <Text ro="mese" en="meals" />
                       </span>
                     </div>
 
@@ -264,10 +268,10 @@ export default function MealsHistoryPage() {
                 className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
               >
                 <ChevronLeft className="size-5" />
-              </button>
+              <span className="sr-only"><Text ro="Înapoi" en="Previous" /></span></button>
               
               <span className="text-xs font-bold text-zinc-500 font-mono">
-                PAGINA {page} DIN {totalPages}
+                <Text ro="PAGINA" en="PAGE" /> {page} <Text ro="DIN" en="OF" /> {totalPages}
               </span>
 
               <button 
@@ -276,7 +280,7 @@ export default function MealsHistoryPage() {
                 className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
               >
                 <ChevronRight className="size-5" />
-              </button>
+              <span className="sr-only"><Text ro="Înainte" en="Next" /></span></button>
             </div>
           )}
         </div>
@@ -292,7 +296,7 @@ export default function MealsHistoryPage() {
                 className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all"
               >
                 <ArrowLeft className="size-5" />
-              </button>
+              <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></button>
               <h1 className="text-sm font-bold tracking-tight text-zinc-700 dark:text-zinc-300 capitalize">
                 {formatDate(selectedDate)}
               </h1>
@@ -301,13 +305,13 @@ export default function MealsHistoryPage() {
 
             <div className="flex items-center justify-between p-4 border border-orange-500/20 bg-orange-500/10 rounded-2xl shadow-inner">
               <div className="flex flex-col">
-                <span className="text-[10px] text-orange-700 dark:text-orange-500 font-bold uppercase tracking-widest">Total Zilnic</span>
+                <span className="text-[10px] text-orange-700 dark:text-orange-500 font-bold uppercase tracking-widest"><Text ro="Total Zilnic" en="Daily total" /></span>
                 <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
                   {Math.round(allHistoryData[selectedDate].totalKcal)} <span className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">kcal</span>
                 </span>
               </div>
               <div className="text-xs font-bold text-zinc-600 dark:text-zinc-400 font-mono bg-white dark:bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                {allHistoryData[selectedDate].mealsList.length} Mese
+                {allHistoryData[selectedDate].mealsList.length} <Text ro="Mese" en="Meals" />
               </div>
             </div>
           </header>
@@ -323,10 +327,10 @@ export default function MealsHistoryPage() {
                     </span>
                     <div className="flex flex-col">
                       <span className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100">
-                        Masa {index + 1}
+                        <Text ro="Masa" en="Meal" /> {index + 1}
                       </span>
                       <span className="text-[10px] text-zinc-500 font-medium">
-                        {MEAL_LABELS[meal.mealType] || meal.mealType}
+                        {MEAL_LABELS[meal.mealType] ? t(MEAL_LABELS[meal.mealType], meal.mealType) : meal.mealType}
                       </span>
                     </div>
                   </div>
@@ -343,9 +347,9 @@ export default function MealsHistoryPage() {
                     <div key={item.id} className="p-3 rounded-2xl bg-white dark:bg-zinc-950/70 border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-2">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col">
-                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 leading-tight">{item.name}</span>
+                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 leading-tight"><FoodLabel value={item.name || t("Necunoscut", "Unknown")} /></span>
                           {item.brand && item.brand !== "Fără Brand" && (
-                            <span className="text-[9px] text-zinc-500 font-mono uppercase">{item.brand}</span>
+                            <span className="text-[9px] text-zinc-500 font-mono uppercase">{item.brand === "Creat Manual" ? t("Creat manual", "Custom food") : item.brand}</span>
                           )}
                         </div>
                         <span className="text-[11px] font-bold bg-zinc-200 dark:bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-700 dark:text-zinc-300 shrink-0 font-mono">
@@ -367,7 +371,7 @@ export default function MealsHistoryPage() {
                           <span>{item.carbs}g</span>
                         </div>
                         <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400">
-                          <span className="font-bold">G:</span>
+                          <span className="font-bold"><Text ro="G:" en="F:" /></span>
                           <span>{item.fat}g</span>
                         </div>
                         <div className="flex items-center gap-1 text-purple-700 dark:text-purple-400">

@@ -1,5 +1,6 @@
 "use server"
 
+import { getLanguage } from "@/app/language"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 
@@ -11,9 +12,11 @@ export async function updateWorkout(
   sets: any[],
   cardioEntries: any[]
 ) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Nu ești autentificat." }
+  if (!user) return { error: t("Nu ești autentificat.", "You are not signed in.") }
 
   // 1. Actualizăm antrenamentul părinte (split + data)
   const { error: wError } = await supabase
@@ -25,7 +28,7 @@ export async function updateWorkout(
     .eq("id", workoutId)
     .eq("user_id", user.id)
 
-  if (wError) return { error: "Eroare la actualizare: " + wError.message }
+  if (wError) return { error: t("Eroare la actualizare: ", "Could not update: ") + wError.message }
 
   // 2. Ștergem copiii vechi și îi reintroducem pe cei noi (ca până acum)
   await supabase.from("workout_sets").delete().eq("workout_id", workoutId)

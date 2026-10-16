@@ -1,6 +1,7 @@
 // app/components/goal-setting.tsx
 "use client";
 
+import { Text, useLanguage } from "@/app/components/language-provider"
 import { useState } from "react";
 import { Target, Edit2, Check, X, Loader2 } from "lucide-react";
 import { updateDailyGoal } from "../profiles/profile";
@@ -10,17 +11,19 @@ interface GoalSettingProps {
 }
 
 export default function GoalSetting({ currentGoal }: GoalSettingProps) {
+  const { t, locale } = useLanguage()
+
   const [isEditing, setIsEditing] = useState(false);
   const [goal, setGoal] = useState(currentGoal.toString());
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const formattedGoal = currentGoal.toLocaleString("ro-RO");
+  const formattedGoal = currentGoal.toLocaleString(locale);
 
   async function handleSave() {
     const newGoal = parseInt(goal, 10);
     if (isNaN(newGoal) || newGoal <= 0) {
-      setMessage("❌ Invalid");
+      setMessage(t("❌ Invalid", "❌ Invalid"));
       setTimeout(() => setMessage(null), 2000);
       return;
     }
@@ -37,7 +40,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
     const result = await updateDailyGoal(formData);
 
     if (result?.error) {
-      setMessage(`❌ Eroare`);
+      setMessage(t("❌ Eroare", "❌ Error"));
     } else {
       setIsEditing(false);
       setMessage(null);
@@ -59,7 +62,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-500 pl-1">
-            Obiectiv Zilnic
+            <Text ro="Obiectiv Zilnic" en="Daily goal" />
           </span>
 
           {isEditing ? (
@@ -74,7 +77,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
           ) : (
             <span className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 pl-1">
               {formattedGoal}{" "}
-              <span className="text-sm text-zinc-500 font-medium">pași</span>
+              <span className="text-sm text-zinc-500 font-medium"><Text ro="pași" en="steps" /></span>
             </span>
           )}
         </div>
@@ -92,6 +95,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
         {isEditing ? (
           <>
             <button
+              aria-label={t("Salvează obiectivul", "Save goal")}
               onClick={handleSave}
               disabled={isPending}
               className="size-9 flex items-center justify-center rounded-xl bg-amber-500 text-zinc-950 hover:bg-amber-400 disabled:opacity-50 transition-all active:scale-95"
@@ -103,6 +107,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
               )}
             </button>
             <button
+              aria-label={t("Anulează", "Cancel")}
               onClick={handleCancel}
               disabled={isPending}
               className="size-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-all active:scale-95 border border-zinc-200 dark:border-zinc-700/50"
@@ -112,6 +117,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
           </>
         ) : (
           <button
+            aria-label={t("Editează obiectivul", "Edit goal")}
             onClick={() => setIsEditing(true)}
             className="size-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all active:scale-95 border border-zinc-200 dark:border-zinc-700/50"
           >

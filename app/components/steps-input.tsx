@@ -1,6 +1,7 @@
 // app/components/steps-input.tsx
 "use client";
 
+import { useLanguage } from "@/app/components/language-provider"
 import { useState } from "react";
 import { Save, Loader2, Footprints } from "lucide-react";
 import { saveDailySteps } from "../steps/steps";
@@ -11,6 +12,8 @@ interface StepsInputProps {
 }
 
 export default function StepsInput({ initialSteps, date }: StepsInputProps) {
+  const { t } = useLanguage()
+
   const [steps, setSteps] = useState(initialSteps.toString());
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -31,7 +34,7 @@ export default function StepsInput({ initialSteps, date }: StepsInputProps) {
     if (result?.error) {
       setMessage(`❌ ${result.error}`);
     } else {
-      setMessage("✅ Salvat");
+      setMessage(t("✅ Salvat", "✅ Saved"));
       setTimeout(() => setMessage(null), 2000);
     }
     setIsPending(false);
@@ -45,12 +48,13 @@ export default function StepsInput({ initialSteps, date }: StepsInputProps) {
           type="number"
           value={steps}
           onChange={(e) => setSteps(e.target.value)}
-          placeholder="0 pași"
+          placeholder={t("0 pași", "0 steps")}
           className="h-12 w-full pl-12 pr-14 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 text-lg font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all shadow-inner"
         />
 
         {hasChanged && (
           <button
+            aria-label={t("Salvează pașii", "Save steps")}
             onClick={handleSubmit}
             disabled={isPending}
             className="absolute right-2 top-2 size-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white dark:text-zinc-950 hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-95"

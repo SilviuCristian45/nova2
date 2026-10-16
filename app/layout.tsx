@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/theme-provider";
 import { ThemeToggle } from "./components/theme-toggle";
+import { LanguageProvider, LanguageSelector } from "./components/language-provider";
+import { getLanguage } from "./language";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,25 +26,29 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export const metadata: Metadata = {
-  title: "Workout Tracker Pro",
-  description: "Aplicația mea de fitness și antrenamente",
-  manifest: "/manifest.json", // <-- Asta leagă fișierul creat la Pasul 3
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Workouts",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getLanguage();
+  return {
+    title: "Workout Tracker Pro",
+    description: t("Monitorizarea activității fizice, nutriției și antrenamentelor", "Fitness, nutrition and workout tracking"),
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: t("Antrenamente", "Workouts"),
+    },
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { language } = await getLanguage();
   return (
     <html
-      lang="en"
+      lang={language}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -53,10 +59,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="mx-auto flex w-full max-w-7xl justify-end px-5 pt-3 sm:px-8">
-            <ThemeToggle />
-          </div>
-          {children}
+          <LanguageProvider initialLanguage={language}>
+            <div className="mx-auto flex w-full max-w-7xl justify-end gap-2 px-5 pt-3 sm:px-8">
+              <LanguageSelector />
+              <ThemeToggle />
+            </div>
+            {children}
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

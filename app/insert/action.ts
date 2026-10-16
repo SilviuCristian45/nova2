@@ -1,5 +1,6 @@
 "use server"
 
+import { getLanguage } from "@/app/language"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 
@@ -9,13 +10,15 @@ export async function saveWorkout(
   sets: any[],
   cardioEntries: any[]
 ) {
+  const { t } = await getLanguage()
+
   const supabase = await createClient()
 
   // 1. Verificăm autentificarea
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: "Nu ești autentificat." }
+  if (!user) return { error: t("Nu ești autentificat.", "You are not signed in.") }
 
   // 2. Creăm antrenamentul "părinte" în tabela workouts
   const { data: workout, error: workoutError } = await supabase
@@ -29,7 +32,7 @@ export async function saveWorkout(
     .select()
     .single()
 
-  if (workoutError) return { error: "Eroare la crearea antrenamentului: " + workoutError.message }
+  if (workoutError) return { error: t("Eroare la crearea antrenamentului: ", "Could not create workout: ") + workoutError.message }
 
   // 3. Inserăm "copiii" în funcție de mod
   if (mode === "strength" && sets.length > 0) {
@@ -47,7 +50,7 @@ export async function saveWorkout(
     }))
 
     const { error: setsError } = await supabase.from("workout_sets").insert(setsToInsert)
-    if (setsError) return { error: "Eroare la salvarea seturilor: " + setsError.message }
+    if (setsError) return { error: t("Eroare la salvarea seturilor: ", "Could not save sets: ") + setsError.message }
   }
 
   if (mode === "cardio" && cardioEntries.length > 0) {
@@ -59,7 +62,7 @@ export async function saveWorkout(
     }))
 
     const { error: cardioError } = await supabase.from("cardio_sessions").insert(cardioToInsert)
-    if (cardioError) return { error: "Eroare la salvarea cardio: " + cardioError.message }
+    if (cardioError) return { error: t("Eroare la salvarea cardio: ", "Could not save cardio: ") + cardioError.message }
   }
 
   // 4. Curățăm cache-ul aplicației ca la întoarcere să avem datele noi
