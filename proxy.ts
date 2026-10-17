@@ -41,19 +41,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Dacă ESTE logat și încearcă să meargă pe /login, îl trimitem pe dashboard
-  if (user && request.nextUrl.pathname.startsWith("/login") && request.nextUrl.pathname.startsWith('/register')) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/"
-    return NextResponse.redirect(url)
-  }
-
+  if (
+  user &&
+  (
+    request.nextUrl.pathname.startsWith("/login") ||
+    request.nextUrl.pathname.startsWith("/register")
+  )
+) {
+  const url = request.nextUrl.clone()
+  url.pathname = "/"
+  return NextResponse.redirect(url)
+}
   return supabaseResponse
 }
 
 // Această configurație îi spune Next.js pe ce rute să ruleze "paznicul" (ignoră imaginile, css-ul, etc)
+
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 }
