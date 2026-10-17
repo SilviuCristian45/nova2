@@ -6,6 +6,19 @@ import { ThemeToggle } from "./components/theme-toggle";
 import { LanguageProvider, LanguageSelector } from "./components/language-provider";
 import { getLanguage } from "./language";
 
+export const metadata: Metadata = {
+  title: 'Aplicatia Mea',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Aplicatia Mea',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff',
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
