@@ -11,7 +11,7 @@ import {
 import { EXERCISES, CARDIO_ACTIVITIES } from "@/lib/workout-data";
 import { createClient } from "@/utils/supabase/client";
 import {
-  getStrengthProgression, strengthProgressionCsv, type StrengthWorkout,
+  getStrengthProgression, strengthProgressionCsv, withBodyWeights, type StrengthWorkout,
 } from "@/lib/strength-progression";
 import { chartMode, localDate, measurementPoints } from "@/lib/daily-metrics";
 import { useLanguage } from "@/app/components/language-provider";
@@ -24,6 +24,7 @@ type ChartPoint = {
   date: string;
   weight?: number;
   reps?: number;
+  bodyWeight?: number | null;
   duration?: number;
   value?: number;
   target?: number;
@@ -53,6 +54,8 @@ function StatsContent() {
   const [retry, setRetry] = useState(0);
   const [loadedKey, setLoadedKey] = useState("");
   const [workoutData, setWorkoutData] = useState<Workout[]>([]);
+  const [bodyWeights, setBodyWeights] = useState<{ date: string; weight_kg: number }[]>([]);
+  const [bodyWeightError, setBodyWeightError] = useState<string | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [stepsGoal, setStepsGoal] = useState(10000);
   const [selectedExercise, setSelectedExercise] = useState<string>(EXERCISES[0]);
@@ -69,6 +72,8 @@ function StatsContent() {
       setLoading(true);
       setError(null);
       setWorkoutData([]);
+      setBodyWeights([]);
+      setBodyWeightError(null);
       setMeasurements([]);
       try {
         const supabase = createClient();
@@ -93,6 +98,26 @@ function StatsContent() {
             if (!data || data.length < PAGE_SIZE) break;
           }
           setWorkoutData(rows);
+          if (mode === "strength") {
+            try {
+              const weights: { date: string; weight_kg: number }[] = [];
+              for (let from = 0; ; from += PAGE_SIZE) {
+                const { data, error } = await supabase.from("daily_weight")
+                  .select("date, weight_kg").eq("user_id", user.id)
+                  .gte("date", cutoffStr).lte("date", endDate).order("date")
+                  .range(from, from + PAGE_SIZE - 1);
+                if (error) throw new Error(error.message);
+                weights.push(...(data ?? []).map((entry) => ({
+                  date: entry.date, weight_kg: Number(entry.weight_kg),
+                })));
+                if (cancelled) return;
+                if (!data || data.length < PAGE_SIZE) break;
+              }
+              setBodyWeights(weights);
+            } catch (error) {
+              if (!cancelled) setBodyWeightError(error instanceof Error ? error.message : "load-failed");
+            }
+          }
         } else {
           const rows: Measurement[] = [];
           for (let from = 0; ; from += PAGE_SIZE) {
@@ -137,7 +162,10 @@ function StatsContent() {
     return () => { cancelled = true; };
   }, [timeRange, retry, mode]);
 
-  const strengthData = getStrengthProgression(workoutData, selectedExercise, locale);
+  const strengthData = withBodyWeights(
+    getStrengthProgression(workoutData, selectedExercise, locale), bodyWeights,
+  );
+  const hasBodyWeights = strengthData.some((point) => point.bodyWeight != null);
   const chartData: ChartPoint[] = mode === "strength" ? strengthData : mode === "cardio"
     ? workoutData.flatMap((workout) => {
       const sessions = workout.cardio_sessions?.filter((session) => session.activity === selectedCardio);
@@ -350,6 +378,7 @@ function StatsContent() {
                     {mode === "strength" ? (<>
                       <Bar dataKey="weight" name={t("Greutate (kg)", "Weight (kg)")} fill="var(--chart-cyan)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="reps" name={t("Repetări", "Reps")} fill="var(--chart-green)" radius={[4, 4, 0, 0]} />
+                      {hasBodyWeights && <Bar dataKey="bodyWeight" name={t("Greutate corporală (kg)", "Body weight (kg)")} fill="var(--chart-rose)" radius={[4, 4, 0, 0]} />}
                     </>) : <Bar dataKey="duration" name={t("Durată (min)", "Duration (min)")} fill="var(--chart-rose)" radius={[4, 4, 0, 0]} />}
                   </BarChart>
                 )}
@@ -357,6 +386,13 @@ function StatsContent() {
             </div>
           )}
           {mode === "strength" && <p className="mt-4 text-xs text-muted-foreground">{t("Maxime pe sesiune din seturile de lucru: greutate (kg) și repetări. Exportul respectă exercițiul și perioada selectate.", "Session working-set maxima: weight (kg) and reps. Export uses the selected exercise and period.")}</p>}
+          {mode === "strength" && hasBodyWeights && <p className="mt-2 text-xs text-muted-foreground">{t("Bara roșie arată greutatea corporală înregistrată în ziua antrenamentului. Zilele fără cântărire nu au bară roșie.", "The red bar shows body weight recorded on the workout date. Days without a weigh-in have no red bar.")}</p>}
+          {mode === "strength" && bodyWeightError && !isLoading && (
+            <div role="alert" className="mt-4 text-sm text-red-700 dark:text-red-400">
+              <p>{t("Greutatea corporală nu a putut fi încărcată. Datele de forță sunt afișate în continuare.", "Body weight could not be loaded. Strength data is still shown.")} ({bodyWeightError})</p>
+              <button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-2 font-bold underline">{t("Reîncearcă", "Retry")}</button>
+            </div>
+          )}
         </section>
       </div>
     </main>

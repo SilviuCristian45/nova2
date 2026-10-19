@@ -15,7 +15,19 @@ export type StrengthPoint = {
   date: string;
   weight: number;
   reps: number;
+  bodyWeight?: number | null;
 };
+
+export function withBodyWeights(
+  points: StrengthPoint[],
+  measurements: { date: string; weight_kg: number }[],
+): StrengthPoint[] {
+  const weightsByDate = new Map(measurements.map((entry) => [entry.date, entry.weight_kg]));
+  return points.map((point) => ({
+    ...point,
+    bodyWeight: weightsByDate.get(point.performedOn) ?? null,
+  }));
+}
 
 export function getStrengthProgression(
   workouts: StrengthWorkout[],
@@ -54,10 +66,12 @@ export function strengthProgressionCsv(
   points: StrengthPoint[],
   exercise: string,
 ): string {
+  const includeBodyWeight = points.some((point) => point.bodyWeight != null);
   const rows = [
-    ["Date", "Exercise", "Max weight (kg)", "Max reps"],
+    ["Date", "Exercise", "Max weight (kg)", "Max reps", ...(includeBodyWeight ? ["Body weight (kg)"] : [])],
     ...points.map((point) => [
       point.performedOn, exercise, point.weight, point.reps,
+      ...(includeBodyWeight ? [point.bodyWeight ?? ""] : []),
     ]),
   ];
   return "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";

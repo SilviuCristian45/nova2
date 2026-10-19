@@ -27,7 +27,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 - Use the English/Romanian selector next to the theme switch to change interface text. English is the default; the saved browser cookie seeds server rendering so the initial page matches your preference. Workout exercise/activity names and saved notes remain unchanged.
 - The dashboard has daily **Steps** and **Body weight** cards, each with a **View chart** link. Weight is recorded in **kg**, with up to two decimal places; either `75.5` or `75,5` is accepted. Select a date to enter or correct a past weigh-in. Saving again updates that day's entry rather than adding a duplicate.
-- **Progress & Charts** has separate **Strength**, **Cardio**, **Steps**, and **Weight** views, with the same period filters. Steps shows recorded counts and the current daily goal. Weight shows recorded weigh-ins only; unrecorded days are not zero. Each view fetches only its own data, so a weight-storage setup issue does not block the steps or strength graph.
+- **Progress & Charts** has separate **Strength**, **Cardio**, **Steps**, and **Weight** views, with the same period filters. Steps shows recorded counts and the current daily goal. Weight shows recorded weigh-ins only; unrecorded days are not zero.
+- **Strength** also shows a red **Body weight (kg)** bar beside lifted weight and repetitions when a weigh-in exists on that exact workout date. Multiple sessions on the same date share that day's weigh-in; missing dates are not filled from other days or treated as zero. CSV exports include a **Body weight (kg)** column when at least one plotted session has a weigh-in, with blank cells for missing entries. A weight-storage failure displays a warning without blocking the strength graph or steps view.
 - Direct chart links: `/stats?mode=steps` and `/stats?mode=weight`.
 
 ### Database setup for weight tracking
