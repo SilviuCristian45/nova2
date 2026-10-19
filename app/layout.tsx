@@ -5,6 +5,8 @@ import { ThemeProvider } from "./components/theme-provider";
 import { ThemeToggle } from "./components/theme-toggle";
 import { LanguageProvider, LanguageSelector } from "./components/language-provider";
 import { getLanguage } from "./language";
+import { OfflineProvider } from "@/lib/offline/client";
+import { OfflineStatus } from "./components/offline-status";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,11 +62,14 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider initialLanguage={language}>
+            <OfflineProvider>
             <div className="mx-auto flex w-full max-w-7xl justify-end gap-2 px-5 pt-3 sm:px-8">
               <LanguageSelector />
               <ThemeToggle />
             </div>
+            <OfflineStatus />
             {children}
+            </OfflineProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

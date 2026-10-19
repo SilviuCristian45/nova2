@@ -6,12 +6,15 @@ import { Scale, Loader2, Save, TrendingUp } from "lucide-react";
 import { getDailyWeight, saveDailyWeight } from "@/app/weight/actions";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
 import { useLanguage } from "./language-provider";
+import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
+import { readOfflineDatabase } from "@/lib/offline/store";
 
 const subscribeToDate = () => () => {};
 const serverDate = () => "";
 
 export default function WeightInput() {
   const { t } = useLanguage();
+  const { ownerId } = useOffline();
   const today = useSyncExternalStore(subscribeToDate, localDate, serverDate);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const date = selectedDate ?? today;
@@ -53,6 +56,15 @@ export default function WeightInput() {
         return;
       }
       try {
+        if (ownerId) {
+          const state = await readOfflineDatabase();
+          if (cancelled) return;
+          if (state.activeOwner !== ownerId) throw new Error("Account changed.");
+          const entry = state.accounts[ownerId]?.snapshot.weights.find((row) => row.date === date);
+          setSavedWeight(entry?.weight_kg ?? null);
+          setWeight(entry ? String(entry.weight_kg) : "");
+          return;
+        }
         const result = await getDailyWeight(date);
         if (cancelled) return;
         if (!result.success) {
@@ -77,7 +89,7 @@ export default function WeightInput() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [date, retry, selectedDate]);
+  }, [date, retry, selectedDate, ownerId]);
 
   const parsedWeight = parseBodyWeight(weight);
   const changed = parsedWeight !== null && parsedWeight !== savedWeight;
@@ -89,6 +101,14 @@ export default function WeightInput() {
     setSaved(false);
     startTransition(async () => {
       try {
+        if (ownerId) {
+          const value = parseBodyWeight(formData.get("weight"));
+          if (value === null) { setError("invalid-weight"); return; }
+          await saveOfflineMutation({ kind: "weight", date, weightKg: value }, ownerId);
+          setSavedWeight(value);
+          setSaved(true);
+          return;
+        }
         const result = await saveDailyWeight(formData);
         if (!result.success) setError(result.error);
         else {
@@ -137,7 +157,7 @@ export default function WeightInput() {
       {isLoading && <p role="status" className="mt-3 text-sm text-muted-foreground">{t("Se încarcă...", "Loading...")}</p>}
       {!isLoading && !error && savedWeight === null && <p className="mt-3 text-xs text-muted-foreground">{t("Nicio cântărire pentru această zi. Introdu valoarea în kg.", "No weigh-in for this day. Enter your weight in kg.")}</p>}
       {weight && parsedWeight === null && <p className="mt-3 text-xs text-red-700 dark:text-red-400">{errorText("invalid-weight")}</p>}
-      {saved && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">{t("Greutatea a fost salvată.", "Weight saved.")}</p>}
+      {saved && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">{ownerId ? t("Salvat pe dispozitiv; verifică starea sincronizării.", "Saved to device; check sync status.") : t("Greutatea a fost salvată.", "Weight saved.")}</p>}
       {error && <div role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
         <p>{errorText(error)}</p>
         {loadFailed && <button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-2 font-bold underline">{t("Reîncearcă", "Retry")}</button>}

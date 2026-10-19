@@ -3,7 +3,8 @@ import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
 import { localDate } from "@/lib/daily-metrics"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, LogOut, Sun, Trophy, TrendingUp, Zap} from "lucide-react"
+import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, Sun, Trophy, TrendingUp, Zap} from "lucide-react"
+import { SignOutButton } from "./components/sign-out-button"
 import { createClient } from "@/lib/supabase/server"
 import { DeleteWorkoutButton } from "./history/delete-button"
 import { getDailySteps } from "./steps/steps"
@@ -106,13 +107,7 @@ export default async function HistoryPage(props: any) {
             </div>
             
             <div className="flex items-center gap-2">
-              <Link 
-                href="/login" 
-                className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
-                title={t("Deconectare", "Sign out")}
-              >
-                <LogOut className="size-4" />
-              </Link>
+              <SignOutButton />
             </div>
           </div>
 

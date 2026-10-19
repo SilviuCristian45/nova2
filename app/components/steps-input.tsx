@@ -5,6 +5,7 @@ import { useLanguage } from "@/app/components/language-provider"
 import { useState } from "react";
 import { Save, Loader2, Footprints } from "lucide-react";
 import { saveDailySteps } from "../steps/steps";
+import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 
 interface StepsInputProps {
   initialSteps: number;
@@ -13,12 +14,14 @@ interface StepsInputProps {
 
 export default function StepsInput({ initialSteps, date }: StepsInputProps) {
   const { t } = useLanguage()
+  const { ownerId, snapshot } = useOffline();
 
   const [steps, setSteps] = useState(initialSteps.toString());
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const hasChanged = parseInt(steps, 10) !== initialSteps;
+  const storedSteps = snapshot?.steps.find((entry) => entry.date === date)?.steps ?? initialSteps;
+  const hasChanged = Number(steps) !== storedSteps;
 
   async function handleSubmit() {
     if (!hasChanged || isPending) return;
@@ -29,15 +32,21 @@ export default function StepsInput({ initialSteps, date }: StepsInputProps) {
     formData.append("date", date);
     formData.append("steps", steps);
 
-    const result = await saveDailySteps(formData);
-
-    if (result?.error) {
-      setMessage(`❌ ${result.error}`);
-    } else {
-      setMessage(t("✅ Salvat", "✅ Saved"));
-      setTimeout(() => setMessage(null), 2000);
+    try {
+      if (!steps.trim() || !Number.isSafeInteger(Number(steps)) || Number(steps) < 0) throw new Error(t("Număr de pași invalid.", "Invalid step count."));
+      if (ownerId) {
+        await saveOfflineMutation({ kind: "steps", date, steps: Number(steps) }, ownerId);
+        setMessage(t("Salvat pe dispozitiv; sincronizarea este în așteptare.", "Saved to device; awaiting sync."));
+      } else {
+        const result = await saveDailySteps(formData);
+        if (result?.error) setMessage(`❌ ${result.error}`);
+        else setMessage(t("✅ Salvat", "✅ Saved"));
+      }
+    } catch (error) {
+      setMessage(`❌ ${error instanceof Error ? error.message : t("Salvarea a eșuat.", "Save failed.")}`);
+    } finally {
+      setIsPending(false);
     }
-    setIsPending(false);
   }
 
   return (

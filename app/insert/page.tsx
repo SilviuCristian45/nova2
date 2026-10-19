@@ -11,7 +11,11 @@ import { createClient } from "@/utils/supabase/client"
 import confetti from "canvas-confetti"
 
 import { saveWorkout } from "./action"
-import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
+import { SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
+import type { OfflineCardio, OfflineSet } from "@/lib/offline/types"
+import { saveOfflineMutation, useOffline } from "@/lib/offline/client"
+import { localDate } from "@/lib/daily-metrics"
+import { readOfflineDatabase } from "@/lib/offline/store"
 
 const DRAFT_KEY = "workout_draft_v1"
 
@@ -32,6 +36,9 @@ const getSetTypeBadge = (type: string) => {
 
 export default function InsertWorkoutPage() {
   const { t } = useLanguage()
+  const { ownerId, ready } = useOffline()
+  const draftKey = ownerId ? `${DRAFT_KEY}_${ownerId}` : null
+  const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null)
 
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
@@ -40,8 +47,8 @@ export default function InsertWorkoutPage() {
 
   // State general
   const [mode, setMode] = useState<"strength" | "cardio">("strength")
-  const [sessionSets, setSessionSets] = useState<any[]>([])
-  const [cardioEntries, setCardioEntries] = useState<any[]>([])
+  const [sessionSets, setSessionSets] = useState<(OfflineSet & { id: string })[]>([])
+  const [cardioEntries, setCardioEntries] = useState<(OfflineCardio & { id: string })[]>([])
 
   // Formular Strength
   const [split, setSplit] = useState<Split>("Push")
@@ -169,27 +176,48 @@ export default function InsertWorkoutPage() {
 
   // Local Storage
   useEffect(() => {
-    const draft = localStorage.getItem(DRAFT_KEY)
-    if (draft) {
+    if (!draftKey) return
+    const key = draftKey
+    let cancelled = false
+    async function restore() {
       try {
-        const parsed = JSON.parse(draft)
-        if (parsed.length > 0) {
-          setSessionSets(parsed)
-          setSetNumber(parsed.length + 1)
-        }
-      } catch (e) {
-        console.error("Eroare ciornă:", e)
+        const state = await readOfflineDatabase()
+        if (cancelled || state.activeOwner !== ownerId) return
+        const draft = localStorage.getItem(key)
+        const parsed = draft ? JSON.parse(draft) : { sets: [], cardio: [], mode: "strength" }
+        if (!Array.isArray(parsed.sets) || !Array.isArray(parsed.cardio)) throw new Error("Invalid workout draft")
+        setSessionSets(parsed.sets)
+        setCardioEntries(parsed.cardio)
+        setMode(parsed.mode === "cardio" ? "cardio" : "strength")
+        setSetNumber(parsed.sets.length + 1)
+        setLoadedDraftKey(key)
+      } catch (error) {
+        console.error("Workout draft could not be loaded:", error)
+        if (!cancelled) setError("Workout draft could not be loaded. / Ciorna nu a putut fi încărcată.")
       }
     }
-  }, [])
+    void restore()
+    return () => { cancelled = true }
+  }, [draftKey, ownerId])
 
   useEffect(() => {
-    if (sessionSets.length > 0) {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(sessionSets))
-    } else {
-      localStorage.removeItem(DRAFT_KEY)
+    if (!draftKey || loadedDraftKey !== draftKey) return
+    const key = draftKey
+    let cancelled = false
+    async function persist() {
+      try {
+        const state = await readOfflineDatabase()
+        if (cancelled || state.activeOwner !== ownerId) return
+        if (sessionSets.length || cardioEntries.length) localStorage.setItem(key, JSON.stringify({ sets: sessionSets, cardio: cardioEntries, mode }))
+        else localStorage.removeItem(key)
+      } catch (error) {
+        console.error("Workout draft could not be stored:", error)
+        if (!cancelled) setError(t("Ciorna nu a putut fi salvată pe dispozitiv.", "The workout draft could not be saved on this device."))
+      }
     }
-  }, [sessionSets])
+    void persist()
+    return () => { cancelled = true }
+  }, [sessionSets, cardioEntries, mode, draftKey, loadedDraftKey, ownerId, t])
 
   // Handler Adăugare Set
   function handleAddSet(e: React.FormEvent) {
@@ -263,6 +291,21 @@ export default function InsertWorkoutPage() {
 
     setError(null)
     startSaving(async () => {
+      if (ownerId) {
+        try {
+          await saveOfflineMutation({
+            kind: "workout", date: localDate(), mode, split,
+            sets: mode === "strength" ? sessionSets : [],
+            cardio: mode === "cardio" ? cardioEntries : [],
+          }, ownerId)
+          try { if (draftKey) localStorage.removeItem(draftKey) }
+          catch (error) { console.error("Saved workout draft could not be removed:", error) }
+          window.location.assign("/offline")
+        } catch (error) {
+          setError(error instanceof Error ? error.message : t("Salvarea a eșuat.", "Save failed."))
+        }
+        return
+      }
       const result = await saveWorkout(mode, split, sessionSets, cardioEntries)
       
       if (result.error) {
@@ -270,7 +313,7 @@ export default function InsertWorkoutPage() {
         return
       }
 
-      localStorage.removeItem(DRAFT_KEY)
+      if (draftKey) localStorage.removeItem(draftKey)
 
       const duration = 2000;
       const end = Date.now() + duration;
@@ -286,6 +329,10 @@ export default function InsertWorkoutPage() {
         router.push("/")
       }, 1500)
     })
+  }
+
+  if (!ready || (ownerId && loadedDraftKey !== draftKey && !error)) {
+    return <main className="mx-auto w-full max-w-6xl p-5"><p role="status">{t("Se încarcă jurnalul local...", "Loading local log...")}</p></main>
   }
 
   return (

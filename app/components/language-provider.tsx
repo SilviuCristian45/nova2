@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 export type Language = "en" | "ro";
@@ -16,12 +16,22 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 export function LanguageProvider({ initialLanguage, children }: { initialLanguage: Language; children: ReactNode }) {
   const [language, updateLanguage] = useState(initialLanguage);
   const router = useRouter();
+  useEffect(() => {
+    async function restoreOfflineLanguage() {
+      const saved = document.cookie.split("; ").find((entry) => entry.startsWith("language="))?.split("=")[1];
+      if (saved === "en" || saved === "ro") {
+        updateLanguage(saved);
+        document.documentElement.lang = saved;
+      }
+    }
+    void restoreOfflineLanguage();
+  }, []);
   const t = useCallback((ro: string, en: string) => language === "ro" ? ro : en, [language]);
   const setLanguage = (next: Language) => {
     document.cookie = `language=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
     document.documentElement.lang = next;
     updateLanguage(next);
-    router.refresh();
+    if (navigator.onLine) router.refresh();
   };
 
   return <LanguageContext.Provider value={{ language, locale: language === "ro" ? "ro-RO" : "en-US", t, setLanguage }}>{children}</LanguageContext.Provider>;
