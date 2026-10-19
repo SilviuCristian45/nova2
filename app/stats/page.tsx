@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, BarChart3, Search, Activity, Footprints, Download, Scale } from "lucide-react";
 import {
-  ComposedChart, BarChart, Bar, Line, XAxis, YAxis,
+  ComposedChart, Scatter, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import { EXERCISES, CARDIO_ACTIVITIES } from "@/lib/workout-data";
@@ -369,24 +369,35 @@ function StatsContent() {
                       stroke="var(--chart-cyan)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                   </ComposedChart>
                 ) : (
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 5, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
                     <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} />
-                    <Tooltip cursor={{ fill: "var(--chart-grid)", opacity: 0.4 }} contentStyle={tooltipStyle} labelStyle={{ color: "var(--foreground)" }} />
+                    <YAxis yAxisId="primary" width={52} fontSize={10} tickLine={false} axisLine={false}
+                      tick={{ fill: "var(--chart-axis)" }} domain={[0, "auto"]}
+                      unit={mode === "strength" ? " kg" : " min"} />
+                    {mode === "strength" && <YAxis yAxisId="reps" orientation="right" width={32}
+                      fontSize={10} tickLine={false} axisLine={false} allowDecimals={false}
+                      tick={{ fill: "var(--chart-green)" }} domain={[0, "auto"]} />}
+                    <Tooltip cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "4 4" }}
+                      contentStyle={tooltipStyle} labelStyle={{ color: "var(--foreground)" }} />
                     <Legend wrapperStyle={{ paddingTop: 20, fontSize: 12 }} iconType="circle" />
                     {mode === "strength" ? (<>
-                      <Bar dataKey="weight" name={t("Greutate (kg)", "Weight (kg)")} fill="var(--chart-cyan)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="reps" name={t("Repetări", "Reps")} fill="var(--chart-green)" radius={[4, 4, 0, 0]} />
-                      {hasBodyWeights && <Bar dataKey="bodyWeight" name={t("Greutate corporală (kg)", "Body weight (kg)")} fill="var(--chart-rose)" radius={[4, 4, 0, 0]} />}
-                    </>) : <Bar dataKey="duration" name={t("Durată (min)", "Duration (min)")} fill="var(--chart-rose)" radius={[4, 4, 0, 0]} />}
-                  </BarChart>
+                      <Line yAxisId="primary" dataKey="weight" name={t("Greutate ridicată (kg)", "Lifted weight (kg)")}
+                        stroke="var(--chart-cyan)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line yAxisId="reps" dataKey="reps" name={t("Repetări", "Reps")}
+                        stroke="var(--chart-green)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      {hasBodyWeights && <Scatter yAxisId="primary" dataKey="bodyWeight"
+                        name={t("Greutate corporală (kg)", "Body weight (kg)")} fill="var(--chart-rose)" />}
+                    </>) : <Line yAxisId="primary" dataKey="duration" name={t("Durată (min)", "Duration (min)")}
+                      stroke="var(--chart-rose)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />}
+                  </ComposedChart>
                 )}
               </ResponsiveContainer>
             </div>
           )}
           {mode === "strength" && <p className="mt-4 text-xs text-muted-foreground">{t("Maxime pe sesiune din seturile de lucru: greutate (kg) și repetări. Exportul respectă exercițiul și perioada selectate.", "Session working-set maxima: weight (kg) and reps. Export uses the selected exercise and period.")}</p>}
-          {mode === "strength" && hasBodyWeights && <p className="mt-2 text-xs text-muted-foreground">{t("Bara roșie arată greutatea corporală înregistrată în ziua antrenamentului. Zilele fără cântărire nu au bară roșie.", "The red bar shows body weight recorded on the workout date. Days without a weigh-in have no red bar.")}</p>}
+          {mode === "strength" && <p className="mt-2 text-xs text-muted-foreground">{t("Greutățile folosesc scala din stânga (kg). Repetările folosesc scala verde din dreapta și linia punctată.", "Weights use the left scale (kg). Reps use the green right scale and dashed line.")}</p>}
+          {mode === "strength" && hasBodyWeights && <p className="mt-2 text-xs text-muted-foreground">{t("Punctele roșii arată greutatea corporală înregistrată în ziua antrenamentului. Zilele fără cântărire nu au punct roșu.", "Red dots show body weight recorded on the workout date. Days without a weigh-in have no red dot.")}</p>}
           {mode === "strength" && bodyWeightError && !isLoading && (
             <div role="alert" className="mt-4 text-sm text-red-700 dark:text-red-400">
               <p>{t("Greutatea corporală nu a putut fi încărcată. Datele de forță sunt afișate în continuare.", "Body weight could not be loaded. Strength data is still shown.")} ({bodyWeightError})</p>
