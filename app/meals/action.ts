@@ -3,6 +3,7 @@
 import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { getOrCacheBarcodeFood } from "@/lib/foods"
 
 // Funcție pentru salvarea în masă a unei liste de alimente
 export async function saveCompleteMeal(mealType: string, items: any[]) {
@@ -34,25 +35,19 @@ export async function saveCompleteMeal(mealType: string, items: any[]) {
 
       // Upsert produs în catalogul local (dacă vine de pe API SAU e creat manual)
       if (!foodId) {
-        let existingFood = null
-        
-        // Dacă are barcode, verificăm dacă nu cumva l-am mai salvat între timp
-        if (food.barcode) {
-          const { data } = await supabase.from("foods").select("id").eq("barcode", food.barcode).single()
-          existingFood = data
-        }
+        // Produsele cu barcode merg în catalogul comun, cu valorile din Open Food Facts
+        const catalogFood = food.barcode ? await getOrCacheBarcodeFood(String(food.barcode)) : null
 
-        if (existingFood) {
-          foodId = existingFood.id
+        if (catalogFood) {
+          foodId = catalogFood.id
         } else {
-          // Inserăm produsul nou (fie că e de pe API, fie că e creat manual de user)
+          // Aliment privat al utilizatorului (creat manual sau negăsit în catalog), șters odată cu contul
           const { data: newFood, error: insertError } = await supabase
             .from("foods")
             .insert({
               user_id: user.id,
               name: food.name,
               brand: food.brand || "Creat Manual",
-              barcode: food.barcode || null,
               kcal_per_100g: food.kcal_per_100g || 0,
               protein_per_100g: food.protein_per_100g || 0,
               carbs_per_100g: food.carbs_per_100g || 0,

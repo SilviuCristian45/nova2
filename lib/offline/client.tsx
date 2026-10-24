@@ -72,12 +72,14 @@ export async function syncOffline(manual = false) {
   return running;
 }
 
-export async function saveOfflineMutation(payload: OfflinePayload, expectedOwner: string): Promise<void> {
+export async function saveOfflineMutation(payload: OfflinePayload, expectedOwner: string): Promise<string> {
   if (!validOfflinePayload(payload, localDate())) throw new Error("Invalid offline entry. Check the date and values.");
   const state = await readOfflineDatabase();
   if (!state.activeOwner || state.activeOwner !== expectedOwner) throw new Error("Account changed. Sign in online and download data before offline logging.");
-  await enqueueMutation({ id: crypto.randomUUID(), ownerId: state.activeOwner, createdAt: new Date().toISOString(), payload });
+  const id = crypto.randomUUID();
+  await enqueueMutation({ id, ownerId: state.activeOwner, createdAt: new Date().toISOString(), payload });
   notify(true);
+  return id;
 }
 
 type OfflineContextValue = {

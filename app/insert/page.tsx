@@ -107,7 +107,7 @@ const getSetTypeBadge = (type: string) => {
 
 export default function InsertWorkoutPage() {
   const { t } = useLanguage();
-  const { ownerId, ready } = useOffline();
+  const { ownerId, ready, sync } = useOffline();
   const draftKey = ownerId ? `${DRAFT_KEY}_${ownerId}` : null;
   const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
 
@@ -417,44 +417,7 @@ export default function InsertWorkoutPage() {
     if (mode === "cardio" && cardioEntries.length === 0) return;
 
     setError(null);
-    startSaving(async () => {
-      if (ownerId) {
-        try {
-          await saveOfflineMutation(
-            {
-              kind: "workout",
-              date: localDate(),
-              mode,
-              split,
-              sets: mode === "strength" ? sessionSets : [],
-              cardio: mode === "cardio" ? cardioEntries : [],
-            },
-            ownerId,
-          );
-          try {
-            if (draftKey) localStorage.removeItem(draftKey);
-          } catch (error) {
-            console.error("Saved workout draft could not be removed:", error);
-          }
-          window.location.assign("/offline");
-        } catch (error) {
-          setError(
-            error instanceof Error
-              ? error.message
-              : t("Salvarea a eșuat.", "Save failed."),
-          );
-        }
-        return;
-      }
-      const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      if (draftKey) localStorage.removeItem(draftKey);
-
+    const celebrate = () => {
       const duration = 2000;
       const end = Date.now() + duration;
 
@@ -480,6 +443,55 @@ export default function InsertWorkoutPage() {
       setTimeout(() => {
         router.push("/");
       }, 1500);
+    };
+    startSaving(async () => {
+      if (ownerId) {
+        try {
+          const mutationId = await saveOfflineMutation(
+            {
+              kind: "workout",
+              date: localDate(),
+              mode,
+              split,
+              sets: mode === "strength" ? sessionSets : [],
+              cardio: mode === "cardio" ? cardioEntries : [],
+            },
+            ownerId,
+          );
+          try {
+            if (draftKey) localStorage.removeItem(draftKey);
+          } catch (error) {
+            console.error("Saved workout draft could not be removed:", error);
+          }
+          // Online: upload right away so the server dashboard already shows the workout.
+          // Offline or failed upload: the workout waits in the queue and only the local dashboard has it.
+          if (navigator.onLine) {
+            await sync();
+            const state = await readOfflineDatabase();
+            if (!state.accounts[ownerId]?.queue.some((entry) => entry.id === mutationId)) {
+              celebrate();
+              return;
+            }
+          }
+          window.location.assign("/offline");
+        } catch (error) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : t("Salvarea a eșuat.", "Save failed."),
+          );
+        }
+        return;
+      }
+      const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      if (draftKey) localStorage.removeItem(draftKey);
+      celebrate();
     });
   }
 

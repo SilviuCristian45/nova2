@@ -12,7 +12,7 @@ import StepsInput from "./components/steps-input"
 import WeightInput from "./components/weight-input"
 import { getDailyGoal } from "./profiles/profile"
 import GoalSetting from "./components/goal-setting"
-import { Utensils } from "lucide-react"
+import { Settings, Utensils } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -107,6 +107,10 @@ export default async function HistoryPage(props: any) {
             </div>
             
             <div className="flex items-center gap-2">
+              <Link href="/settings" aria-label={t("Setări", "Settings")}
+                className="rounded-xl border border-zinc-200 bg-zinc-100 p-2.5 text-zinc-600 transition-all dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                <Settings className="size-4" />
+              </Link>
               <SignOutButton />
             </div>
           </div>

@@ -47,3 +47,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local supabase artifacts (schema dumps can contain sensitive structure)
+/supabase/.temp/
+/backup_complet.sql
