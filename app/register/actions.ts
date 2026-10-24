@@ -3,6 +3,7 @@
 import { getLanguage } from "@/app/language"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { rememberWeightUnit } from "@/app/units"
 
 export async function registerUser(formData: FormData) {
   const { t } = await getLanguage()
@@ -29,6 +30,8 @@ export async function registerUser(formData: FormData) {
     return { error: t("Eroare la înregistrare: ", "Could not register: ") + error.message }
   }
 
+  // Contul nou pornește în kg, chiar dacă pe dispozitiv a fost logat alt cont cu lb
+  await rememberWeightUnit("kg")
   revalidatePath("/", "layout")
   return { success: true }
 }

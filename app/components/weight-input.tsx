@@ -8,6 +8,7 @@ import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metri
 import { useLanguage } from "./language-provider";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import { readOfflineDatabase } from "@/lib/offline/store";
+import { useUnits } from "./units-provider";
 
 const subscribeToDate = () => () => {};
 const serverDate = () => "";
@@ -15,6 +16,8 @@ const serverDate = () => "";
 export default function WeightInput() {
   const { t } = useLanguage();
   const { ownerId } = useOffline();
+  // The field shows the user's unit; savedWeight and everything sent to the server stay in kg.
+  const { unit, toUnit, toKg } = useUnits();
   const today = useSyncExternalStore(subscribeToDate, localDate, serverDate);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const date = selectedDate ?? today;
@@ -32,7 +35,7 @@ export default function WeightInput() {
     switch (code) {
       case "unauthorized": return t("Sesiune expirată. Autentifică-te din nou.", "Session expired. Please sign in again.");
       case "invalid-date": return t("Alege o dată validă, cel târziu azi.", "Choose a valid date no later than today.");
-      case "invalid-weight": return t("Introdu o greutate pozitivă în kg, cu cel mult două zecimale.", "Enter a positive weight in kg with up to two decimal places.");
+      case "invalid-weight": return t(`Introdu o greutate pozitivă în ${unit}, cu cel mult două zecimale.`, `Enter a positive weight in ${unit} with up to two decimal places.`);
       case "setup": return t("Urmărirea greutății necesită migrarea bazei de date. Consultă README.", "Weight tracking requires the database migration. See README.");
       default: return t("Nu am putut salva sau încărca greutatea. Reîncearcă.", "Unable to save or load your weight. Please retry.");
     }
@@ -62,7 +65,7 @@ export default function WeightInput() {
           if (state.activeOwner !== ownerId) throw new Error("Account changed.");
           const entry = state.accounts[ownerId]?.snapshot.weights.find((row) => row.date === date);
           setSavedWeight(entry?.weight_kg ?? null);
-          setWeight(entry ? String(entry.weight_kg) : "");
+          setWeight(entry ? String(toUnit(entry.weight_kg)) : "");
           return;
         }
         const result = await getDailyWeight(date);
@@ -73,7 +76,7 @@ export default function WeightInput() {
         }
         else {
           setSavedWeight(result.weight);
-          setWeight(result.weight === null ? "" : String(result.weight));
+          setWeight(result.weight === null ? "" : String(toUnit(result.weight)));
         }
       } catch {
         if (!cancelled) {
@@ -89,10 +92,10 @@ export default function WeightInput() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [date, retry, selectedDate, ownerId]);
+  }, [date, retry, selectedDate, ownerId, toUnit]);
 
   const parsedWeight = parseBodyWeight(weight);
-  const changed = parsedWeight !== null && parsedWeight !== savedWeight;
+  const changed = parsedWeight !== null && toKg(parsedWeight) !== savedWeight;
   const blocked = loadFailed;
   const isLoading = loading || loadedDate !== date;
 
@@ -102,13 +105,16 @@ export default function WeightInput() {
     startTransition(async () => {
       try {
         if (ownerId) {
-          const value = parseBodyWeight(formData.get("weight"));
-          if (value === null) { setError("invalid-weight"); return; }
+          const typed = parseBodyWeight(formData.get("weight"));
+          if (typed === null) { setError("invalid-weight"); return; }
+          const value = toKg(typed);
           await saveOfflineMutation({ kind: "weight", date, weightKg: value }, ownerId);
           setSavedWeight(value);
           setSaved(true);
           return;
         }
+        const typed = parseBodyWeight(formData.get("weight"));
+        if (typed !== null) formData.set("weight", String(toKg(typed)));
         const result = await saveDailyWeight(formData);
         if (!result.success) setError(result.error);
         else {
@@ -141,9 +147,9 @@ export default function WeightInput() {
             className="h-12 min-w-0 w-full rounded-xl border border-secondary bg-background px-3 text-sm" />
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <label htmlFor="body-weight" className="text-xs font-semibold text-muted-foreground">{t("Greutate (kg)", "Weight (kg)")}</label>
+          <label htmlFor="body-weight" className="text-xs font-semibold text-muted-foreground">{t(`Greutate (${unit})`, `Weight (${unit})`)}</label>
           <input id="body-weight" name="weight" type="text" inputMode="decimal" required
-            autoComplete="off" value={weight} placeholder="75.5"
+            autoComplete="off" value={weight} placeholder={unit === "lb" ? "165" : "75.5"}
             disabled={pending || isLoading || blocked}
             onChange={(event) => { setWeight(event.target.value); setSaved(false); if (error === "invalid-weight") setError(null); }}
             className="h-12 min-w-0 w-full rounded-xl border border-secondary bg-background px-3 text-lg font-bold disabled:opacity-50" />
@@ -155,7 +161,7 @@ export default function WeightInput() {
         </button>
       </form>
       {isLoading && <p role="status" className="mt-3 text-sm text-muted-foreground">{t("Se încarcă...", "Loading...")}</p>}
-      {!isLoading && !error && savedWeight === null && <p className="mt-3 text-xs text-muted-foreground">{t("Nicio cântărire pentru această zi. Introdu valoarea în kg.", "No weigh-in for this day. Enter your weight in kg.")}</p>}
+      {!isLoading && !error && savedWeight === null && <p className="mt-3 text-xs text-muted-foreground">{t(`Nicio cântărire pentru această zi. Introdu valoarea în ${unit}.`, `No weigh-in for this day. Enter your weight in ${unit}.`)}</p>}
       {weight && parsedWeight === null && <p className="mt-3 text-xs text-red-700 dark:text-red-400">{errorText("invalid-weight")}</p>}
       {saved && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">{ownerId ? t("Salvat pe dispozitiv; verifică starea sincronizării.", "Saved to device; check sync status.") : t("Greutatea a fost salvată.", "Weight saved.")}</p>}
       {error && <div role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">

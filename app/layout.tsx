@@ -5,6 +5,8 @@ import { ThemeProvider } from "./components/theme-provider";
 import { ThemeToggle } from "./components/theme-toggle";
 import { LanguageProvider, LanguageSelector } from "./components/language-provider";
 import { getLanguage } from "./language";
+import { getWeightUnit } from "./units";
+import { UnitsProvider } from "./components/units-provider";
 import { OfflineProvider } from "@/lib/offline/client";
 import { OfflineStatus } from "./components/offline-status";
 
@@ -48,6 +50,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { language } = await getLanguage();
+  const weightUnit = await getWeightUnit();
   return (
     <html
       lang={language}
@@ -62,6 +65,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider initialLanguage={language}>
+            <UnitsProvider initialUnit={weightUnit}>
             <OfflineProvider>
             <div className="mx-auto flex w-full max-w-7xl justify-end gap-2 px-5 pt-3 sm:px-8">
               <LanguageSelector />
@@ -70,6 +74,7 @@ export default async function RootLayout({
             <OfflineStatus />
             {children}
             </OfflineProvider>
+            </UnitsProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

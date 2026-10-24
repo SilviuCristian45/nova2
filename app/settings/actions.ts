@@ -4,6 +4,7 @@ import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { rememberWeightUnit } from "@/app/units"
 
 export type ActionResult = { error?: string; success?: boolean; message?: string }
 
@@ -50,6 +51,7 @@ export async function updateProfile(_prev: ActionResult, formData: FormData): Pr
 
   if (error) return { error: error.message }
 
+  await rememberWeightUnit(weightUnit)
   revalidatePath("/", "layout")
   return { success: true, message: t("Profil salvat.", "Profile saved.") }
 }

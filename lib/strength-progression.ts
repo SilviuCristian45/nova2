@@ -65,10 +65,12 @@ function csvCell(value: string | number): string {
 export function strengthProgressionCsv(
   points: StrengthPoint[],
   exercise: string,
+  // Unit the point weights are already converted to; only labels the columns.
+  unit = "kg",
 ): string {
   const includeBodyWeight = points.some((point) => point.bodyWeight != null);
   const rows = [
-    ["Date", "Exercise", "Max weight (kg)", "Max reps", ...(includeBodyWeight ? ["Body weight (kg)"] : [])],
+    ["Date", "Exercise", `Max weight (${unit})`, "Max reps", ...(includeBodyWeight ? [`Body weight (${unit})`] : [])],
     ...points.map((point) => [
       point.performedOn, exercise, point.weight, point.reps,
       ...(includeBodyWeight ? [point.bodyWeight ?? ""] : []),

@@ -14,6 +14,7 @@ import {
   getStrengthProgression, strengthProgressionCsv, withBodyWeights, type StrengthWorkout,
 } from "@/lib/strength-progression";
 import { chartMode, localDate, measurementPoints } from "@/lib/daily-metrics";
+import { useUnits } from "@/app/components/units-provider";
 import { useLanguage } from "@/app/components/language-provider";
 
 type Workout = StrengthWorkout & {
@@ -46,6 +47,7 @@ export default function StatsPage() {
 
 function StatsContent() {
   const { t, locale } = useLanguage();
+  const { unit, toUnit } = useUnits();
   const router = useRouter();
   const params = useSearchParams();
   const mode = chartMode(params.get("mode"));
@@ -162,9 +164,12 @@ function StatsContent() {
     return () => { cancelled = true; };
   }, [timeRange, retry, mode]);
 
+  // Charts and CSV show the user's unit; the data stays in kg until this point.
   const strengthData = withBodyWeights(
     getStrengthProgression(workoutData, selectedExercise, locale), bodyWeights,
-  );
+  ).map((point) => ({
+    ...point, weight: toUnit(point.weight), bodyWeight: point.bodyWeight == null ? point.bodyWeight : toUnit(point.bodyWeight),
+  }));
   const hasBodyWeights = strengthData.some((point) => point.bodyWeight != null);
   const chartData: ChartPoint[] = mode === "strength" ? strengthData : mode === "cardio"
     ? workoutData.flatMap((workout) => {
@@ -176,14 +181,14 @@ function StatsContent() {
     })
     : measurementPoints(measurements, locale).map((day) => ({
       date: day.label,
-      value: day.value,
+      value: mode === "weight" ? toUnit(day.value) : day.value,
       ...(mode === "steps" ? { target: stepsGoal } : {}),
     }));
 
   function exportCsv() {
     try {
       const url = URL.createObjectURL(new Blob(
-        [strengthProgressionCsv(strengthData, selectedExercise)],
+        [strengthProgressionCsv(strengthData, selectedExercise, unit)],
         { type: "text/csv;charset=utf-8;" },
       ));
       const link = document.createElement("a");
@@ -212,7 +217,7 @@ function StatsContent() {
   const exercises = EXERCISES.filter((exercise) => exercise.toLowerCase().includes(exerciseQuery.toLowerCase()));
   const measurementMode = mode === "steps" || mode === "weight";
   const chartTitle = mode === "strength" ? selectedExercise : mode === "cardio" ? selectedCardio
-    : mode === "steps" ? t("Pași zilnici", "Daily steps") : t("Greutate corporală (kg)", "Body weight (kg)");
+    : mode === "steps" ? t("Pași zilnici", "Daily steps") : t(`Greutate corporală (${unit})`, `Body weight (${unit})`);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col p-5 sm:p-8 bg-background text-foreground">
@@ -308,7 +313,7 @@ function StatsContent() {
             <p className="text-sm text-muted-foreground">
               {mode === "steps"
                 ? t("Pașii înregistrați zilnic și obiectivul tău curent.", "Your recorded daily steps and current goal.")
-                : t("Cântăririle tale în kg. Zilele fără înregistrări nu sunt considerate zero.", "Your weigh-ins in kg. Days without an entry are not counted as zero.")}
+                : t(`Cântăririle tale în ${unit}. Zilele fără înregistrări nu sunt considerate zero.`, `Your weigh-ins in ${unit}. Days without an entry are not counted as zero.`)}
             </p>
           )}
         </section>
@@ -342,7 +347,7 @@ function StatsContent() {
                     <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }}
                       allowDecimals={mode === "weight"}
                       domain={mode === "steps" ? [0, (max: number) => Math.max(max, stepsGoal) + 2000] : ["auto", "auto"]}
-                      unit={mode === "weight" ? " kg" : undefined} />
+                      unit={mode === "weight" ? ` ${unit}` : undefined} />
                     <Tooltip
                       cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "6 6" }}
                       content={({ active, payload }) => {
@@ -352,7 +357,7 @@ function StatsContent() {
                         return (
                           <div style={tooltipStyle} className="border shadow-xl text-sm font-bold">
                             <p className="text-xs text-muted-foreground mb-1">{point.date}</p>
-                            <p className="text-cyan-700 dark:text-cyan-400">{mode === "steps" ? t("Pași", "Steps") : t("Greutate", "Weight")}: {value.toLocaleString(locale)}{mode === "weight" ? " kg" : ""}</p>
+                            <p className="text-cyan-700 dark:text-cyan-400">{mode === "steps" ? t("Pași", "Steps") : t("Greutate", "Weight")}: {value.toLocaleString(locale)}{mode === "weight" ? ` ${unit}` : ""}</p>
                             {mode === "steps" && <>
                               <p className="text-muted-foreground">{t("Obiectiv", "Goal")}: {stepsGoal.toLocaleString(locale)}</p>
                               <p className={value >= stepsGoal ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}>
@@ -365,7 +370,7 @@ function StatsContent() {
                     />
                     <Legend wrapperStyle={{ paddingTop: 25, fontSize: 12 }} iconType="circle" />
                     {mode === "steps" && <Line dataKey="target" name={t("Obiectiv zilnic", "Daily goal")} stroke="var(--chart-axis)" strokeDasharray="6 6" dot={false} activeDot={false} />}
-                    <Line dataKey="value" name={mode === "steps" ? t("Pași efectuați", "Steps recorded") : t("Greutate (kg)", "Weight (kg)")}
+                    <Line dataKey="value" name={mode === "steps" ? t("Pași efectuați", "Steps recorded") : t(`Greutate (${unit})`, `Weight (${unit})`)}
                       stroke="var(--chart-cyan)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                   </ComposedChart>
                 ) : (
@@ -374,7 +379,7 @@ function StatsContent() {
                     <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
                     <YAxis yAxisId="primary" width={52} fontSize={10} tickLine={false} axisLine={false}
                       tick={{ fill: "var(--chart-axis)" }} domain={[0, "auto"]}
-                      unit={mode === "strength" ? " kg" : " min"} />
+                      unit={mode === "strength" ? ` ${unit}` : " min"} />
                     {mode === "strength" && <YAxis yAxisId="reps" orientation="right" width={32}
                       fontSize={10} tickLine={false} axisLine={false} allowDecimals={false}
                       tick={{ fill: "var(--chart-green)" }} domain={[0, "auto"]} />}
@@ -382,12 +387,12 @@ function StatsContent() {
                       contentStyle={tooltipStyle} labelStyle={{ color: "var(--foreground)" }} />
                     <Legend wrapperStyle={{ paddingTop: 20, fontSize: 12 }} iconType="circle" />
                     {mode === "strength" ? (<>
-                      <Line yAxisId="primary" dataKey="weight" name={t("Greutate ridicată (kg)", "Lifted weight (kg)")}
+                      <Line yAxisId="primary" dataKey="weight" name={t(`Greutate ridicată (${unit})`, `Lifted weight (${unit})`)}
                         stroke="var(--chart-cyan)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                       <Line yAxisId="reps" dataKey="reps" name={t("Repetări", "Reps")}
                         stroke="var(--chart-green)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} />
                       {hasBodyWeights && <Scatter yAxisId="primary" dataKey="bodyWeight"
-                        name={t("Greutate corporală (kg)", "Body weight (kg)")} fill="var(--chart-rose)" />}
+                        name={t(`Greutate corporală (${unit})`, `Body weight (${unit})`)} fill="var(--chart-rose)" />}
                     </>) : <Line yAxisId="primary" dataKey="duration" name={t("Durată (min)", "Duration (min)")}
                       stroke="var(--chart-rose)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />}
                   </ComposedChart>
@@ -395,8 +400,8 @@ function StatsContent() {
               </ResponsiveContainer>
             </div>
           )}
-          {mode === "strength" && <p className="mt-4 text-xs text-muted-foreground">{t("Maxime pe sesiune din seturile de lucru: greutate (kg) și repetări. Exportul respectă exercițiul și perioada selectate.", "Session working-set maxima: weight (kg) and reps. Export uses the selected exercise and period.")}</p>}
-          {mode === "strength" && <p className="mt-2 text-xs text-muted-foreground">{t("Greutățile folosesc scala din stânga (kg). Repetările folosesc scala verde din dreapta și linia punctată.", "Weights use the left scale (kg). Reps use the green right scale and dashed line.")}</p>}
+          {mode === "strength" && <p className="mt-4 text-xs text-muted-foreground">{t(`Maxime pe sesiune din seturile de lucru: greutate (${unit}) și repetări. Exportul respectă exercițiul și perioada selectate.`, `Session working-set maxima: weight (${unit}) and reps. Export uses the selected exercise and period.`)}</p>}
+          {mode === "strength" && <p className="mt-2 text-xs text-muted-foreground">{t(`Greutățile folosesc scala din stânga (${unit}). Repetările folosesc scala verde din dreapta și linia punctată.`, `Weights use the left scale (${unit}). Reps use the green right scale and dashed line.`)}</p>}
           {mode === "strength" && hasBodyWeights && <p className="mt-2 text-xs text-muted-foreground">{t("Punctele roșii arată greutatea corporală înregistrată în ziua antrenamentului. Zilele fără cântărire nu au punct roșu.", "Red dots show body weight recorded on the workout date. Days without a weigh-in have no red dot.")}</p>}
           {mode === "strength" && bodyWeightError && !isLoading && (
             <div role="alert" className="mt-4 text-sm text-red-700 dark:text-red-400">

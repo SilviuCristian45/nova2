@@ -1,5 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { getLanguage } from "@/app/language"
+import { getWeightUnit } from "@/app/units"
+import { kgToUnit } from "@/lib/units"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -17,6 +19,7 @@ function calculate1RM(weight: number, reps: number) {
 
 export default async function RecordsPage() {
   const { locale } = await getLanguage()
+  const unit = await getWeightUnit()
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -127,7 +130,7 @@ export default async function RecordsPage() {
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"><Text ro="Cel mai bun set" en="Best set" /></span>
                     <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">
-                      {record.weight} <span className="text-sm text-zinc-500 font-normal">kg ×</span> {record.reps} <span className="text-sm text-zinc-500 font-normal"><Text ro="repetări" en="reps" /></span>
+                      {kgToUnit(Number(record.weight), unit).toLocaleString(locale)} <span className="text-sm text-zinc-500 font-normal">{unit} ×</span> {record.reps} <span className="text-sm text-zinc-500 font-normal"><Text ro="repetări" en="reps" /></span>
                     </span>
                     <span className="text-[11px] font-mono text-zinc-500 mt-1 flex items-center gap-1.5">
                       <span className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">{record.rir} RIR</span>
@@ -138,7 +141,7 @@ export default async function RecordsPage() {
                   <div className="flex flex-col items-end gap-0.5 text-right">
                     <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest"><Text ro="1RM estimat" en="Est. 1RM" /></span>
                     <span className="text-3xl font-black text-amber-700 dark:text-amber-400 drop-shadow-sm">
-                      {record.oneRM} <span className="text-sm font-bold opacity-70">kg</span>
+                      {kgToUnit(record.oneRM, unit).toLocaleString(locale)} <span className="text-sm font-bold opacity-70">{unit}</span>
                     </span>
                   </div>
                 </div>

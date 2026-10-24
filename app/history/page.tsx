@@ -1,6 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
+import { getWeightFormatter } from "@/app/units"
 import Link from "next/link";
 import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -44,6 +45,7 @@ export default async function HistoryPage({
   searchParams: Promise<{ startDate?: string; endDate?: string; page?: string }>;
 }) {
   const { t, locale } = await getLanguage()
+  const { format } = await getWeightFormatter(locale)
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -151,7 +153,7 @@ export default async function HistoryPage({
                           <div key={set.id} className="py-1 border-b last:border-0">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="text-muted-foreground"><Text ro="Set" en="Set" /> {set.set_number} <span className="text-[10px] uppercase bg-secondary px-1.5 py-0.5 rounded-md"><WorkoutLabel value={set.set_type} /></span></span>
-                              <span className="font-bold">{set.weight > 0 ? `${set.weight}kg × ` : ""}{set.reps}<span className="font-normal text-muted-foreground ml-1">(RIR {set.rir})</span></span>
+                              <span className="font-bold">{set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps}<span className="font-normal text-muted-foreground ml-1">(RIR {set.rir})</span></span>
                             </div>
                             {set.notes && <p className="text-xs text-blue-700 dark:text-blue-400 italic mt-1 bg-blue-500/10 px-2 py-1 rounded-md break-words">{set.notes}</p>}
                           </div>

@@ -46,6 +46,9 @@ export function getBestSetFromLastSession(
 
 export function calculateProgression(
   bestSet: WorkoutSet | null,
+  // Weights are kg: formatWeight shows them in the user's unit, stepKg is the plate jump (2.5 kg / 5 lb)
+  formatWeight: (kg: number) => string = (kg) => `${kg}kg`,
+  stepKg = 2.5,
 ): PredictionResult {
   if (!bestSet) {
     return {
@@ -63,18 +66,18 @@ export function calculateProgression(
   const TARGET_REPS = 10;
 
   if (reps >= TARGET_REPS && rir <= 2) {
-    const newWeight = weight + 2.5;
+    const newWeight = weight + stepKg;
     return {
       recommendedWeight: newWeight,
       recommendedReps: 6,
-      message: `🏆 Data trecută ai făcut ${weight}kg × ${reps} reps (RIR ${rir}). Azi urcăm la ${newWeight}kg pentru 8 repetări!`,
+      message: `🏆 Data trecută ai făcut ${formatWeight(weight)} × ${reps} reps (RIR ${rir}). Azi urcăm la ${formatWeight(newWeight)} pentru 8 repetări!`,
     };
   } else {
     const newReps = reps + 1;
     return {
       recommendedWeight: weight,
       recommendedReps: newReps,
-      message: `🏆 Păstrăm ${weight}kg. Ținta de azi: încearcă să scoți ${newReps} repetări (data trecută ai avut ${reps}).`,
+      message: `🏆 Păstrăm ${formatWeight(weight)}. Ținta de azi: încearcă să scoți ${newReps} repetări (data trecută ai avut ${reps}).`,
     };
   }
 }

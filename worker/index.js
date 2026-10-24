@@ -10,3 +10,14 @@ self.addEventListener("activate", (event) => {
     )),
   );
 });
+
+// Tapping the rest-timer notification brings the open app back instead of doing nothing.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => "focus" in client);
+      return open ? open.focus() : self.clients.openWindow("/insert");
+    }),
+  );
+});

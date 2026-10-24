@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Target, Save, Loader2, Flame, Wheat, Droplet, Cookie } from "lucide-react"
 import { getUserTargets, saveUserTargets } from "@/app/meals/action"
+import { EnergyRecommendation } from "./energy-recommendation"
 
 export default function EditTargetsPage() {
   const { t } = useLanguage()
@@ -50,7 +51,8 @@ export default function EditTargetsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 animate-in fade-in slide-in-from-bottom-4">
-        
+        <EnergyRecommendation onApply={(recommended) => setTargets(recommended)} />
+
         {/* KCAL */}
         <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-orange-500/30">
           <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Trash2 } from "lucide-react";
+import { useUnits } from "@/app/components/units-provider";
+import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
 import { WorkoutLabel } from "@/app/components/workout-label";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
@@ -133,6 +135,7 @@ export default function OfflinePage() {
 
 function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | null; disabled: boolean }) {
   const { t, locale } = useLanguage();
+  const { format } = useUnits();
   return (
     <>
       <div className="grid items-start gap-5 md:grid-cols-2">
@@ -168,7 +171,7 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
                 {workout.workout_sets.map((set) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
                   <p className="break-words font-semibold">{set.exercise}</p>
                   <p className="text-muted-foreground">{t("Set", "Set")} {set.set_number}{" · "}<WorkoutLabel value={set.set_type} /></p>
-                  <p>{set.weight.toLocaleString(locale)} kg × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir.toLocaleString(locale)}</p>
+                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir.toLocaleString(locale)}</p>
                   {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
                 </div>)}
                 {workout.cardio_sessions.map((entry) => <div key={entry.id} className="rounded-xl border bg-background p-3 text-sm">
@@ -187,6 +190,7 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
 
 function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; snapshot: OfflineSnapshot | null; disabled: boolean }) {
   const { t, locale } = useLanguage();
+  const { unit, toUnit, toKg, format } = useUnits();
   const { ownerId } = useOffline();
   const [date, setDate] = useState(localDate);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -195,7 +199,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const existing = kind === "steps" ? snapshot?.steps.find((entry) => entry.date === date)?.steps : snapshot?.weights.find((entry) => entry.date === date)?.weight_kg;
-  const value = draft[date] ?? (existing === undefined ? "" : String(existing));
+  const value = draft[date] ?? (existing === undefined ? "" : String(kind === "weight" ? toUnit(existing) : existing));
   const title = kind === "steps" ? t("Pași", "Steps") : t("Greutate corporală", "Body weight");
   const Icon = kind === "steps" ? Footprints : Scale;
 
@@ -210,14 +214,14 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
     }
     const number = kind === "steps" ? Number(value) : parseBodyWeight(value);
     if (!value.trim() || number === null || !Number.isFinite(number) || (kind === "steps" && (!Number.isSafeInteger(number) || number < 0 || number > 2147483647))) {
-      setError(kind === "steps" ? t("Introdu un număr întreg de pași, minimum 0.", "Enter a whole number of steps, at least 0.") : t("Introdu o greutate între 0,01 și 9999,99 kg, cu maximum două zecimale.", "Enter a weight between 0.01 and 9999.99 kg, with at most two decimals."));
+      setError(kind === "steps" ? t("Introdu un număr întreg de pași, minimum 0.", "Enter a whole number of steps, at least 0.") : t(`Introdu o greutate pozitivă în ${unit}, cu maximum două zecimale.`, `Enter a positive weight in ${unit}, with at most two decimals.`));
       return;
     }
     savingRef.current = true;
     setSaving(true);
     try {
       if (!ownerId) throw new Error(t("Contul s-a schimbat.", "Account changed."));
-      await saveOfflineMutation(kind === "steps" ? { kind, date, steps: number } : { kind, date, weightKg: number }, ownerId);
+      await saveOfflineMutation(kind === "steps" ? { kind, date, steps: number } : { kind, date, weightKg: toKg(number) }, ownerId);
       setSaved(true);
     } catch (error) {
       setError(failureMessage(error, t("Salvarea a eșuat. Datele au fost păstrate.", "Save failed. Your input was kept.")));
@@ -231,10 +235,10 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
     <h2 className="flex items-center gap-2 text-lg font-bold"><Icon className="size-5" aria-hidden="true" />{title}</h2>
     <fieldset disabled={disabled || saving} className="space-y-4 disabled:opacity-60">
       <label className="block space-y-1 text-sm"><span>{t("Data", "Date")}</span><input aria-label={`${title}: ${t("data", "date")}`} className={inputClass} type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); setError(null); }} /></label>
-      <label className="block space-y-1 text-sm"><span>{kind === "steps" ? t("Număr de pași", "Step count") : t("Greutate (kg)", "Weight (kg)")}</span><input className={inputClass} type="number" inputMode={kind === "steps" ? "numeric" : "decimal"} required min={kind === "steps" ? 0 : 0.01} max={kind === "steps" ? 2147483647 : 9999.99} step={kind === "steps" ? 1 : 0.01} value={value} onChange={(event) => { setDraft((current) => ({ ...current, [date]: event.target.value })); setSaved(false); }} /></label>
+      <label className="block space-y-1 text-sm"><span>{kind === "steps" ? t("Număr de pași", "Step count") : t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input className={inputClass} type="number" inputMode={kind === "steps" ? "numeric" : "decimal"} required min={kind === "steps" ? 0 : 0.01} max={kind === "steps" ? 2147483647 : 9999.99} step={kind === "steps" ? 1 : 0.01} value={value} onChange={(event) => { setDraft((current) => ({ ...current, [date]: event.target.value })); setSaved(false); }} /></label>
       <p className="text-xs text-muted-foreground">{existing === undefined
         ? t("Nicio valoare locală pentru această dată; câmpul gol nu înseamnă zero.", "No local value for this date; a blank field does not mean zero.")
-        : `${t("Valoare locală:", "Local value:")} ${existing.toLocaleString(locale)}${kind === "weight" ? " kg" : ""}. ${t("Salvarea înlocuiește valoarea zilei.", "Saving replaces that day’s value.")}`}</p>
+        : `${t("Valoare locală:", "Local value:")} ${kind === "weight" ? format(existing) : existing.toLocaleString(locale)}. ${t("Salvarea înlocuiește valoarea zilei.", "Saving replaces that day’s value.")}`}</p>
       <button className={buttonClass} type="submit">{saving ? t("Se salvează…", "Saving…") : t("Salvează pe dispozitiv", "Save on device")}</button>
     </fieldset>
     {error && <p role="alert" className="break-words text-sm text-red-700 dark:text-red-400">{error}</p>}
@@ -245,6 +249,8 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
 function WorkoutForm({ disabled }: { disabled: boolean }) {
   const { ownerId } = useOffline();
   const { t, locale } = useLanguage();
+  const { unit, toUnit, toKg, format } = useUnits();
+  const restTimer = useRestTimer();
   const [date, setDate] = useState(localDate);
   const [mode, setMode] = useState<"strength" | "cardio">("strength");
   const [split, setSplit] = useState<string>(SPLITS[0]);
@@ -269,15 +275,16 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     setSaved(false);
     if (mode === "strength") {
       const r = Number(reps), w = Number(weight), reserve = Number(rir);
-      if (!reps.trim() || !weight.trim() || !rir.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || w > 99999 || !Number.isFinite(reserve) || reserve < 0 || reserve > 10) {
-        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea minimum 0, iar RIR între 0 și 10. Completează toate câmpurile numerice.", "Reps must be positive whole numbers, weight at least 0, and RIR between 0 and 10. Complete all numeric fields."));
+      if (!reps.trim() || !weight.trim() || !rir.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || toKg(w) > 10000 || !Number.isSafeInteger(reserve) || reserve < 0 || reserve > 5) {
+        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR un număr întreg între 0 și 5. Completează toate câmpurile numerice.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR a whole number between 0 and 5. Complete all numeric fields."));
         return;
       }
-      setSets((current) => [...current, { uiId: crypto.randomUUID(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: w, rir: reserve, setType, notes }]);
+      setSets((current) => [...current, { uiId: crypto.randomUUID(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
+      restTimer.start();
     } else {
       const minutes = Number(duration);
-      if (!duration.trim() || !Number.isFinite(minutes) || minutes < 0.01 || minutes > 1440) {
-        setError(t("Durata trebuie să fie între 0,01 și 1440 minute.", "Duration must be between 0.01 and 1440 minutes."));
+      if (!duration.trim() || !Number.isSafeInteger(minutes) || minutes < 1 || minutes > 1440) {
+        setError(t("Durata trebuie să fie un număr întreg de minute, între 1 și 1440.", "Duration must be a whole number of minutes between 1 and 1440."));
         return;
       }
       setCardio((current) => [...current, { uiId: crypto.randomUUID(), activity, durationMin: minutes }]);
@@ -345,17 +352,18 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <label className="block space-y-1 text-sm"><span>{t("Exercițiu", "Exercise")}</span><select className={inputClass} value={exercise} onChange={(event) => setExercise(event.target.value)}>{EXERCISES.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block space-y-1 text-sm"><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" value={reps} onChange={(event) => setReps(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>{t("Greutate (kg)", "Weight (kg)")}</span><input type="number" inputMode="decimal" required min="0" max="99999" step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>RIR (0–10)</span><input type="number" inputMode="decimal" required min="0" max="10" step="any" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
+            <label className="block space-y-1 text-sm"><span>{t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
+            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" required min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
           </div>
-          <p className="text-xs text-muted-foreground">{t("RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 kg.", "RIR = reps in reserve. For exercises without added weight, enter 0 kg.")}</p>
-          <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={5000} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
+          <p className="text-xs text-muted-foreground">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
+          <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
         </> : <>
           <label className="block space-y-1 text-sm"><span>{t("Activitate", "Activity")}</span><select className={inputClass} value={activity} onChange={(event) => setActivity(event.target.value)}>{CARDIO_ACTIVITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-          <label className="block space-y-1 text-sm"><span>{t("Durată (minute)", "Duration (minutes)")}</span><input className={inputClass} type="number" inputMode="decimal" required min="0.01" max="1440" step="any" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
+          <label className="block space-y-1 text-sm"><span>{t("Durată (minute)", "Duration (minutes)")}</span><input className={inputClass} type="number" inputMode="numeric" required min="1" max="1440" step="1" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
         </>}
         <button type="submit" className="min-h-11 rounded-xl border bg-secondary px-4 text-sm font-semibold">{mode === "strength" ? t("Adaugă set în listă", "Add set to list") : t("Adaugă activitate în listă", "Add activity to list")}</button>
         <p className="text-xs text-muted-foreground">{t("Adăugarea în listă nu salvează încă pe dispozitiv. Numai lista tipului selectat va fi salvată.", "Adding to the list does not save to this device yet. Only the selected mode’s list will be saved.")}</p>
+        {mode === "strength" && <RestTimerSettings timer={restTimer} />}
       </form>
 
       <div className="space-y-3">
@@ -365,7 +373,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <div className="min-w-0 flex-1 space-y-1 text-sm">
             <p className="break-words font-semibold">{index + 1}. {set.exercise}</p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
-            <p>{set.weight.toLocaleString(locale)} kg × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir}</p>
+            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
           </div>
           <button type="button" onClick={() => { setSets((current) => current.filter((entry) => entry.uiId !== set.uiId)); setSaved(false); }} aria-label={`${t("Elimină setul", "Remove set")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>
@@ -380,5 +388,6 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     </fieldset>
     {error && <p role="alert" className="break-words text-sm text-red-700 dark:text-red-400">{error}</p>}
     {saved && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{t("Antrenament salvat pe dispozitiv și pus în coada de sincronizare. Îl găsești în istoric, marcat nesincronizat până la confirmarea serverului.", "Workout saved on this device and queued for sync. Find it in history, marked pending until the server confirms it.")}</p>}
+    <RestTimerBar timer={restTimer} />
   </section>;
 }

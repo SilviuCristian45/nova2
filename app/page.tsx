@@ -1,6 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
+import { getWeightFormatter } from "@/app/units"
 import { localDate } from "@/lib/daily-metrics"
 import Link from "next/link"
 import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Plus, History, Sun, Trophy, TrendingUp, Zap} from "lucide-react"
@@ -51,6 +52,7 @@ const PAGE_SIZE = 5 // Setat pe 5 așa cum ai agreat
 
 export default async function HistoryPage(props: any) {
   const { t, locale } = await getLanguage()
+  const { format } = await getWeightFormatter(locale)
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -431,7 +433,7 @@ export default async function HistoryPage(props: any) {
                                   </span>
                                 </span>
                                 <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                                  {set.weight > 0 ? `${set.weight} kg × ` : ""}{set.reps} <Text ro="repetări" en="reps" />
+                                  {set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps} <Text ro="repetări" en="reps" />
                                   <span className="font-normal text-zinc-500 ml-1.5 text-xs">
                                     ({set.rir} RIR)
                                   </span>

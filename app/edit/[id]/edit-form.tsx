@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart, Search } from "lucid
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
+import { useUnits } from "@/app/components/units-provider"
 
 // --- FUNCȚIE PENTRU ETICHETE COLORATE (Din Insert) ---
 const getSetTypeBadge = (type: string) => {
@@ -27,6 +28,7 @@ const getSetTypeBadge = (type: string) => {
 
 export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: any }) {
   const { t } = useLanguage()
+  const { unit, toUnit, toKg, format } = useUnits()
 
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
@@ -84,7 +86,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
     const newSet = {
       id: Math.random().toString(36).substring(2, 9),
       split, exercise, setNumber: sessionSets.length + 1,
-      reps: Number(reps), weight: weight === "" ? 0 : Number(weight),
+      reps: Number(reps), weight: weight === "" ? 0 : toKg(Number(weight)),
       rir: rir === "" ? 0 : Number(rir), setType
     }
     setSessionSets((prev) => [...prev, newSet])
@@ -204,8 +206,8 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
 
           <div className="grid grid-cols-3 gap-3 mt-2">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-bold text-zinc-500 text-center">Kg</label>
-              <input type="number" step="0.5" min={0} value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-emerald-700 dark:text-emerald-400 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
+              <label className="text-[10px] uppercase font-bold text-zinc-500 text-center">{unit}</label>
+              <input type="number" step="0.5" min={0} max={Math.floor(toUnit(10000))} value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-emerald-700 dark:text-emerald-400 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase font-bold text-zinc-500 text-center"><Text ro="Repetări" en="Reps" /></label>
@@ -260,7 +262,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
               
               <div className="text-zinc-600 dark:text-zinc-400 text-xs flex items-center flex-wrap gap-x-2.5 gap-y-1.5 font-mono">
                 <span>
-                  {s.weight > 0 ? <span className="font-bold text-emerald-700 dark:text-emerald-400">{s.weight} kg</span> : ""}
+                  {s.weight > 0 ? <span className="font-bold text-emerald-700 dark:text-emerald-400">{format(Number(s.weight))}</span> : ""}
                   {s.weight > 0 ? " × " : ""}
                   <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{s.reps}</span> <Text ro="repetări" en="reps" />
                 </span>

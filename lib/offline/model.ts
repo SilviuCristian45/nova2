@@ -20,12 +20,12 @@ export function validOfflinePayload(value: unknown, today: string): value is Off
     const set = s as Record<string, unknown>;
     return text(set.split, 100) && text(set.exercise, 300) && text(set.setType, 100) &&
       number(set.setNumber, 1, 10000, true) && number(set.reps, 1, 100000, true) &&
-      number(set.weight, 0, 99999) && number(set.rir, 0, 10) &&
-      typeof set.notes === "string" && set.notes.length <= 5000;
+      number(set.weight, 0, 10000) && number(set.rir, 0, 5, true) &&
+      typeof set.notes === "string" && set.notes.length < 100;
   }) && p.cardio.every((c: unknown) => {
     if (!c || typeof c !== "object") return false;
     const entry = c as Record<string, unknown>;
-    return text(entry.activity, 300) && number(entry.durationMin, 0.01, 1440);
+    return text(entry.activity, 120) && number(entry.durationMin, 1, 1440, true);
   });
 }
 

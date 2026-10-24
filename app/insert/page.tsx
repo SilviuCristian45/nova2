@@ -32,6 +32,9 @@ import {
 } from "@/lib/workout-data";
 import type { OfflineCardio, OfflineSet } from "@/lib/offline/types";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
+import { useUnits } from "@/app/components/units-provider";
+import { progressionStepKg } from "@/lib/units";
+import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { localDate } from "@/lib/daily-metrics";
 import { readOfflineDatabase } from "@/lib/offline/store";
 import {
@@ -108,6 +111,8 @@ const getSetTypeBadge = (type: string) => {
 export default function InsertWorkoutPage() {
   const { t } = useLanguage();
   const { ownerId, ready, sync } = useOffline();
+  const { unit, toUnit, toKg, format } = useUnits();
+  const restTimer = useRestTimer();
   const draftKey = ownerId ? `${DRAFT_KEY}_${ownerId}` : null;
   const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
 
@@ -255,7 +260,7 @@ export default function InsertWorkoutPage() {
       }
 
       const weightText =
-        Number(bestSet.weight) > 0 ? `${bestSet.weight}kg × ` : "";
+        Number(bestSet.weight) > 0 ? `${format(Number(bestSet.weight))} × ` : "";
       const notesText = bestSet.notes ? ` (${bestSet.notes})` : "";
 
       setBestPerformance({
@@ -269,12 +274,12 @@ export default function InsertWorkoutPage() {
         `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} (RIR ${bestSet.rir})${notesText}`,
       );
 
-      const recommendedPerformance = calculateProgression(bestSet);
+      const recommendedPerformance = calculateProgression(bestSet, format, progressionStepKg(unit));
       setRecommendedPerformance(recommendedPerformance.message);
     }
 
     fetchLastPerformance();
-  }, [exercise, mode, t]);
+  }, [exercise, mode, t, format, unit]);
 
   // Local Storage
   useEffect(() => {
@@ -352,7 +357,7 @@ export default function InsertWorkoutPage() {
       exercise,
       setNumber,
       reps: Number(reps),
-      weight: weight === "" ? 0 : Number(weight),
+      weight: weight === "" ? 0 : toKg(Number(weight)),
       rir: rir === "" ? 0 : Number(rir),
       setType,
       notes: notes.trim(),
@@ -386,7 +391,7 @@ export default function InsertWorkoutPage() {
         notes: newSet.notes,
       });
 
-      const weightText = newSet.weight > 0 ? `${newSet.weight}kg × ` : "";
+      const weightText = newSet.weight > 0 ? `${format(newSet.weight)} × ` : "";
       const notesText = newSet.notes ? ` (${newSet.notes})` : "";
       setLastPerformance(
         `🏆 ${t("Nou record", "New record")}: ${weightText}${newSet.reps} ${t("repetări", "reps")} (RIR ${newSet.rir})${notesText}`,
@@ -395,6 +400,7 @@ export default function InsertWorkoutPage() {
 
     setSessionSets((prev) => [...prev, newSet]);
     setSetNumber((n) => n + 1);
+    restTimer.start();
     setReps("");
     setRir("");
     setNotes("");
@@ -417,6 +423,7 @@ export default function InsertWorkoutPage() {
     if (mode === "cardio" && cardioEntries.length === 0) return;
 
     setError(null);
+    restTimer.skip();
     const celebrate = () => {
       const duration = 2000;
       const end = Date.now() + duration;
@@ -506,7 +513,7 @@ export default function InsertWorkoutPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+    <main className={`mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 ${restTimer.running || restTimer.finished ? "pb-28" : ""}`}>
       {/* HEADER MODERN */}
       <header className="flex flex-col gap-6 mb-6 mt-2">
         <div className="flex items-center gap-3">
@@ -728,12 +735,13 @@ export default function InsertWorkoutPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] uppercase font-bold text-zinc-500 text-center">
-                  Kg
+                  {unit}
                 </label>
                 <input
                   type="number"
                   step="0.5"
                   min={0}
+                  max={Math.floor(toUnit(10000))}
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   placeholder="0"
@@ -746,7 +754,7 @@ export default function InsertWorkoutPage() {
                 </label>
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   required
                   value={reps}
                   onChange={(e) => setReps(e.target.value)}
@@ -796,6 +804,7 @@ export default function InsertWorkoutPage() {
               </label>
               <input
                 type="text"
+                maxLength={99}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t("Ex: Scaunul la 3...", "E.g. Seat at 3...")}
@@ -809,6 +818,7 @@ export default function InsertWorkoutPage() {
             >
               <Text ro="+ Adaugă Setul" en="+ Add set" />
             </button>
+            <RestTimerSettings timer={restTimer} />
           </form>
         )}
 
@@ -889,7 +899,7 @@ export default function InsertWorkoutPage() {
                     <span>
                       {s.weight > 0 ? (
                         <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                          {s.weight} kg
+                          {format(s.weight)}
                         </span>
                       ) : (
                         ""
@@ -980,6 +990,7 @@ export default function InsertWorkoutPage() {
           <Text ro="Finalizează Antrenamentul" en="Finish workout" />
         </button>
       )}
+      <RestTimerBar timer={restTimer} />
     </main>
   );
 }
