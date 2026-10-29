@@ -155,6 +155,44 @@ export async function GET(request: Request) {
       new Map(combined.map((item) => [item.barcode, item])).values(),
     );
 
+    // Salvăm în Supabase doar produsele externe care nu există deja.
+    const externalFoods = uniqueResults.filter(
+      (item) =>
+        (item.source === "open_food_facts" || item.source === "usda") &&
+        item.barcode &&
+        item.name,
+    );
+
+    if (externalFoods.length > 0) {
+      const rowsToInsert = externalFoods.map((food) => ({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        name: food.name,
+        brand: food.brand || null,
+        barcode: food.barcode,
+        kcal_per_100g: food.kcal_per_100g ?? 0,
+        protein_per_100g: food.protein_per_100g ?? 0,
+        carbs_per_100g: food.carbs_per_100g ?? 0,
+        fat_per_100g: food.fat_per_100g ?? 0,
+        fiber_per_100g: food.fiber_per_100g ?? null,
+      }));
+
+      const { error: saveError } = await supabase
+        .from("foods")
+        .upsert(rowsToInsert, {
+          onConflict: "barcode",
+          ignoreDuplicates: true,
+        });
+
+      if (saveError) {
+        console.error("Nu am putut salva alimentele:", saveError);
+      } else {
+        console.log("food items salvate cu succes in db");
+      }
+    }
+
+    //save in supabase
+
     return NextResponse.json({ results: uniqueResults });
   } catch (error) {
     console.error("API Search Error:", error);
