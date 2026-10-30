@@ -1,6 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
+import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { getWeightFormatter } from "@/app/units"
 import Link from "next/link";
 import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
@@ -140,12 +141,12 @@ export default async function HistoryPage({
                 <div className="p-4 flex flex-col gap-3">
                   {isCardio ? workout.cardio_sessions?.map((session: { id: string; activity: string; duration_min: number }) => (
                     <div key={session.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-background">
-                      <span className="font-semibold">{session.activity}</span><span className="text-sm text-muted-foreground">{session.duration_min} min</span>
+                      <span className="font-semibold"><CardioName id={session.activity} /></span><span className="text-sm text-muted-foreground">{session.duration_min} min</span>
                     </div>
                   )) : Object.entries(groupedSets).map(([exercise, sets]) => (
                     <details key={exercise} className="group border rounded-xl p-3 bg-background">
                       <summary className="flex items-center justify-between gap-3 list-none">
-                        <span className="font-semibold text-sm">{exercise} <span className="text-muted-foreground font-normal">({sets.length} <Text ro="seturi" en="sets" />)</span></span>
+                        <span className="font-semibold text-sm"><ExerciseName id={exercise} /> <span className="text-muted-foreground font-normal">({sets.length} <Text ro="seturi" en="sets" />)</span></span>
                         <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open:rotate-180 transition-transform" />
                       </summary>
                       <div className="mt-3 flex flex-col gap-2 border-t pt-3 text-sm">

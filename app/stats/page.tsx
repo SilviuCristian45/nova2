@@ -16,6 +16,8 @@ import {
 import { chartMode, localDate, measurementPoints } from "@/lib/daily-metrics";
 import { useUnits } from "@/app/components/units-provider";
 import { useLanguage } from "@/app/components/language-provider";
+import { cardioName, exerciseName as localizedExercise, matchesExerciseQuery } from "@/lib/exercise-catalog";
+import { ExerciseName } from "@/app/components/exercise-name";
 
 type Workout = StrengthWorkout & {
   cardio_sessions: { activity: string; duration_min: number | null }[] | null;
@@ -46,7 +48,7 @@ export default function StatsPage() {
 }
 
 function StatsContent() {
-  const { t, locale } = useLanguage();
+  const { t, locale, language } = useLanguage();
   const { unit, toUnit } = useUnits();
   const router = useRouter();
   const params = useSearchParams();
@@ -214,9 +216,9 @@ function StatsContent() {
       : error === "export-failed"
         ? t("Exportul CSV a eșuat. Încearcă din nou.", "CSV export failed. Please retry.")
         : t("Nu am putut încărca datele graficului.", "Unable to load chart data.") + (error && error !== "load-failed" ? ` (${error})` : "");
-  const exercises = EXERCISES.filter((exercise) => exercise.toLowerCase().includes(exerciseQuery.toLowerCase()));
+  const exercises = EXERCISES.filter((exercise) => matchesExerciseQuery(exercise, exerciseQuery));
   const measurementMode = mode === "steps" || mode === "weight";
-  const chartTitle = mode === "strength" ? selectedExercise : mode === "cardio" ? selectedCardio
+  const chartTitle = mode === "strength" ? localizedExercise(selectedExercise, language) : mode === "cardio" ? cardioName(selectedCardio, language)
     : mode === "steps" ? t("Pași zilnici", "Daily steps") : t(`Greutate corporală (${unit})`, `Body weight (${unit})`);
 
   return (
@@ -261,7 +263,7 @@ function StatsContent() {
               {mode === "strength" ? (
                 <div className="relative">
                   <input id="tracked-exercise" type="text"
-                    value={isExerciseOpen ? exerciseQuery : selectedExercise}
+                    value={isExerciseOpen ? exerciseQuery : localizedExercise(selectedExercise, language)}
                     onChange={(event) => { setExerciseQuery(event.target.value); setIsExerciseOpen(true); }}
                     onFocus={() => { setExerciseQuery(""); setIsExerciseOpen(true); }}
                     onBlur={() => setTimeout(() => setIsExerciseOpen(false), 150)}
@@ -281,7 +283,7 @@ function StatsContent() {
                           <button type="button" onMouseDown={(event) => event.preventDefault()}
                             onClick={() => { setSelectedExercise(exercise); setIsExerciseOpen(false); }}
                             className={`w-full text-left rounded-lg px-3 py-2.5 text-sm ${selectedExercise === exercise ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 font-bold" : "hover:bg-secondary"}`}>
-                            {exercise}
+                            <ExerciseName id={exercise} />
                           </button>
                         </li>
                       )) : <li className="p-3 text-sm text-muted-foreground">{t("Nu am găsit acest exercițiu.", "No matching exercise.")}</li>}
@@ -290,7 +292,7 @@ function StatsContent() {
                 </div>
               ) : (
                 <select id="tracked-exercise" value={selectedCardio} onChange={(event) => setSelectedCardio(event.target.value)} className={field}>
-                  {CARDIO_ACTIVITIES.map((activity) => <option key={activity}>{activity}</option>)}
+                  {CARDIO_ACTIVITIES.map((activity) => <option key={activity} value={activity}>{cardioName(activity, language)}</option>)}
                 </select>
               )}
             </div>

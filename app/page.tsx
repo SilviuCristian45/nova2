@@ -1,6 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
+import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { getWeightFormatter } from "@/app/units"
 import { localDate } from "@/lib/daily-metrics"
 import Link from "next/link"
@@ -408,7 +409,7 @@ export default async function HistoryPage(props: any) {
                   {isCardio ? (
                     workout.cardio_sessions?.map((c: any) => (
                       <div key={c.id} className="flex justify-between items-center text-sm bg-white dark:bg-zinc-950/40 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
-                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">{c.activity}</span>
+                        <span className="font-semibold text-zinc-800 dark:text-zinc-200"><CardioName id={c.activity} /></span>
                         <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1">
                           ⏱ {c.duration_min} min
                         </span>
@@ -418,7 +419,7 @@ export default async function HistoryPage(props: any) {
                     Object.entries(groupedSets).map(([exerciseName, sets]) => (
                       <details key={exerciseName} className="group [&_summary::-webkit-details-marker]:hidden rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white dark:bg-zinc-950/40 p-3.5 shadow-sm transition-all open:bg-white dark:open:bg-zinc-950/80">
                         <summary className="flex cursor-pointer items-center justify-between font-bold text-sm outline-none text-zinc-800 dark:text-zinc-200">
-                          <span className="tracking-wide">{exerciseName}</span>
+                          <span className="tracking-wide"><ExerciseName id={exerciseName} /></span>
                           <ChevronDown className="size-4 text-zinc-500 transition-transform duration-300 group-open:rotate-180" />
                         </summary>
                         

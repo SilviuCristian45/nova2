@@ -21,8 +21,12 @@ const labels: Record<string, [string, string]> = {
   "Rest-Pause": ["Pauză scurtă", "Rest-Pause"],
 };
 
-export function WorkoutLabel({ value }: { value: string }) {
-  const { t } = useLanguage();
+export function workoutLabelText(value: string, t: (ro: string, en: string) => string) {
   const pair = labels[value];
   return pair ? t(...pair) : value;
+}
+
+export function WorkoutLabel({ value }: { value: string }) {
+  const { t } = useLanguage();
+  return workoutLabelText(value, t);
 }

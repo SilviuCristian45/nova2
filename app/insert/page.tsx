@@ -1,8 +1,10 @@
 "use client";
 
 import { Text, useLanguage } from "@/app/components/language-provider";
-import { WorkoutLabel } from "@/app/components/workout-label";
-import { useEffect, useState, useTransition, useRef } from "react";
+import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
+import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
+import type { SummaryInput } from "@/lib/workout-summary";
+import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -41,6 +43,14 @@ import {
   calculateProgression,
   getBestSetFromLastSession,
 } from "@/utils/fitness";
+import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
+import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
+import {
+  cardioName,
+  exerciseName,
+  matchesExerciseQuery,
+} from "@/lib/exercise-catalog";
+import { CardioName, ExerciseName } from "@/app/components/exercise-name";
 
 const DRAFT_KEY = "workout_draft_v1";
 
@@ -109,7 +119,7 @@ const getSetTypeBadge = (type: string) => {
 };
 
 export default function InsertWorkoutPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { ownerId, ready, sync } = useOffline();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
@@ -120,6 +130,10 @@ export default function InsertWorkoutPage() {
   const [isSaving, startSaving] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string>("");
+  // Set once the workout is saved: the shareable card is shown before leaving the page.
+  const submitGuard = useRef(createSubmitGuard());
+  const [saveLocked, setSaveLocked] = useState(false);
+  const [finished, setFinished] = useState<{ input: SummaryInput; next: string } | null>(null);
 
   // State general
   const [mode, setMode] = useState<"strength" | "cardio">("strength");
@@ -196,12 +210,9 @@ export default function InsertWorkoutPage() {
     setExerciseQuery("");
   }, [split]);
 
-  const [bestPerformance, setBestPerformance] = useState<{
-    weight: number;
-    reps: number;
-    rir: number;
-    notes?: string;
-  } | null>(null);
+  // Best set of the last session per exercise, from before this workout: the PR baseline.
+  const [baselines, setBaselines] = useState<Record<string, BestSet | null>>({});
+  const requestedBaselines = useRef(new Set<string>());
 
   const [recommendedPerformance, setRecommendedPerformance] = useState("");
 
@@ -241,7 +252,8 @@ export default function InsertWorkoutPage() {
             "New exercise. Set your first record!",
           ),
         );
-        setBestPerformance(null);
+        requestedBaselines.current.add(exercise);
+        setBaselines((prev) => ({ ...prev, [exercise]: null }));
         return;
       }
 
@@ -255,7 +267,8 @@ export default function InsertWorkoutPage() {
             "New exercise. Set your first record!",
           ),
         );
-        setBestPerformance(null);
+        requestedBaselines.current.add(exercise);
+        setBaselines((prev) => ({ ...prev, [exercise]: null }));
         return;
       }
 
@@ -263,12 +276,11 @@ export default function InsertWorkoutPage() {
         Number(bestSet.weight) > 0 ? `${format(Number(bestSet.weight))} × ` : "";
       const notesText = bestSet.notes ? ` (${bestSet.notes})` : "";
 
-      setBestPerformance({
-        weight: Number(bestSet.weight),
-        reps: Number(bestSet.reps),
-        rir: Number(bestSet.rir),
-        notes: bestSet.notes ?? "fara notite",
-      });
+      requestedBaselines.current.add(exercise);
+      setBaselines((prev) => ({
+        ...prev,
+        [exercise]: { weight: Number(bestSet.weight), reps: Number(bestSet.reps) },
+      }));
 
       setLastPerformance(
         `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} (RIR ${bestSet.rir})${notesText}`,
@@ -280,6 +292,52 @@ export default function InsertWorkoutPage() {
 
     fetchLastPerformance();
   }, [exercise, mode, t, format, unit]);
+
+  // Restored drafts can hold exercises that were never selected in this visit: load their baselines too.
+  const draftExercises = useMemo(
+    () => [...new Set(sessionSets.map((s) => s.exercise))],
+    [sessionSets],
+  );
+  useEffect(() => {
+    const missing = draftExercises.filter((name) => !requestedBaselines.current.has(name));
+    if (missing.length === 0) return;
+    missing.forEach((name) => requestedBaselines.current.add(name));
+    async function loadMissing() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const loaded: Record<string, BestSet | null> = {};
+      for (const name of missing) {
+        let best: BestSet | null = null;
+        if (user) {
+          const { data } = await supabase
+            .from("workout_sets")
+            .select("weight, reps, rir, created_at, set_type, notes")
+            .eq("user_id", user.id)
+            .eq("exercise", name)
+            .order("created_at", { ascending: false })
+            .order("weight", { ascending: false })
+            .order("reps", { ascending: false })
+            .limit(10);
+          const set = data && data.length > 0 ? getBestSetFromLastSession(data) : null;
+          if (set) best = { weight: Number(set.weight), reps: Number(set.reps) };
+        }
+        loaded[name] = best;
+      }
+      setBaselines((prev) => ({ ...loaded, ...prev }));
+    }
+    void loadMissing().catch((error) => {
+      console.error("Personal record baselines could not be loaded:", error);
+      setBaselines((prev) => ({ ...Object.fromEntries(missing.map((name) => [name, null])), ...prev }));
+    });
+  }, [draftExercises]);
+
+  // Derived from the current list, so deleting a set re-evaluates every PR after it.
+  const personalRecords = useMemo(
+    () => draftPersonalRecords(sessionSets, baselines),
+    [sessionSets, baselines],
+  );
 
   // Local Storage
   useEffect(() => {
@@ -363,17 +421,10 @@ export default function InsertWorkoutPage() {
       notes: notes.trim(),
     };
 
-    let isPersonalRecord = false;
-    if (bestPerformance) {
-      if (newSet.weight > bestPerformance.weight) {
-        isPersonalRecord = true;
-      } else if (
-        newSet.weight === bestPerformance.weight &&
-        newSet.reps > bestPerformance.reps
-      ) {
-        isPersonalRecord = true;
-      }
-    }
+    const isPersonalRecord = draftPersonalRecords(
+      [...sessionSets, newSet],
+      baselines,
+    ).has(newSet.id);
 
     if (isPersonalRecord) {
       confetti({
@@ -383,19 +434,6 @@ export default function InsertWorkoutPage() {
         colors: ["#10b981", "#34d399", "#059669"], // Culori smarald de PR
         zIndex: 100,
       });
-
-      setBestPerformance({
-        weight: newSet.weight,
-        reps: newSet.reps,
-        rir: newSet.rir,
-        notes: newSet.notes,
-      });
-
-      const weightText = newSet.weight > 0 ? `${format(newSet.weight)} × ` : "";
-      const notesText = newSet.notes ? ` (${newSet.notes})` : "";
-      setLastPerformance(
-        `🏆 ${t("Nou record", "New record")}: ${weightText}${newSet.reps} ${t("repetări", "reps")} (RIR ${newSet.rir})${notesText}`,
-      );
     }
 
     setSessionSets((prev) => [...prev, newSet]);
@@ -421,10 +459,20 @@ export default function InsertWorkoutPage() {
   function handleFinish() {
     if (mode === "strength" && sessionSets.length === 0) return;
     if (mode === "cardio" && cardioEntries.length === 0) return;
+    if (submitGuard.current.busy) return;
 
     setError(null);
     restTimer.skip();
-    const celebrate = () => {
+    const summaryInput: SummaryInput = {
+      date: localDate(),
+      mode,
+      title: mode === "cardio" ? "Cardio" : workoutLabelText(split, t),
+      durationSec: time > 0 ? time : null,
+      sets: mode === "strength" ? sessionSets : [],
+      cardio: mode === "cardio" ? cardioEntries : [],
+      recordIds: personalRecords,
+    };
+    const celebrate = (next = "/") => {
       const duration = 2000;
       const end = Date.now() + duration;
 
@@ -448,59 +496,89 @@ export default function InsertWorkoutPage() {
       frame();
 
       setTimeout(() => {
-        router.push("/");
+        setFinished({ input: summaryInput, next });
       }, 1500);
     };
     startSaving(async () => {
-      if (ownerId) {
+      // True once the workout is stored (saved or queued); false leaves the button free for a retry.
+      const outcome = await runGuarded(submitGuard.current, async () => {
+        setSaveLocked(true);
         try {
-          const mutationId = await saveOfflineMutation(
-            {
-              kind: "workout",
-              date: localDate(),
-              mode,
-              split,
-              sets: mode === "strength" ? sessionSets : [],
-              cardio: mode === "cardio" ? cardioEntries : [],
-            },
-            ownerId,
-          );
-          try {
-            if (draftKey) localStorage.removeItem(draftKey);
-          } catch (error) {
-            console.error("Saved workout draft could not be removed:", error);
-          }
-          // Online: upload right away so the server dashboard already shows the workout.
-          // Offline or failed upload: the workout waits in the queue and only the local dashboard has it.
-          if (navigator.onLine) {
-            await sync();
-            const state = await readOfflineDatabase();
-            if (!state.accounts[ownerId]?.queue.some((entry) => entry.id === mutationId)) {
-              celebrate();
-              return;
+          if (ownerId) {
+            let mutationId: string | null = null;
+            try {
+              mutationId = await saveOfflineMutation(
+                {
+                  kind: "workout",
+                  date: localDate(),
+                  mode,
+                  split,
+                  sets: mode === "strength" ? sessionSets : [],
+                  cardio: mode === "cardio" ? cardioEntries : [],
+                },
+                ownerId,
+              );
+              try {
+                if (draftKey) localStorage.removeItem(draftKey);
+              } catch (error) {
+                console.error("Saved workout draft could not be removed:", error);
+              }
+              // Online: upload right away so the server dashboard already shows the workout.
+              // Offline or failed upload: the workout waits in the queue and only the local dashboard has it.
+              if (navigator.onLine) {
+                await sync();
+                const state = await readOfflineDatabase();
+                if (!state.accounts[ownerId]?.queue.some((entry) => entry.id === mutationId)) {
+                  celebrate();
+                  return true;
+                }
+              }
+              celebrate("/offline");
+              return true;
+            } catch (error) {
+              // Already queued: retrying would store the workout twice, so it counts as saved.
+              if (mutationId) {
+                celebrate("/offline");
+                return true;
+              }
+              setError(
+                error instanceof Error
+                  ? error.message
+                  : t("Salvarea a eșuat.", "Save failed."),
+              );
+              return false;
             }
           }
-          window.location.assign("/offline");
+          const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
+
+          if (result.error) {
+            setError(result.error);
+            return false;
+          }
+
+          if (draftKey) localStorage.removeItem(draftKey);
+          celebrate();
+          return true;
         } catch (error) {
           setError(
             error instanceof Error
               ? error.message
               : t("Salvarea a eșuat.", "Save failed."),
           );
+          return false;
         }
-        return;
-      }
-      const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      if (draftKey) localStorage.removeItem(draftKey);
-      celebrate();
+      });
+      // Failure unlocks the button; success stays locked until the summary is closed and the page changes.
+      if (outcome === "failed") setSaveLocked(false);
     });
   }
+
+  const latestRecord = [...sessionSets]
+    .reverse()
+    .find((s) => s.exercise === exercise && personalRecords.has(s.id));
+  const exerciseHint = latestRecord
+    ? `🏆 ${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} (RIR ${latestRecord.rir})${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
+    : lastPerformance;
 
   if (!ready || (ownerId && loadedDraftKey !== draftKey && !error)) {
     return (
@@ -634,7 +712,7 @@ export default function InsertWorkoutPage() {
               <div className="relative">
                 <input
                   type="text"
-                  value={isExerciseOpen ? exerciseQuery : exercise}
+                  value={isExerciseOpen ? exerciseQuery : exerciseName(exercise, language)}
                   onChange={(e) => {
                     setExerciseQuery(e.target.value);
                     setIsExerciseOpen(true);
@@ -653,11 +731,11 @@ export default function InsertWorkoutPage() {
               {isExerciseOpen && (
                 <ul className="absolute z-[999] top-[76px] left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 p-1.5 shadow-2xl shadow-black">
                   {availableExercises.filter((ex) =>
-                    ex.toLowerCase().includes(exerciseQuery.toLowerCase()),
+                    matchesExerciseQuery(ex, exerciseQuery),
                   ).length > 0 ? (
                     availableExercises
                       .filter((ex) =>
-                        ex.toLowerCase().includes(exerciseQuery.toLowerCase()),
+                        matchesExerciseQuery(ex, exerciseQuery),
                       )
                       .map((ex) => (
                         <li
@@ -673,7 +751,7 @@ export default function InsertWorkoutPage() {
                               : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent"
                           }`}
                         >
-                          {ex}
+                          <ExerciseName id={ex} />
                         </li>
                       ))
                   ) : (
@@ -687,18 +765,18 @@ export default function InsertWorkoutPage() {
                 </ul>
               )}
 
-              {lastPerformance && (
+              {exerciseHint && (
                 <div
                   className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border w-fit text-[11px] font-bold ${
-                    lastPerformance.includes(t("Exercițiu nou", "New exercise"))
+                    exerciseHint.includes(t("Exercițiu nou", "New exercise"))
                       ? "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
                       : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
                   }`}
                 >
-                  {lastPerformance.startsWith("🏆") ? (
+                  {exerciseHint.startsWith("🏆") ? (
                     <Zap className="size-3 fill-emerald-400" />
                   ) : null}
-                  {lastPerformance}
+                  {exerciseHint}
                 </div>
               )}
 
@@ -842,7 +920,7 @@ export default function InsertWorkoutPage() {
               >
                 {CARDIO_ACTIVITIES.map((act) => (
                   <option key={act} value={act}>
-                    {act}
+                    {cardioName(act, language)}
                   </option>
                 ))}
               </select>
@@ -890,9 +968,15 @@ export default function InsertWorkoutPage() {
                       #{s.setNumber}
                     </span>
                     <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                      {s.exercise}
+                      <ExerciseName id={s.exercise} />
                     </span>
                     {getSetTypeBadge(s.setType)}
+                    {personalRecords.has(s.id) && (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        <Zap className="size-3 fill-emerald-400" />
+                        <Text ro="Record personal" en="Personal Best" />
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-zinc-600 dark:text-zinc-400 text-xs flex items-center flex-wrap gap-x-2.5 gap-y-1.5 font-mono">
@@ -945,7 +1029,7 @@ export default function InsertWorkoutPage() {
                 className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm"
               >
                 <div className="font-bold text-zinc-800 dark:text-zinc-200">
-                  {c.activity}{" "}
+                  <CardioName id={c.activity} />{" "}
                   <span className="font-mono text-rose-700 dark:text-rose-400 font-normal ml-2">
                     ({c.durationMin} min)
                   </span>
@@ -979,10 +1063,10 @@ export default function InsertWorkoutPage() {
         (mode === "cardio" && cardioEntries.length > 0)) && (
         <button
           onClick={handleFinish}
-          disabled={isSaving}
+          disabled={isSaving || saveLocked}
           className="h-14 w-full mt-8 mb-4 bg-emerald-500 text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20"
         >
-          {isSaving ? (
+          {isSaving || saveLocked ? (
             <Loader2 className="size-5 animate-spin" />
           ) : (
             <Save className="size-5" />
@@ -991,6 +1075,16 @@ export default function InsertWorkoutPage() {
         </button>
       )}
       <RestTimerBar timer={restTimer} />
+      {finished && (
+        <WorkoutSummaryDialog
+          input={finished.input}
+          onClose={() => {
+            // /offline needs a full load: without network the router cannot fetch it.
+            if (finished.next === "/offline") window.location.assign(finished.next);
+            else router.push(finished.next);
+          }}
+        />
+      )}
     </main>
   );
 }

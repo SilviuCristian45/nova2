@@ -1,5 +1,6 @@
 import { Text } from "@/app/components/language-provider"
 import { getLanguage } from "@/app/language"
+import { ExerciseName } from "@/app/components/exercise-name"
 import { getWeightUnit } from "@/app/units"
 import { kgToUnit } from "@/lib/units"
 import { createClient } from "@/lib/supabase/server"
@@ -117,7 +118,7 @@ export default async function RecordsPage() {
 
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <h3 className="font-bold text-lg leading-tight text-zinc-900 dark:text-zinc-100 pr-4">
-                    {record.exercise}
+                    <ExerciseName id={record.exercise} />
                   </h3>
                   {isTop3 && (
                     <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-500 border border-amber-500/30 font-black text-xs font-mono">

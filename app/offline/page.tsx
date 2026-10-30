@@ -6,7 +6,11 @@ import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Tra
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
-import { WorkoutLabel } from "@/app/components/workout-label";
+import { cardioName, exerciseName } from "@/lib/exercise-catalog";
+import { CardioName, ExerciseName } from "@/app/components/exercise-name";
+import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
+import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
+import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import type { OfflineCardio, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
@@ -169,13 +173,13 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
               </summary>
               <div className="space-y-3 border-t bg-secondary/10 p-4">
                 {workout.workout_sets.map((set) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
-                  <p className="break-words font-semibold">{set.exercise}</p>
+                  <p className="break-words font-semibold"><ExerciseName id={set.exercise} /></p>
                   <p className="text-muted-foreground">{t("Set", "Set")} {set.set_number}{" · "}<WorkoutLabel value={set.set_type} /></p>
                   <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir.toLocaleString(locale)}</p>
                   {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
                 </div>)}
                 {workout.cardio_sessions.map((entry) => <div key={entry.id} className="rounded-xl border bg-background p-3 text-sm">
-                  <p className="break-words font-semibold">{entry.activity}</p>
+                  <p className="break-words font-semibold"><CardioName id={entry.activity} /></p>
                   <p className="mt-1 text-muted-foreground">{entry.duration_min.toLocaleString(locale)} min</p>
                 </div>)}
                 {!workout.workout_sets.length && !workout.cardio_sessions.length && <p className="text-sm text-muted-foreground">{t("Nu există detalii salvate pentru acest antrenament.", "No saved details for this workout.")}</p>}
@@ -248,7 +252,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
 
 function WorkoutForm({ disabled }: { disabled: boolean }) {
   const { ownerId } = useOffline();
-  const { t, locale } = useLanguage();
+  const { t, locale, language } = useLanguage();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
   const [date, setDate] = useState(localDate);
@@ -268,6 +272,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [finished, setFinished] = useState<SummaryInput | null>(null);
 
   function addEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -318,6 +323,16 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     try {
       if (!ownerId) throw new Error(t("Contul s-a schimbat.", "Account changed."));
       await saveOfflineMutation(payload, ownerId);
+      // Same card as /insert, built before the lists are cleared. No timer or PR tracking here.
+      const summary: SummaryInput = {
+        date,
+        mode,
+        title: mode === "strength" ? workoutLabelText(sets[0].split, t) : "Cardio",
+        durationSec: null,
+        sets: mode === "strength" ? sets.map((set) => ({ id: set.uiId, exercise: set.exercise, weight: set.weight, reps: set.reps, setType: set.setType })) : [],
+        cardio: mode === "cardio" ? cardio.map(({ activity, durationMin }) => ({ activity, durationMin })) : [],
+        recordIds: new Set(),
+      };
       if (mode === "strength") {
         setSets([]);
         setReps(""); setWeight(""); setRir(""); setNotes("");
@@ -325,6 +340,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         setCardio([]); setDuration("");
       }
       setSaved(true);
+      setFinished(summary);
     } catch (error) {
       setError(failureMessage(error, t("Salvarea a eșuat. Antrenamentul a fost păstrat.", "Save failed. Your workout was kept.")));
     } finally {
@@ -349,7 +365,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
             <label className="block space-y-1 text-sm"><span>{t("Grupă / split pentru set", "Split for this set")}</span><select className={inputClass} value={split} onChange={(event) => setSplit(event.target.value)}>{SPLITS.map((item) => <option key={item} value={item}><WorkoutLabel value={item} /></option>)}</select></label>
             <label className="block space-y-1 text-sm"><span>{t("Tip de set", "Set type")}</span><select className={inputClass} value={setType} onChange={(event) => setSetType(event.target.value)}>{SET_TYPES.map((item) => <option key={item} value={item}><WorkoutLabel value={item} /></option>)}</select></label>
           </div>
-          <label className="block space-y-1 text-sm"><span>{t("Exercițiu", "Exercise")}</span><select className={inputClass} value={exercise} onChange={(event) => setExercise(event.target.value)}>{EXERCISES.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label className="block space-y-1 text-sm"><span>{t("Exercițiu", "Exercise")}</span><select className={inputClass} value={exercise} onChange={(event) => setExercise(event.target.value)}>{EXERCISES.map((item) => <option key={item} value={item}>{exerciseName(item, language)}</option>)}</select></label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block space-y-1 text-sm"><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" value={reps} onChange={(event) => setReps(event.target.value)} className={inputClass} /></label>
             <label className="block space-y-1 text-sm"><span>{t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
@@ -358,7 +374,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <p className="text-xs text-muted-foreground">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
           <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
         </> : <>
-          <label className="block space-y-1 text-sm"><span>{t("Activitate", "Activity")}</span><select className={inputClass} value={activity} onChange={(event) => setActivity(event.target.value)}>{CARDIO_ACTIVITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label className="block space-y-1 text-sm"><span>{t("Activitate", "Activity")}</span><select className={inputClass} value={activity} onChange={(event) => setActivity(event.target.value)}>{CARDIO_ACTIVITIES.map((item) => <option key={item} value={item}>{cardioName(item, language)}</option>)}</select></label>
           <label className="block space-y-1 text-sm"><span>{t("Durată (minute)", "Duration (minutes)")}</span><input className={inputClass} type="number" inputMode="numeric" required min="1" max="1440" step="1" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
         </>}
         <button type="submit" className="min-h-11 rounded-xl border bg-secondary px-4 text-sm font-semibold">{mode === "strength" ? t("Adaugă set în listă", "Add set to list") : t("Adaugă activitate în listă", "Add activity to list")}</button>
@@ -371,7 +387,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         {(mode === "strength" ? sets.length === 0 : cardio.length === 0) && <p className="text-sm text-muted-foreground">{t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}</p>}
         {mode === "strength" ? sets.map((set, index) => <div key={set.uiId} className="flex items-start gap-3 rounded-xl border p-3">
           <div className="min-w-0 flex-1 space-y-1 text-sm">
-            <p className="break-words font-semibold">{index + 1}. {set.exercise}</p>
+            <p className="break-words font-semibold">{index + 1}. <ExerciseName id={set.exercise} /></p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
             <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
@@ -379,7 +395,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <button type="button" onClick={() => { setSets((current) => current.filter((entry) => entry.uiId !== set.uiId)); setSaved(false); }} aria-label={`${t("Elimină setul", "Remove set")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>
         </div>) : cardio.map((entry, index) => <div key={entry.uiId} className="flex items-start gap-3 rounded-xl border p-3">
           <Heart className="mt-1 size-4 shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1 text-sm"><p className="break-words font-semibold">{entry.activity}</p><p className="mt-1 text-muted-foreground">{entry.durationMin.toLocaleString(locale)} min</p></div>
+          <div className="min-w-0 flex-1 text-sm"><p className="break-words font-semibold"><CardioName id={entry.activity} /></p><p className="mt-1 text-muted-foreground">{entry.durationMin.toLocaleString(locale)} min</p></div>
           <button type="button" onClick={() => { setCardio((current) => current.filter((item) => item.uiId !== entry.uiId)); setSaved(false); }} aria-label={`${t("Elimină activitatea", "Remove activity")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>
         </div>)}
         {((mode === "strength" && cardio.length > 0) || (mode === "cardio" && sets.length > 0)) && <p className="text-xs text-muted-foreground">{t("Există și o listă nesalvată pentru celălalt tip. Schimbă tipul pentru a o vedea și salva separat.", "There is also an unsaved list for the other mode. Switch modes to view and save it separately.")}</p>}
@@ -389,5 +405,6 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     {error && <p role="alert" className="break-words text-sm text-red-700 dark:text-red-400">{error}</p>}
     {saved && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{t("Antrenament salvat pe dispozitiv și pus în coada de sincronizare. Îl găsești în istoric, marcat nesincronizat până la confirmarea serverului.", "Workout saved on this device and queued for sync. Find it in history, marked pending until the server confirms it.")}</p>}
     <RestTimerBar timer={restTimer} />
+    {finished && <WorkoutSummaryDialog input={finished} onClose={() => setFinished(null)} />}
   </section>;
 }

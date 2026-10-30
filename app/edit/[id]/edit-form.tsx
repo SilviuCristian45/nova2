@@ -9,6 +9,8 @@ import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart, Search } from "lucid
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
+import { cardioName, exerciseName, matchesExerciseQuery } from "@/lib/exercise-catalog"
+import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { useUnits } from "@/app/components/units-provider"
 
 // --- FUNCȚIE PENTRU ETICHETE COLORATE (Din Insert) ---
@@ -27,7 +29,7 @@ const getSetTypeBadge = (type: string) => {
 }
 
 export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: any }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { unit, toUnit, toKg, format } = useUnits()
 
   const router = useRouter()
@@ -161,7 +163,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
             <div className="relative">
               <input
                 type="text"
-                value={isExerciseOpen ? exerciseQuery : exercise}
+                value={isExerciseOpen ? exerciseQuery : exerciseName(exercise, language)}
                 onChange={(e) => {
                   setExerciseQuery(e.target.value)
                   setIsExerciseOpen(true)
@@ -179,8 +181,8 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
 
             {isExerciseOpen && (
               <ul className="absolute z-[999] top-[76px] left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 p-1.5 shadow-2xl shadow-black">
-                {availableExercises.filter(ex => ex.toLowerCase().includes(exerciseQuery.toLowerCase())).length > 0 ? (
-                  availableExercises.filter(ex => ex.toLowerCase().includes(exerciseQuery.toLowerCase())).map((ex) => (
+                {availableExercises.filter(ex => matchesExerciseQuery(ex, exerciseQuery)).length > 0 ? (
+                  availableExercises.filter(ex => matchesExerciseQuery(ex, exerciseQuery)).map((ex) => (
                     <li
                       key={ex}
                       onMouseDown={(e) => {
@@ -194,7 +196,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
                           : 'hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent'
                       }`}
                     >
-                      {ex}
+                      <ExerciseName id={ex} />
                     </li>
                   ))
                 ) : (
@@ -233,7 +235,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Activitate (LISS / HIIT)" en="Activity (LISS / HIIT)" /></label>
             <select value={cardioActivity} onChange={(e) => setCardioActivity(e.target.value)} className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-rose-500 outline-none transition-all">
-              {CARDIO_ACTIVITIES.map((act) => <option key={act} value={act}>{act}</option>)}
+              {CARDIO_ACTIVITIES.map((act) => <option key={act} value={act}>{cardioName(act, language)}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -256,7 +258,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-zinc-500 font-bold">#{idx + 1}</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200">{s.exercise}</span>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200"><ExerciseName id={s.exercise} /></span>
                 {getSetTypeBadge(s.setType || s.set_type)}
               </div>
               
@@ -278,7 +280,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
         
         {mode === "cardio" && cardioEntries.map((c) => (
           <div key={c.id} className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm">
-            <div className="font-bold text-zinc-800 dark:text-zinc-200">{c.activity} <span className="font-mono text-rose-700 dark:text-rose-400 font-normal ml-2">({c.durationMin} min)</span></div>
+            <div className="font-bold text-zinc-800 dark:text-zinc-200"><CardioName id={c.activity} /> <span className="font-mono text-rose-700 dark:text-rose-400 font-normal ml-2">({c.durationMin} min)</span></div>
             <button onClick={() => setCardioEntries(prev => prev.filter(x => x.id !== c.id))} className="p-2.5 text-red-700 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 hover:border-red-500/30 hover:bg-red-500/10 rounded-xl active:scale-95">
               <Trash2 className="size-4" />
             <span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
