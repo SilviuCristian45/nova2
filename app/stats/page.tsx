@@ -301,11 +301,11 @@ function StatsContent() {
             <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-2">{t("Perioadă analizată", "Time period")}</p>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: t("7Z", "7D"), days: 7 }, { label: t("1L", "1M"), days: 30 },
-                { label: t("1A", "1Y"), days: 365 }, { label: t("TOT", "ALL"), days: 7300 },
+                { label: t("7Z", "7D"), days: 7 }, { label: t("1L", "1M"), days: 30 }, { label: t("3L", "3M"), days: 90 }, { label: t("6L", "6M"), days: 180 },
+                { label: t("1A", "1Y"), days: 365 }, { label: t("2A", "2Y"), days: 730 }, { label: t("TOT", "ALL"), days: 7300 },
               ].map((range) => (
                 <button key={range.days} type="button" onClick={() => setTimeRange(range.days)} aria-pressed={timeRange === range.days}
-                  className={`py-2.5 rounded-xl text-xs font-bold border border-secondary ${timeRange === range.days ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-950" : "bg-background text-muted-foreground hover:bg-secondary"}`}>
+                  className={`py-2.5 rounded-xl text-xs font-bold border border-secondary ${range.days === 7300 ? "col-span-2" : ""} ${timeRange === range.days ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-950" : "bg-background text-muted-foreground hover:bg-secondary"}`}>
                   {range.label}
                 </button>
               ))}
