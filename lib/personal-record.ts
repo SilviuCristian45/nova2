@@ -76,3 +76,22 @@ export function recordsByExercise(rows: readonly RecordRow[]) {
     }))
     .sort((a, b) => b.oneRM - a.oneRM);
 }
+
+// PR baselines from locally stored workouts (/offline): the same "best set ever" rule as the online page, over
+// whatever history was downloaded. An exercise with no local history gets null, so it can never report a PR.
+export function baselinesFromWorkouts(
+  workouts: readonly { workout_sets: readonly { exercise: string; weight: number | string; reps: number | string; set_type?: string | null }[] }[],
+  exercises: readonly string[],
+): Record<string, BestSet | null> {
+  const wanted = new Set(exercises);
+  const sets = new Map<string, { weight: number; reps: number; set_type?: string | null }[]>();
+  for (const workout of workouts) {
+    for (const set of workout.workout_sets) {
+      if (!wanted.has(set.exercise)) continue;
+      const list = sets.get(set.exercise) ?? [];
+      list.push({ weight: Number(set.weight), reps: Number(set.reps), set_type: set.set_type });
+      sets.set(set.exercise, list);
+    }
+  }
+  return Object.fromEntries(exercises.map((name) => [name, bestSetAllTime(sets.get(name) ?? [])]));
+}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Download, Trash2, Trophy } from "lucide-react";
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
@@ -15,6 +15,7 @@ import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metri
 import { randomId } from "@/lib/random-id";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { displayOrdinals } from "@/lib/set-numbering";
+import { baselinesFromWorkouts, draftPersonalRecords } from "@/lib/personal-record";
 import { rejectedEntryExport } from "@/lib/offline/rejected";
 import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
@@ -308,7 +309,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
 }
 
 function WorkoutForm({ disabled }: { disabled: boolean }) {
-  const { ownerId } = useOffline();
+  const { ownerId, snapshot } = useOffline();
   const { t, locale, language } = useLanguage();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
@@ -330,6 +331,12 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [finished, setFinished] = useState<SummaryInput | null>(null);
+  // Same PR rule as /insert, against the best sets in the history downloaded to this device (plus unsynced workouts).
+  const records = useMemo(() => {
+    const draft = sets.map((set) => ({ id: set.uiId, exercise: set.exercise, weight: set.weight, reps: set.reps, setType: set.setType }));
+    const baselines = baselinesFromWorkouts(snapshot?.workouts ?? [], [...new Set(draft.map((set) => set.exercise))]);
+    return draftPersonalRecords(draft, baselines);
+  }, [sets, snapshot]);
   const ordinals = displayOrdinals(sets.map((set, index) => ({ exercise: set.exercise, order: index })));
   // ownerId is only known after mount, so localStorage is never read during server rendering.
   const hasDraft = useMemo(() => {
@@ -390,7 +397,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     try {
       if (!ownerId) throw new Error(t("Contul s-a schimbat.", "Account changed."));
       await saveOfflineMutation(payload, ownerId);
-      // Same card as /insert, built before the lists are cleared. No timer or PR tracking here.
+      // Same card as /insert, built before the lists are cleared. There is no timer here.
       const summary: SummaryInput = {
         date,
         mode,
@@ -398,7 +405,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         durationSec: null,
         sets: mode === "strength" ? sets.map((set) => ({ id: set.uiId, exercise: set.exercise, weight: set.weight, reps: set.reps, setType: set.setType })) : [],
         cardio: mode === "cardio" ? cardio.map(({ activity, durationMin }) => ({ activity, durationMin })) : [],
-        recordIds: new Set(),
+        recordIds: records,
       };
       if (mode === "strength") {
         setSets([]);
@@ -422,7 +429,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       <p className="mt-2 text-sm text-muted-foreground">{t("1. Adaugă seturile sau activitățile în listă. 2. Salvează explicit antrenamentul complet. Lista nesalvată nu este păstrată dacă închizi pagina.", "1. Add sets or activities to the list. 2. Explicitly save the full workout. Unsaved lists are not kept if you close this page.")}</p>
     </div>
     <p className="rounded-xl border bg-secondary/10 p-3 text-xs text-muted-foreground">
-      {t("Aici nu se calculează recorduri personale și nu există durata antrenamentului. Antrenamentele nesincronizate nu intră în recordurile din pagina principală de înregistrare până nu se sincronizează.", "Personal records and the workout duration are not available here. Workouts that have not synced yet are not part of the records on the main log page until they do.")}
+      {t("Recordurile personale se compară cu cele mai bune seturi din istoricul descărcat pe acest dispozitiv (ultimele 90 de zile, plus antrenamentele nesincronizate); un exercițiu fără istoric aici nu primește insignă de record. Nu există cronometru de antrenament.", "Personal records are compared with your best sets in the history downloaded to this device (last 90 days, plus unsynced workouts); an exercise with no history here gets no record badge. There is no workout timer.")}
     </p>
     {hasDraft && <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
       {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
@@ -460,7 +467,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         {(mode === "strength" ? sets.length === 0 : cardio.length === 0) && <p className="text-sm text-muted-foreground">{t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}</p>}
         {mode === "strength" ? sets.map((set, index) => <div key={set.uiId} className="flex items-start gap-3 rounded-xl border p-3">
           <div className="min-w-0 flex-1 space-y-1 text-sm">
-            <p className="break-words font-semibold">{ordinals[index]}. <ExerciseName id={set.exercise} /></p>
+            <p className="break-words font-semibold">{ordinals[index]}. <ExerciseName id={set.exercise} />{records.has(set.uiId) && <span className="ml-2 inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"><Trophy className="size-3" aria-hidden="true" />{t("Record", "PR")}</span>}</p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
             <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir ?? "–"}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
