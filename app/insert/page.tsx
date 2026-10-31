@@ -46,6 +46,7 @@ import {
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
+import { idleTimer, pauseTimer as pauseTimerState, startTimer as startTimerState, timerSeconds, type TimerState } from "@/lib/workout-timer";
 import { workoutSplit } from "@/lib/workout-save";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
@@ -169,35 +170,31 @@ export default function InsertWorkoutPage() {
   const [cardioDuration, setCardioDuration] = useState("");
 
   // --- STATE PENTRU TIMER ---
-  const [time, setTime] = useState(0); // Timpul în secunde
-  const [isRunning, setIsRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Computed from timestamps (see lib/workout-timer.ts) and kept in the draft; `now` only triggers re-renders.
+  const [timer, setTimer] = useState<TimerState>(idleTimer);
+  const [now, setNow] = useState(() => Date.now());
+  const isRunning = timer.startedAt !== null;
+  const time = timerSeconds(timer, now);
 
-  // Curăță timerul când componenta este demontată
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+    if (!isRunning) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
 
   const startTimer = () => {
-    if (!isRunning) {
-      setIsRunning(true);
-      timerRef.current = setInterval(() => {
-        setTime((prev) => prev + 1);
-      }, 1000);
-    }
+    const at = Date.now();
+    setNow(at);
+    setTimer((current) => startTimerState(current, at));
   };
 
   const pauseTimer = () => {
-    setIsRunning(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+    const at = Date.now();
+    setNow(at);
+    setTimer((current) => pauseTimerState(current, at));
   };
 
-  const resetTimer = () => {
-    pauseTimer();
-    setTime(0);
-  };
+  const resetTimer = () => setTimer(idleTimer);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -335,10 +332,10 @@ export default function InsertWorkoutPage() {
   // Read by the restore effect, which must not run again whenever the sets change.
   const latestDraft = useRef<
     DraftState<(typeof sessionSets)[number], (typeof cardioEntries)[number]>
-  >({ sets: [], cardio: [], mode: "strength" });
+  >({ sets: [], cardio: [], mode: "strength", timer: idleTimer });
   useEffect(() => {
-    latestDraft.current = { sets: sessionSets, cardio: cardioEntries, mode };
-  }, [sessionSets, cardioEntries, mode]);
+    latestDraft.current = { sets: sessionSets, cardio: cardioEntries, mode, timer };
+  }, [sessionSets, cardioEntries, mode, timer]);
 
   // Local Storage
   useEffect(() => {
@@ -356,6 +353,8 @@ export default function InsertWorkoutPage() {
         setSessionSets(restored.sets);
         setCardioEntries(restored.cardio);
         setMode(restored.mode);
+        setTimer(restored.timer);
+        setNow(Date.now());
         setSetNumber(restored.sets.length + 1);
         setLoadedDraftKey(key);
       } catch (error) {
@@ -380,10 +379,15 @@ export default function InsertWorkoutPage() {
       try {
         const state = await readOfflineDatabase();
         if (cancelled || state.activeOwner !== ownerId) return;
-        if (sessionSets.length || cardioEntries.length)
+        if (
+          sessionSets.length ||
+          cardioEntries.length ||
+          timer.startedAt !== null ||
+          timer.elapsedMs > 0
+        )
           localStorage.setItem(
             key,
-            JSON.stringify({ sets: sessionSets, cardio: cardioEntries, mode }),
+            JSON.stringify({ sets: sessionSets, cardio: cardioEntries, mode, timer }),
           );
         else localStorage.removeItem(key);
       } catch (error) {
@@ -401,7 +405,7 @@ export default function InsertWorkoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionSets, cardioEntries, mode, draftKey, loadedDraftKey, ownerId, t]);
+  }, [sessionSets, cardioEntries, mode, timer, draftKey, loadedDraftKey, ownerId, t]);
 
   // Handler Adăugare Set
   function handleAddSet(e: React.FormEvent) {
