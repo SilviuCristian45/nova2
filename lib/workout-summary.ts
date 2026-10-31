@@ -19,6 +19,7 @@ export type SummaryOptions = {
   language: "ro" | "en";
   locale: string;
   formatWeight: (kg: number) => string;
+  formatVolume?: (kg: number) => string; // whole units in the user's unit; defaults to formatWeight
 };
 
 export type SummaryExercise = {
@@ -100,7 +101,8 @@ export function buildWorkoutSummary(input: SummaryInput, options: SummaryOptions
     byExercise.get(set.exercise)!.push(set);
   }
 
-  const volume = counted.reduce((sum, set) => sum + set.weight * set.reps, 0);
+  // Kept in kg with the stored precision (2 decimals, only to drop float noise); rounding happens when formatting.
+  const volume = Math.round(counted.reduce((sum, set) => sum + set.weight * set.reps, 0) * 100) / 100;
   const exercises = order.map((id): SummaryExercise => {
     const sets = byExercise.get(id)!;
     return {
@@ -127,7 +129,7 @@ export function buildWorkoutSummary(input: SummaryInput, options: SummaryOptions
     stats: [
       { label: copy.exercises, value: String(order.length) },
       { label: copy.sets, value: String(counted.length) },
-      ...(volume > 0 ? [{ label: copy.volume, value: options.formatWeight(Math.round(volume)) }] : []),
+      ...(volume > 0 ? [{ label: copy.volume, value: (options.formatVolume ?? options.formatWeight)(volume) }] : []),
       ...(duration ? [{ label: copy.duration, value: duration }] : []),
     ],
     exercises,

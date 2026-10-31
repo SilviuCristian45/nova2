@@ -13,7 +13,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1
 // Shown after the workout is already saved: nothing here can affect the saved data.
 export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; onClose: () => void }) {
   const { t, language, locale } = useLanguage();
-  const { format } = useUnits();
+  const { format, toUnit, unit } = useUnits();
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -31,7 +31,12 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
     let objectUrl: string | null = null;
     async function generate() {
       try {
-        const summary = buildWorkoutSummary(snapshot, { language, locale, formatWeight: format });
+        const summary = buildWorkoutSummary(snapshot, {
+          language,
+          locale,
+          formatWeight: format,
+          formatVolume: (kg) => `${Math.round(toUnit(kg)).toLocaleString(locale)} ${unit}`,
+        });
         const image = await renderWorkoutSummary(summary, {
           recordsTitle: t("Recorduri personale", "Personal records"),
           recordBadge: t("Record", "PR"),
@@ -53,7 +58,7 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [snapshot, language, locale, format, t]);
+  }, [snapshot, language, locale, format, toUnit, unit, t]);
 
   // Escape closes; Tab stays inside the dialog; focus goes back to where it was.
   useEffect(() => {
