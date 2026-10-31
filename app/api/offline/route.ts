@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { localDate } from "@/lib/daily-metrics";
 import { validOfflinePayload } from "@/lib/offline/model";
+import { classifyAuthResult, classifySyncRpcError } from "@/lib/offline/errors";
 import type { OfflineMutation } from "@/lib/offline/types";
+
+// 401 only when the login really is invalid; if the auth server could not be reached it is a retryable 503,
+// otherwise a network blip would look like an expired session on the device.
+function authFailure(auth: "invalid" | "unavailable", signIn: string) {
+  return auth === "unavailable"
+    ? NextResponse.json({ error: "The server could not verify your session right now. Your entries remain on this device; retry." }, { status: 503, headers })
+    : NextResponse.json({ error: signIn }, { status: 401, headers });
+}
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
@@ -11,7 +20,8 @@ const PAGE_SIZE = 1000;
 export async function GET() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return NextResponse.json({ error: "Sign in again to download or sync offline data." }, { status: 401, headers });
+  const auth = classifyAuthResult(user, error);
+  if (!user || auth !== "valid") return authFailure(auth === "valid" ? "invalid" : auth, "Sign in again to download or sync offline data.");
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 90);
   const start = localDate(cutoff);
@@ -77,7 +87,8 @@ export async function POST(request: Request) {
   }
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return NextResponse.json({ error: "Sign in again to sync. Your entries remain on this device." }, { status: 401, headers });
+  const auth = classifyAuthResult(user, error);
+  if (!user || auth !== "valid") return authFailure(auth === "valid" ? "invalid" : auth, "Sign in again to sync. Your entries remain on this device.");
   let mutation: OfflineMutation;
   try {
     const text = await request.text();
@@ -100,11 +111,10 @@ export async function POST(request: Request) {
   });
   if (syncError) {
     console.error("Offline sync failed:", syncError.code, syncError.message);
-    return NextResponse.json({
-      error: syncError.code === "PGRST202" || syncError.code === "42883"
-        ? "Offline sync needs the database migration. Your entries remain safely queued on this device."
-        : "Offline sync failed. Your entries remain on this device; retry or sign in again.",
-    }, { status: 503, headers });
+    // Validation errors raised by the database are permanent (400, the entry is marked rejected on the device);
+    // a missing migration or an outage is a 503 and the entry is simply retried later.
+    const failure = classifySyncRpcError(syncError);
+    return NextResponse.json({ error: failure.error }, { status: failure.status, headers });
   }
   return NextResponse.json({ success: true, id: mutation.id }, { headers });
 }

@@ -14,7 +14,6 @@ import {
   Loader2,
   Save,
   Trash2,
-  Search,
   Zap,
   Play,
   Pause,
@@ -45,10 +44,15 @@ import {
 } from "@/utils/fitness";
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
+import { restoreDraft, type DraftState } from "@/lib/workout-draft";
+import { idleTimer, pauseTimer as pauseTimerState, startTimer as startTimerState, timerSeconds, type TimerState } from "@/lib/workout-timer";
+import { displayOrdinals, positionSetNumbers } from "@/lib/set-numbering";
+import { workoutSplit } from "@/lib/workout-save";
+import { ExerciseCombobox } from "@/app/components/exercise-combobox";
+import { localizeOfflineMessage } from "@/lib/offline/messages";
+import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
 import {
   cardioName,
-  exerciseName,
-  matchesExerciseQuery,
 } from "@/lib/exercise-catalog";
 import { CardioName, ExerciseName } from "@/app/components/exercise-name";
 
@@ -150,14 +154,11 @@ export default function InsertWorkoutPage() {
     getExercisesForSplit("Push"),
   );
   const [exercise, setExercise] = useState(availableExercises[0]);
-  const [setNumber, setSetNumber] = useState(1);
   const [reps, setReps] = useState("");
   const [weight, setWeight] = useState("");
   const [rir, setRir] = useState("");
   const [setType, setSetType] = useState<SetType>("Working Set");
 
-  const [exerciseQuery, setExerciseQuery] = useState("");
-  const [isExerciseOpen, setIsExerciseOpen] = useState(false);
   const [lastPerformance, setLastPerformance] = useState<string | null>(null);
 
   // Formular Cardio
@@ -165,35 +166,31 @@ export default function InsertWorkoutPage() {
   const [cardioDuration, setCardioDuration] = useState("");
 
   // --- STATE PENTRU TIMER ---
-  const [time, setTime] = useState(0); // Timpul în secunde
-  const [isRunning, setIsRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Computed from timestamps (see lib/workout-timer.ts) and kept in the draft; `now` only triggers re-renders.
+  const [timer, setTimer] = useState<TimerState>(idleTimer);
+  const [now, setNow] = useState(() => Date.now());
+  const isRunning = timer.startedAt !== null;
+  const time = timerSeconds(timer, now);
 
-  // Curăță timerul când componenta este demontată
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+    if (!isRunning) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
 
   const startTimer = () => {
-    if (!isRunning) {
-      setIsRunning(true);
-      timerRef.current = setInterval(() => {
-        setTime((prev) => prev + 1);
-      }, 1000);
-    }
+    const at = Date.now();
+    setNow(at);
+    setTimer((current) => startTimerState(current, at));
   };
 
   const pauseTimer = () => {
-    setIsRunning(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+    const at = Date.now();
+    setNow(at);
+    setTimer((current) => pauseTimerState(current, at));
   };
 
-  const resetTimer = () => {
-    pauseTimer();
-    setTime(0);
-  };
+  const resetTimer = () => setTimer(idleTimer);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -207,7 +204,6 @@ export default function InsertWorkoutPage() {
     const newExercises = getExercisesForSplit(split);
     setAvailableExercises(newExercises);
     setExercise(newExercises[0]);
-    setExerciseQuery("");
   }, [split]);
 
   // Best set of the last session per exercise, from before this workout: the PR baseline.
@@ -215,6 +211,7 @@ export default function InsertWorkoutPage() {
   const requestedBaselines = useRef(new Set<string>());
 
   const [recommendedPerformance, setRecommendedPerformance] = useState("");
+  const [recommendedIsNew, setRecommendedIsNew] = useState(false);
 
   // Fetch ultima performanță
   useEffect(() => {
@@ -222,6 +219,7 @@ export default function InsertWorkoutPage() {
 
     async function fetchLastPerformance() {
       setLastPerformance(t("Se caută istoricul...", "Loading history..."));
+      setRecommendedIsNew(false);
       setRecommendedPerformance(
         t(
           "Va recomandam greutatea de lucru si repetarile",
@@ -235,17 +233,20 @@ export default function InsertWorkoutPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("workout_sets")
-        .select("weight, reps, rir, created_at, set_type, notes")
-        .eq("user_id", user.id)
-        .eq("exercise", exercise)
-        .order("created_at", { ascending: false })
-        .order("weight", { ascending: false })
-        .order("reps", { ascending: false })
-        .limit(10);
+      let data: Awaited<ReturnType<typeof fetchRecentSets>> = [];
+      let recordBaseline: BestSet | null = null;
+      let error = false;
+      try {
+        [data, recordBaseline] = await Promise.all([
+          fetchRecentSets(supabase, user.id, exercise),
+          fetchRecordBaseline(supabase, user.id, exercise),
+        ]);
+      } catch (e) {
+        console.error("Exercise history could not be loaded:", e);
+        error = true;
+      }
 
-      if (error || !data || data.length === 0) {
+      if (error || data.length === 0) {
         setLastPerformance(
           t(
             "Exercițiu nou. Setează primul record!",
@@ -277,17 +278,15 @@ export default function InsertWorkoutPage() {
       const notesText = bestSet.notes ? ` (${bestSet.notes})` : "";
 
       requestedBaselines.current.add(exercise);
-      setBaselines((prev) => ({
-        ...prev,
-        [exercise]: { weight: Number(bestSet.weight), reps: Number(bestSet.reps) },
-      }));
+      setBaselines((prev) => ({ ...prev, [exercise]: recordBaseline }));
 
       setLastPerformance(
-        `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} (RIR ${bestSet.rir})${notesText}`,
+        `${t("Ultima oară ai făcut", "Last time you did")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} ${bestSet.rir === null || bestSet.rir === undefined ? "" : ` (RIR ${bestSet.rir})`}${notesText}`,
       );
 
-      const recommendedPerformance = calculateProgression(bestSet, format, progressionStepKg(unit));
-      setRecommendedPerformance(recommendedPerformance.message);
+      const recommendation = calculateProgression(bestSet, format, progressionStepKg(unit), t);
+      setRecommendedPerformance(recommendation.message);
+      setRecommendedIsNew(recommendation.kind === "new");
     }
 
     fetchLastPerformance();
@@ -309,21 +308,7 @@ export default function InsertWorkoutPage() {
       } = await supabase.auth.getUser();
       const loaded: Record<string, BestSet | null> = {};
       for (const name of missing) {
-        let best: BestSet | null = null;
-        if (user) {
-          const { data } = await supabase
-            .from("workout_sets")
-            .select("weight, reps, rir, created_at, set_type, notes")
-            .eq("user_id", user.id)
-            .eq("exercise", name)
-            .order("created_at", { ascending: false })
-            .order("weight", { ascending: false })
-            .order("reps", { ascending: false })
-            .limit(10);
-          const set = data && data.length > 0 ? getBestSetFromLastSession(data) : null;
-          if (set) best = { weight: Number(set.weight), reps: Number(set.reps) };
-        }
-        loaded[name] = best;
+        loaded[name] = user ? await fetchRecordBaseline(supabase, user.id, name) : null;
       }
       setBaselines((prev) => ({ ...loaded, ...prev }));
     }
@@ -333,11 +318,25 @@ export default function InsertWorkoutPage() {
     });
   }, [draftExercises]);
 
+  // Shown numbers: 1, 2, 3... within each exercise (the stored number is the position in the workout).
+  const ordinals = useMemo(
+    () => displayOrdinals(sessionSets.map((s, index) => ({ exercise: s.exercise, order: index }))),
+    [sessionSets],
+  );
+
   // Derived from the current list, so deleting a set re-evaluates every PR after it.
   const personalRecords = useMemo(
     () => draftPersonalRecords(sessionSets, baselines),
     [sessionSets, baselines],
   );
+
+  // Read by the restore effect, which must not run again whenever the sets change.
+  const latestDraft = useRef<
+    DraftState<(typeof sessionSets)[number], (typeof cardioEntries)[number]>
+  >({ sets: [], cardio: [], mode: "strength", timer: idleTimer });
+  useEffect(() => {
+    latestDraft.current = { sets: sessionSets, cardio: cardioEntries, mode, timer };
+  }, [sessionSets, cardioEntries, mode, timer]);
 
   // Local Storage
   useEffect(() => {
@@ -348,22 +347,21 @@ export default function InsertWorkoutPage() {
       try {
         const state = await readOfflineDatabase();
         if (cancelled || state.activeOwner !== ownerId) return;
-        const draft = localStorage.getItem(key);
-        const parsed = draft
-          ? JSON.parse(draft)
-          : { sets: [], cardio: [], mode: "strength" };
-        if (!Array.isArray(parsed.sets) || !Array.isArray(parsed.cardio))
-          throw new Error("Invalid workout draft");
-        setSessionSets(parsed.sets);
-        setCardioEntries(parsed.cardio);
-        setMode(parsed.mode === "cardio" ? "cardio" : "strength");
-        setSetNumber(parsed.sets.length + 1);
+        const restored = restoreDraft(
+          latestDraft.current,
+          localStorage.getItem(key),
+        );
+        setSessionSets(restored.sets);
+        setCardioEntries(restored.cardio);
+        setMode(restored.mode);
+        setTimer(restored.timer);
+        setNow(Date.now());
         setLoadedDraftKey(key);
       } catch (error) {
         console.error("Workout draft could not be loaded:", error);
         if (!cancelled)
           setError(
-            "Workout draft could not be loaded. / Ciorna nu a putut fi încărcată.",
+            t("Ciorna nu a putut fi încărcată.", "Workout draft could not be loaded."),
           );
       }
     }
@@ -371,7 +369,7 @@ export default function InsertWorkoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [draftKey, ownerId]);
+  }, [draftKey, ownerId, t]);
 
   useEffect(() => {
     if (!draftKey || loadedDraftKey !== draftKey) return;
@@ -381,10 +379,15 @@ export default function InsertWorkoutPage() {
       try {
         const state = await readOfflineDatabase();
         if (cancelled || state.activeOwner !== ownerId) return;
-        if (sessionSets.length || cardioEntries.length)
+        if (
+          sessionSets.length ||
+          cardioEntries.length ||
+          timer.startedAt !== null ||
+          timer.elapsedMs > 0
+        )
           localStorage.setItem(
             key,
-            JSON.stringify({ sets: sessionSets, cardio: cardioEntries, mode }),
+            JSON.stringify({ sets: sessionSets, cardio: cardioEntries, mode, timer }),
           );
         else localStorage.removeItem(key);
       } catch (error) {
@@ -402,7 +405,7 @@ export default function InsertWorkoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionSets, cardioEntries, mode, draftKey, loadedDraftKey, ownerId, t]);
+  }, [sessionSets, cardioEntries, mode, timer, draftKey, loadedDraftKey, ownerId, t]);
 
   // Handler Adăugare Set
   function handleAddSet(e: React.FormEvent) {
@@ -413,10 +416,10 @@ export default function InsertWorkoutPage() {
       id: Math.random().toString(36).substring(2, 9),
       split,
       exercise,
-      setNumber,
+      setNumber: sessionSets.length + 1, // position in the workout; the user sees the number within the exercise
       reps: Number(reps),
       weight: weight === "" ? 0 : toKg(Number(weight)),
-      rir: rir === "" ? 0 : Number(rir),
+      rir: rir === "" ? null : Number(rir), // optional: empty means "not recorded", not 0
       setType,
       notes: notes.trim(),
     };
@@ -433,11 +436,11 @@ export default function InsertWorkoutPage() {
         origin: { y: 0.6 },
         colors: ["#10b981", "#34d399", "#059669"], // Culori smarald de PR
         zIndex: 100,
+        disableForReducedMotion: true,
       });
     }
 
     setSessionSets((prev) => [...prev, newSet]);
-    setSetNumber((n) => n + 1);
     restTimer.start();
     setReps("");
     setRir("");
@@ -463,10 +466,12 @@ export default function InsertWorkoutPage() {
 
     setError(null);
     restTimer.skip();
+    // The split of the logged sets, not whatever the picker shows now (like /offline).
+    const savedSplit = workoutSplit(sessionSets, split);
     const summaryInput: SummaryInput = {
       date: localDate(),
       mode,
-      title: mode === "cardio" ? "Cardio" : workoutLabelText(split, t),
+      title: mode === "cardio" ? "Cardio" : workoutLabelText(savedSplit, t),
       durationSec: time > 0 ? time : null,
       sets: mode === "strength" ? sessionSets : [],
       cardio: mode === "cardio" ? cardioEntries : [],
@@ -482,6 +487,7 @@ export default function InsertWorkoutPage() {
           angle: 60,
           spread: 55,
           origin: { x: 0 },
+          disableForReducedMotion: true,
           colors: ["#10b981", "#f59e0b", "#3b82f6"],
         });
         confetti({
@@ -489,6 +495,7 @@ export default function InsertWorkoutPage() {
           angle: 120,
           spread: 55,
           origin: { x: 1 },
+          disableForReducedMotion: true,
           colors: ["#10b981", "#f59e0b", "#3b82f6"],
         });
         if (Date.now() < end) requestAnimationFrame(frame);
@@ -512,8 +519,8 @@ export default function InsertWorkoutPage() {
                   kind: "workout",
                   date: localDate(),
                   mode,
-                  split,
-                  sets: mode === "strength" ? sessionSets : [],
+                  split: savedSplit,
+                  sets: mode === "strength" ? positionSetNumbers(sessionSets) : [],
                   cardio: mode === "cardio" ? cardioEntries : [],
                 },
                 ownerId,
@@ -543,13 +550,19 @@ export default function InsertWorkoutPage() {
               }
               setError(
                 error instanceof Error
-                  ? error.message
+                  ? localizeOfflineMessage(error.message, t)
                   : t("Salvarea a eșuat.", "Save failed."),
               );
               return false;
             }
           }
-          const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
+          const result = await saveWorkout(
+            mode,
+            savedSplit,
+            localDate(),
+            positionSetNumbers(sessionSets),
+            cardioEntries,
+          );
 
           if (result.error) {
             setError(result.error);
@@ -562,7 +575,7 @@ export default function InsertWorkoutPage() {
         } catch (error) {
           setError(
             error instanceof Error
-              ? error.message
+              ? localizeOfflineMessage(error.message, t)
               : t("Salvarea a eșuat.", "Save failed."),
           );
           return false;
@@ -577,7 +590,7 @@ export default function InsertWorkoutPage() {
     .reverse()
     .find((s) => s.exercise === exercise && personalRecords.has(s.id));
   const exerciseHint = latestRecord
-    ? `🏆 ${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} (RIR ${latestRecord.rir})${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
+    ? `🏆 ${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} ${latestRecord.rir === null ? "" : ` (RIR ${latestRecord.rir})`}${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
     : lastPerformance;
 
   if (!ready || (ownerId && loadedDraftKey !== draftKey && !error)) {
@@ -705,65 +718,7 @@ export default function InsertWorkoutPage() {
             </div>
 
             <div className="flex flex-col gap-1.5 relative mt-1">
-              <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1">
-                <Text ro="Exercițiu / Aparat" en="Exercise / Machine" />
-              </label>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  value={isExerciseOpen ? exerciseQuery : exerciseName(exercise, language)}
-                  onChange={(e) => {
-                    setExerciseQuery(e.target.value);
-                    setIsExerciseOpen(true);
-                  }}
-                  onFocus={() => {
-                    setExerciseQuery("");
-                    setIsExerciseOpen(true);
-                  }}
-                  onBlur={() => setTimeout(() => setIsExerciseOpen(false), 150)}
-                  placeholder={t("Caută exercițiul...", "Search exercises...")}
-                  className="h-12 w-full pl-4 pr-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all shadow-inner"
-                />
-                <Search className="absolute right-4 top-3.5 size-4 text-zinc-500 pointer-events-none" />
-              </div>
-
-              {isExerciseOpen && (
-                <ul className="absolute z-[999] top-[76px] left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 p-1.5 shadow-2xl shadow-black">
-                  {availableExercises.filter((ex) =>
-                    matchesExerciseQuery(ex, exerciseQuery),
-                  ).length > 0 ? (
-                    availableExercises
-                      .filter((ex) =>
-                        matchesExerciseQuery(ex, exerciseQuery),
-                      )
-                      .map((ex) => (
-                        <li
-                          key={ex}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setExercise(ex);
-                            setIsExerciseOpen(false);
-                          }}
-                          className={`cursor-pointer rounded-lg px-3 py-2.5 text-sm transition-all ${
-                            exercise === ex
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20"
-                              : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent"
-                          }`}
-                        >
-                          <ExerciseName id={ex} />
-                        </li>
-                      ))
-                  ) : (
-                    <li className="px-3 py-4 text-sm text-zinc-500 text-center font-medium">
-                      <Text
-                        ro="Nu am găsit acest exercițiu."
-                        en="No matching exercise found."
-                      />
-                    </li>
-                  )}
-                </ul>
-              )}
+              <ExerciseCombobox key={split} exercises={availableExercises} value={exercise} onChange={setExercise} />
 
               {exerciseHint && (
                 <div
@@ -783,9 +738,7 @@ export default function InsertWorkoutPage() {
               {recommendedPerformance && (
                 <div
                   className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border w-fit text-[11px] font-bold ${
-                    recommendedPerformance.includes(
-                      t("Exercițiu nou", "New exercise"),
-                    )
+                    recommendedIsNew
                       ? "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
                       : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
                   }`}
@@ -806,8 +759,9 @@ export default function InsertWorkoutPage() {
                 <input
                   type="number"
                   min={1}
-                  value={setNumber}
-                  onChange={(e) => setSetNumber(Number(e.target.value))}
+                  value={sessionSets.filter((s) => s.exercise === exercise).length + 1}
+                  readOnly
+                  aria-readonly="true"
                   className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors"
                 />
               </div>
@@ -957,7 +911,7 @@ export default function InsertWorkoutPage() {
           </h3>
 
           {mode === "strength" &&
-            sessionSets.map((s) => (
+            sessionSets.map((s, index) => (
               <div
                 key={s.id}
                 className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm"
@@ -965,7 +919,7 @@ export default function InsertWorkoutPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-zinc-500 font-bold">
-                      #{s.setNumber}
+                      #{ordinals[index]}
                     </span>
                     <span className="font-bold text-zinc-800 dark:text-zinc-200">
                       <ExerciseName id={s.exercise} />
@@ -995,7 +949,7 @@ export default function InsertWorkoutPage() {
                       <Text ro="repetări" en="reps" />
                     </span>
                     <span className="opacity-30">•</span>
-                    <span>{s.rir} RIR</span>
+                    <span>{s.rir === null ? "–" : `${s.rir} RIR`}</span>
 
                     {s.notes && (
                       <>

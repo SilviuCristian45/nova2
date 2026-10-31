@@ -240,7 +240,7 @@ export default function InsertMealPage() {
     if (result.success) {
       localStorage.removeItem(DRAFT_KEY) // Curățăm ciorna
       
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#f97316', '#fb923c', '#fdba74'] }) // Portocaliu
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#f97316', '#fb923c', '#fdba74'], disableForReducedMotion: true }) // Portocaliu
       
       setTimeout(() => {
         router.push("/meals/history")

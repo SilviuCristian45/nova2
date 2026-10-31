@@ -1,3 +1,4 @@
+import { displayOrdinals } from "@/lib/set-numbering";
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
@@ -19,7 +20,7 @@ type WorkoutSet = {
   set_type: string;
   weight: number;
   reps: number;
-  rir: number;
+  rir: number | null;
   notes: string | null;
 };
 
@@ -150,10 +151,10 @@ export default async function HistoryPage({
                         <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open:rotate-180 transition-transform" />
                       </summary>
                       <div className="mt-3 flex flex-col gap-2 border-t pt-3 text-sm">
-                        {sets.map((set) => (
+                        {sets.map((set, setIndex) => (
                           <div key={set.id} className="py-1 border-b last:border-0">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-muted-foreground"><Text ro="Set" en="Set" /> {set.set_number} <span className="text-[10px] uppercase bg-secondary px-1.5 py-0.5 rounded-md"><WorkoutLabel value={set.set_type} /></span></span>
+                              <span className="text-muted-foreground"><Text ro="Set" en="Set" /> {displayOrdinals(sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]} <span className="text-[10px] uppercase bg-secondary px-1.5 py-0.5 rounded-md"><WorkoutLabel value={set.set_type} /></span></span>
                               <span className="font-bold">{set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps}<span className="font-normal text-muted-foreground ml-1">(RIR {set.rir})</span></span>
                             </div>
                             {set.notes && <p className="text-xs text-blue-700 dark:text-blue-400 italic mt-1 bg-blue-500/10 px-2 py-1 rounded-md break-words">{set.notes}</p>}

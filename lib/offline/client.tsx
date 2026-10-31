@@ -4,9 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { localDate } from "@/lib/daily-metrics";
-import type { OfflineDatabase, OfflinePayload, OfflineSnapshot } from "./types";
+import type { OfflineDatabase, OfflineMutation, OfflinePayload, OfflineSnapshot } from "./types";
+import { SyncError, classifyResponse, type SyncErrorKind } from "./errors";
 import { validOfflinePayload } from "./model";
-import { acknowledgeMutation, activateSnapshot, enableOfflineDownload, enqueueMutation, forgetOfflineAccount, lockOfflineAccount, readOfflineDatabase } from "./store";
+import { randomId } from "@/lib/random-id";
+import { acknowledgeMutation, activateSnapshot, discardRejectedMutation, enableOfflineDownload, enqueueMutation, forgetOfflineAccount, lockOfflineAccount, readOfflineDatabase, rejectMutation, retryRejectedMutation, suspendOfflineAccount } from "./store";
 
 const EVENT = "replog-offline-change";
 let verifiedOwner: string | null = null;
@@ -16,15 +18,34 @@ function notify(queued = false) {
   try { localStorage.setItem(EVENT, String(Date.now())); }
   catch (error) { console.warn("Offline cross-tab notification unavailable:", error); }
 }
-async function request(url: string, options?: RequestInit) {
-  const response = await fetch(url, { ...options, cache: "no-store", signal: AbortSignal.timeout(20000) });
-  const data = await response.json();
-  if (response.status === 401 || response.status === 409) {
-    verifiedOwner = null;
-    await lockOfflineAccount();
-    notify();
+type ResponseBody = { error?: unknown; snapshot?: OfflineSnapshot; warning?: string | null };
+
+// Every failure is a SyncError whose kind says what it means (see errors.ts). Nothing here deletes queued entries.
+async function request(url: string, options?: RequestInit): Promise<ResponseBody> {
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, cache: "no-store", signal: AbortSignal.timeout(20000) });
+  } catch (error) {
+    // (not `instanceof Error`: errors can come from another realm, e.g. an iframe or a test sandbox)
+    const message = (error as { message?: unknown } | null)?.message;
+    throw new SyncError("network", typeof message === "string" ? message : "Network error.");
   }
-  if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : `Sync failed (${response.status}).`);
+  let data: ResponseBody = {};
+  try { data = await response.json(); }
+  catch { /* error pages (502, gateway timeouts) are not JSON */ }
+  if (!response.ok) {
+    // Only an uploaded entry can be "rejected"; a 400 on a download is just a failed request.
+    const classified = classifyResponse(response.status);
+    const kind = classified === "rejected" && options?.method !== "POST" ? "server" : classified;
+    // The login is invalid or belongs to another account: stop acting as that owner, but keep the offline data,
+    // the queue and the "enabled" flag, so signing in again resumes where it stopped.
+    if (kind === "session" || kind === "owner") {
+      verifiedOwner = null;
+      await suspendOfflineAccount();
+      notify();
+    }
+    throw new SyncError(kind, typeof data.error === "string" ? data.error : `Sync failed (${response.status}).`, response.status);
+  }
   return data;
 }
 let running: Promise<void> | null = null;
@@ -32,7 +53,7 @@ async function synchronize() {
   const initial = await readOfflineDatabase();
   if (!initial.enabled) return;
   const bootstrap = await request("/api/offline");
-  const snapshot: OfflineSnapshot = bootstrap.snapshot;
+  const snapshot = bootstrap.snapshot;
   if (!snapshot?.ownerId) throw new Error("Offline data download failed.");
   await activateSnapshot(snapshot, initial.revision, Boolean(bootstrap.warning));
   verifiedOwner = snapshot.ownerId;
@@ -40,17 +61,27 @@ async function synchronize() {
   while (navigator.onLine) {
     const state = await readOfflineDatabase();
     if (state.activeOwner !== snapshot.ownerId || state.revision !== initial.revision) return;
-    const mutation = state.accounts[snapshot.ownerId]?.queue[0];
+    // Rejected entries wait for the user and do not block the ones behind them.
+    const mutation = state.accounts[snapshot.ownerId]?.queue.find((entry) => !entry.rejected);
     if (!mutation) break;
-    await request("/api/offline", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mutation) });
+    try {
+      await request("/api/offline", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mutation) });
+    } catch (error) {
+      if (error instanceof SyncError && error.kind === "rejected") {
+        await rejectMutation(snapshot.ownerId, mutation.id, error.message);
+        notify();
+        continue;
+      }
+      throw error;
+    }
     await acknowledgeMutation(snapshot.ownerId, mutation.id);
     notify();
   }
   if (navigator.onLine) {
     const latest = await request("/api/offline");
-    if (latest.snapshot.ownerId !== snapshot.ownerId) {
-      await lockOfflineAccount();
-      throw new Error("Account changed. Reopen the app while online.");
+    if (!latest.snapshot || latest.snapshot.ownerId !== snapshot.ownerId) {
+      await suspendOfflineAccount();
+      throw new SyncError("owner", "Account changed. Reopen the app while online.");
     }
     await activateSnapshot(latest.snapshot, initial.revision, Boolean(latest.warning));
     if (latest.warning) throw new Error(latest.warning);
@@ -76,7 +107,7 @@ export async function saveOfflineMutation(payload: OfflinePayload, expectedOwner
   if (!validOfflinePayload(payload, localDate())) throw new Error("Invalid offline entry. Check the date and values.");
   const state = await readOfflineDatabase();
   if (!state.activeOwner || state.activeOwner !== expectedOwner) throw new Error("Account changed. Sign in online and download data before offline logging.");
-  const id = crypto.randomUUID();
+  const id = randomId();
   await enqueueMutation({ id, ownerId: state.activeOwner, createdAt: new Date().toISOString(), payload });
   notify(true);
   return id;
@@ -85,7 +116,14 @@ export async function saveOfflineMutation(payload: OfflinePayload, expectedOwner
 type OfflineContextValue = {
   ready: boolean; ownerId: string | null; online: boolean; syncing: boolean;
   pending: number; error: string | null; snapshot: OfflineSnapshot | null;
+  // What kind of failure `error` is: "session" means signing in again (nothing was lost), "rejected" is never set here.
+  errorKind: SyncErrorKind | null;
+  // Entries the server refused as invalid: kept on the device until the user exports / retries / discards them.
+  rejected: OfflineMutation[];
+  // Entries waiting for another account on this device (not shown or synced under the current login).
+  otherPending: number;
   sync: () => Promise<void>; forget: () => Promise<void>;
+  retryRejected: (id: string) => Promise<void>; discardRejected: (id: string) => Promise<void>;
 };
 const Context = createContext<OfflineContextValue | null>(null);
 export function useOffline() {
@@ -100,6 +138,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<SyncErrorKind | null>(null);
   const [ready, setReady] = useState(false);
   const previousPath = useRef(pathname);
   const refresh = useCallback(async () => {
@@ -114,10 +153,24 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const sync = useCallback(async (manual = true) => {
     setSyncing(true);
     setError(null);
+    setErrorKind(null);
     try { await syncOffline(manual); }
     catch (error) {
       setError(error instanceof Error ? error.message : "Sync failed. Entries remain on this device.");
+      setErrorKind(error instanceof SyncError ? error.kind : null);
     } finally { setSyncing(false); await refresh(); }
+  }, [refresh]);
+  const retryRejected = useCallback(async (id: string) => {
+    const owner = (await readOfflineDatabase()).activeOwner;
+    if (owner) await retryRejectedMutation(owner, id);
+    notify(true);
+    await refresh();
+  }, [refresh]);
+  const discardRejected = useCallback(async (id: string) => {
+    const owner = (await readOfflineDatabase()).activeOwner;
+    if (owner) await discardRejectedMutation(owner, id);
+    notify();
+    await refresh();
   }, [refresh]);
   const forget = useCallback(async () => {
     await forgetOfflineAccount();
@@ -178,7 +231,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const account = owner ? state?.accounts[owner] : null;
   return <Context.Provider value={{
     ready, online, syncing, error, ownerId: owner,
-    snapshot: account?.snapshot ?? null, pending: account?.queue.length ?? 0,
-    sync, forget,
+    snapshot: account?.snapshot ?? null, pending: account?.queue.filter((entry) => !entry.rejected).length ?? 0,
+    errorKind, rejected: account?.queue.filter((entry) => entry.rejected) ?? [],
+    otherPending: Object.entries(state?.accounts ?? {}).reduce((sum, [id, other]) => id === owner ? sum : sum + other.queue.length, 0),
+    sync, forget, retryRejected, discardRejected,
   }}>{children}</Context.Provider>;
 }

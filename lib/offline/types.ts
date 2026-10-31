@@ -1,6 +1,6 @@
 export type OfflineSet = {
   split: string; exercise: string; setNumber: number; reps: number;
-  weight: number; rir: number; setType: string; notes: string;
+  weight: number; rir: number | null; setType: string; notes: string;
 };
 export type OfflineCardio = { activity: string; durationMin: number };
 export type OfflinePayload =
@@ -9,11 +9,13 @@ export type OfflinePayload =
   | { kind: "workout"; date: string; mode: "strength" | "cardio"; split: string; sets: OfflineSet[]; cardio: OfflineCardio[] };
 export type OfflineMutation = {
   id: string; ownerId: string; createdAt: string; payload: OfflinePayload;
+  // Set when the server refused this entry as invalid: it stays queued, is skipped by sync, and waits for the user.
+  rejected?: { reason: string; at: string };
 };
 export type OfflineWorkout = {
   id: string; performed_on: string; workout_mode: string; split: string;
   workout_sets: {
-    id: string; exercise: string; weight: number; reps: number; rir: number;
+    id: string; exercise: string; weight: number; reps: number; rir: number | null;
     set_type: string; set_number: number; notes: string | null;
   }[];
   cardio_sessions: { id: string; activity: string; duration_min: number }[];

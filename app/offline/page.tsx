@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Download, Trash2, Trophy } from "lucide-react";
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
@@ -12,8 +12,14 @@ import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
+import { randomId } from "@/lib/random-id";
+import { localizeOfflineMessage } from "@/lib/offline/messages";
+import { displayOrdinals } from "@/lib/set-numbering";
+import { baselinesFromWorkouts, draftPersonalRecords } from "@/lib/personal-record";
+import { rejectedEntryExport } from "@/lib/offline/rejected";
+import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
-import type { OfflineCardio, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
+import type { OfflineCardio, OfflineMutation, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
 import { CARDIO_ACTIVITIES, EXERCISES, SET_TYPES, SPLITS } from "@/lib/workout-data";
 
 const inputClass = "h-11 w-full min-w-0 rounded-xl border bg-background px-3 text-sm";
@@ -22,13 +28,13 @@ const panelClass = "min-w-0 rounded-2xl border bg-card p-4 shadow-sm sm:p-6";
 type LocalSet = OfflineSet & { uiId: string };
 type LocalCardio = OfflineCardio & { uiId: string };
 
-function failureMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+function failureMessage(error: unknown, fallback: string, t: (ro: string, en: string) => string) {
+  return error instanceof Error ? localizeOfflineMessage(error.message, t) : fallback;
 }
 
 export default function OfflinePage() {
   const { t, locale } = useLanguage();
-  const { ready, ownerId, online, syncing, pending, error, snapshot, sync, forget } = useOffline();
+  const { ready, ownerId, online, syncing, pending, error, errorKind, rejected, otherPending, snapshot, sync, forget, retryRejected, discardRejected } = useOffline();
   const [actionError, setActionError] = useState<string | null>(null);
   const [forgetting, setForgetting] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -40,7 +46,7 @@ export default function OfflinePage() {
     try {
       await sync();
     } catch (error) {
-      setActionError(failureMessage(error, t("Sincronizarea a eșuat.", "Sync failed.")));
+      setActionError(failureMessage(error, t("Sincronizarea a eșuat.", "Sync failed."), t));
     } finally {
       setRetrying(false);
     }
@@ -48,7 +54,9 @@ export default function OfflinePage() {
 
   async function forgetData() {
     if (!window.confirm(t(
-      "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute. Datele deja sincronizate rămân în cont.",
+      rejected.length > 0
+        ? "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute, inclusiv cele respinse de server pe care nu le-ai exportat încă. Datele deja sincronizate rămân în cont."
+        : "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute. Datele deja sincronizate rămân în cont.",
       "Remove offline data from this device? All unsynced entries will be lost. Already synced data stays in your account.",
     ))) return;
     setActionError(null);
@@ -56,7 +64,7 @@ export default function OfflinePage() {
     try {
       await forget();
     } catch (error) {
-      setActionError(failureMessage(error, t("Ștergerea locală a eșuat.", "Could not remove local data.")));
+      setActionError(failureMessage(error, t("Ștergerea locală a eșuat.", "Could not remove local data."), t));
     } finally {
       setForgetting(false);
     }
@@ -102,7 +110,16 @@ export default function OfflinePage() {
           </button>
         </div>
         {(error || actionError) && <p role="alert" className="mt-4 break-words rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
-          {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || error}
+          {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || (error && localizeOfflineMessage(error, t))}
+        </p>}
+        {errorKind === "session" && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+          {t("Sesiunea a expirat sau nu mai este validă. Autentifică-te din nou: toate înregistrările offline sunt păstrate pe acest dispozitiv și se vor sincroniza după autentificare.", "Your session expired or is no longer valid. Sign in again: all offline entries are kept on this device and will sync after you sign in.")}
+        </p>}
+        {errorKind && errorKind !== "session" && errorKind !== "owner" && <p className="mt-2 text-xs text-muted-foreground">
+          {t("Nimic nu a fost șters. Sincronizarea se reia automat când conexiunea și serverul sunt disponibile.", "Nothing was deleted. Sync resumes automatically when the connection and the server are available.")}
+        </p>}
+        {otherPending > 0 && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+          {t(`${otherPending} înregistrări așteaptă sincronizarea pentru un alt cont de pe acest dispozitiv. Autentifică-te în acel cont ca să le sincronizezi; ele nu se pierd la schimbarea contului.`, `${otherPending} entries on this device are waiting to sync for another account. Sign in to that account to sync them; switching accounts does not lose them.`)}
         </p>}
         {activeSnapshot && <p className="mt-4 text-xs text-muted-foreground">
           {t("Ultima descărcare:", "Last downloaded:")}{" "}
@@ -122,6 +139,7 @@ export default function OfflinePage() {
         </section>
           : <>
             <OwnerWorkspace key={ownerId} snapshot={activeSnapshot} disabled={forgetting} />
+            {rejected.length > 0 && <RejectedEntries entries={rejected} onRetry={retryRejected} onDiscard={discardRejected} />}
             <section className={`${panelClass} space-y-3`}>
               <h2 className="font-bold">{t("Date pe acest dispozitiv", "Data on this device")}</h2>
               <p className="text-sm text-muted-foreground">{t(
@@ -135,6 +153,46 @@ export default function OfflinePage() {
           </>}
     </main>
   );
+}
+
+function RejectedEntries({ entries, onRetry, onDiscard }: { entries: OfflineMutation[]; onRetry: (id: string) => Promise<void>; onDiscard: (id: string) => Promise<void> }) {
+  const { t, locale } = useLanguage();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function exportEntry(entry: OfflineMutation) {
+    const { filename, json } = rejectedEntryExport(entry);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function run(id: string, action: () => Promise<void>) {
+    setBusy(id);
+    try { await action(); } finally { setBusy(null); }
+  }
+
+  return <section className={`${panelClass} space-y-3 border-red-500/30`} aria-labelledby="rejected-title">
+    <h2 id="rejected-title" className="font-bold">{t("Înregistrări respinse de server", "Entries rejected by the server")} ({entries.length})</h2>
+    <p className="text-sm text-muted-foreground">{t(
+      "Serverul a refuzat aceste înregistrări ca invalide. Rămân pe dispozitiv până decizi: exportă-le ca fișier, reîncearcă sau șterge-le. Restul înregistrărilor se sincronizează normal.",
+      "The server refused these entries as invalid. They stay on this device until you decide: export them as a file, retry, or discard them. Other entries sync normally.",
+    )}</p>
+    <ul className="space-y-3">
+      {entries.map((entry) => <li key={entry.id} className="space-y-2 rounded-xl border p-3 text-sm">
+        <p className="font-semibold">{entry.payload.kind === "workout" ? t("Antrenament", "Workout") : entry.payload.kind === "steps" ? t("Pași", "Steps") : t("Greutate corporală", "Body weight")}{" · "}{entry.payload.date}</p>
+        <p className="break-words text-xs text-muted-foreground">{entry.rejected?.reason} {entry.rejected && <>({new Date(entry.rejected.at).toLocaleString(locale)})</>}</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => exportEntry(entry)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold"><Download className="size-4" aria-hidden="true" />{t("Exportă", "Export")}</button>
+          <button type="button" disabled={busy === entry.id} onClick={() => void run(entry.id, () => onRetry(entry.id))} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold">{t("Reîncearcă", "Retry")}</button>
+          <button type="button" disabled={busy === entry.id} onClick={() => {
+            if (window.confirm(t("Ștergi definitiv această înregistrare de pe dispozitiv? Dacă nu ai exportat-o, nu o mai poți recupera.", "Permanently delete this entry from the device? If you have not exported it, it cannot be recovered."))) void run(entry.id, () => onDiscard(entry.id));
+          }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" />{t("Șterge", "Discard")}</button>
+        </div>
+      </li>)}
+    </ul>
+  </section>;
 }
 
 function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | null; disabled: boolean }) {
@@ -172,10 +230,10 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
                 <span className="mt-1 block text-xs text-muted-foreground">{workout.workout_sets.length} {t("seturi", "sets")}{" · "}{workout.cardio_sessions.length} {t("activități cardio", "cardio entries")}{" · "}{t("Deschide detaliile", "Expand details")}</span>
               </summary>
               <div className="space-y-3 border-t bg-secondary/10 p-4">
-                {workout.workout_sets.map((set) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
+                {workout.workout_sets.map((set, setIndex) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
                   <p className="break-words font-semibold"><ExerciseName id={set.exercise} /></p>
-                  <p className="text-muted-foreground">{t("Set", "Set")} {set.set_number}{" · "}<WorkoutLabel value={set.set_type} /></p>
-                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir.toLocaleString(locale)}</p>
+                  <p className="text-muted-foreground">{t("Set", "Set")} {displayOrdinals(workout.workout_sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]}{" · "}<WorkoutLabel value={set.set_type} /></p>
+                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir === null ? "–" : set.rir.toLocaleString(locale)}</p>
                   {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
                 </div>)}
                 {workout.cardio_sessions.map((entry) => <div key={entry.id} className="rounded-xl border bg-background p-3 text-sm">
@@ -228,7 +286,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
       await saveOfflineMutation(kind === "steps" ? { kind, date, steps: number } : { kind, date, weightKg: toKg(number) }, ownerId);
       setSaved(true);
     } catch (error) {
-      setError(failureMessage(error, t("Salvarea a eșuat. Datele au fost păstrate.", "Save failed. Your input was kept.")));
+      setError(failureMessage(error, t("Salvarea a eșuat. Datele au fost păstrate.", "Save failed. Your input was kept."), t));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -251,7 +309,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
 }
 
 function WorkoutForm({ disabled }: { disabled: boolean }) {
-  const { ownerId } = useOffline();
+  const { ownerId, snapshot } = useOffline();
   const { t, locale, language } = useLanguage();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
@@ -273,18 +331,34 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [finished, setFinished] = useState<SummaryInput | null>(null);
+  // Same PR rule as /insert, against the best sets in the history downloaded to this device (plus unsynced workouts).
+  const records = useMemo(() => {
+    const draft = sets.map((set) => ({ id: set.uiId, exercise: set.exercise, weight: set.weight, reps: set.reps, setType: set.setType }));
+    const baselines = baselinesFromWorkouts(snapshot?.workouts ?? [], [...new Set(draft.map((set) => set.exercise))]);
+    return draftPersonalRecords(draft, baselines);
+  }, [sets, snapshot]);
+  const ordinals = displayOrdinals(sets.map((set, index) => ({ exercise: set.exercise, order: index })));
+  // ownerId is only known after mount, so localStorage is never read during server rendering.
+  const hasDraft = useMemo(() => {
+    try {
+      return ownerId ? draftHasEntries(localStorage.getItem(`workout_draft_v1_${ownerId}`)) : false;
+    } catch (error) {
+      console.warn("Workout draft could not be checked:", error);
+      return false;
+    }
+  }, [ownerId]);
 
   function addEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSaved(false);
     if (mode === "strength") {
-      const r = Number(reps), w = Number(weight), reserve = Number(rir);
-      if (!reps.trim() || !weight.trim() || !rir.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || toKg(w) > 10000 || !Number.isSafeInteger(reserve) || reserve < 0 || reserve > 5) {
-        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR un număr întreg între 0 și 5. Completează toate câmpurile numerice.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR a whole number between 0 and 5. Complete all numeric fields."));
+      const r = Number(reps), w = Number(weight), reserve = rir.trim() === "" ? null : Number(rir); // RIR is optional
+      if (!reps.trim() || !weight.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || toKg(w) > 10000 || (reserve !== null && (!Number.isSafeInteger(reserve) || reserve < 0 || reserve > 5))) {
+        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR (opțional) un număr întreg între 0 și 5.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR (optional) a whole number between 0 and 5."));
         return;
       }
-      setSets((current) => [...current, { uiId: crypto.randomUUID(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
+      setSets((current) => [...current, { uiId: randomId(), split, exercise, setNumber: current.length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
       restTimer.start();
     } else {
       const minutes = Number(duration);
@@ -292,7 +366,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         setError(t("Durata trebuie să fie un număr întreg de minute, între 1 și 1440.", "Duration must be a whole number of minutes between 1 and 1440."));
         return;
       }
-      setCardio((current) => [...current, { uiId: crypto.randomUUID(), activity, durationMin: minutes }]);
+      setCardio((current) => [...current, { uiId: randomId(), activity, durationMin: minutes }]);
     }
   }
 
@@ -311,10 +385,10 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     // Builder fields are not persisted until explicitly added to the workout.
     const payload: OfflinePayload = {
       kind: "workout", date, mode, split: mode === "strength" ? sets[0].split : "CARDIO",
-      sets: mode === "strength" ? sets.map((set, index, all) => ({
+      sets: mode === "strength" ? sets.map((set, index) => ({
         split: set.split, exercise: set.exercise, reps: set.reps, weight: set.weight,
         rir: set.rir, setType: set.setType, notes: set.notes,
-        setNumber: all.slice(0, index + 1).filter((entry) => entry.exercise === set.exercise).length,
+        setNumber: index + 1, // position in the workout; shown per exercise
       })) : [],
       cardio: mode === "cardio" ? cardio.map(({ activity, durationMin }) => ({ activity, durationMin })) : [],
     };
@@ -323,7 +397,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     try {
       if (!ownerId) throw new Error(t("Contul s-a schimbat.", "Account changed."));
       await saveOfflineMutation(payload, ownerId);
-      // Same card as /insert, built before the lists are cleared. No timer or PR tracking here.
+      // Same card as /insert, built before the lists are cleared. There is no timer here.
       const summary: SummaryInput = {
         date,
         mode,
@@ -331,7 +405,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         durationSec: null,
         sets: mode === "strength" ? sets.map((set) => ({ id: set.uiId, exercise: set.exercise, weight: set.weight, reps: set.reps, setType: set.setType })) : [],
         cardio: mode === "cardio" ? cardio.map(({ activity, durationMin }) => ({ activity, durationMin })) : [],
-        recordIds: new Set(),
+        recordIds: records,
       };
       if (mode === "strength") {
         setSets([]);
@@ -342,7 +416,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       setSaved(true);
       setFinished(summary);
     } catch (error) {
-      setError(failureMessage(error, t("Salvarea a eșuat. Antrenamentul a fost păstrat.", "Save failed. Your workout was kept.")));
+      setError(failureMessage(error, t("Salvarea a eșuat. Antrenamentul a fost păstrat.", "Save failed. Your workout was kept."), t));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -354,6 +428,12 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       <h2 className="flex items-center gap-2 text-xl font-bold"><Dumbbell className="size-5" aria-hidden="true" />{t("Antrenament nou", "New workout")}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{t("1. Adaugă seturile sau activitățile în listă. 2. Salvează explicit antrenamentul complet. Lista nesalvată nu este păstrată dacă închizi pagina.", "1. Add sets or activities to the list. 2. Explicitly save the full workout. Unsaved lists are not kept if you close this page.")}</p>
     </div>
+    <p className="rounded-xl border bg-secondary/10 p-3 text-xs text-muted-foreground">
+      {t("Recordurile personale se compară cu cele mai bune seturi din istoricul descărcat pe acest dispozitiv (ultimele 90 de zile, plus antrenamentele nesincronizate); un exercițiu fără istoric aici nu primește insignă de record. Nu există cronometru de antrenament.", "Personal records are compared with your best sets in the history downloaded to this device (last 90 days, plus unsynced workouts); an exercise with no history here gets no record badge. There is no workout timer.")}
+    </p>
+    {hasDraft && <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+      {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
+    </p>}
     <fieldset disabled={disabled || saving} className="min-w-0 space-y-5 disabled:opacity-60">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1 text-sm"><span>{t("Data antrenamentului", "Workout date")}</span><input type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); }} className={inputClass} /></label>
@@ -369,7 +449,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block space-y-1 text-sm"><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" value={reps} onChange={(event) => setReps(event.target.value)} className={inputClass} /></label>
             <label className="block space-y-1 text-sm"><span>{t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" required min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
+            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
           </div>
           <p className="text-xs text-muted-foreground">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
           <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
@@ -387,9 +467,9 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         {(mode === "strength" ? sets.length === 0 : cardio.length === 0) && <p className="text-sm text-muted-foreground">{t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}</p>}
         {mode === "strength" ? sets.map((set, index) => <div key={set.uiId} className="flex items-start gap-3 rounded-xl border p-3">
           <div className="min-w-0 flex-1 space-y-1 text-sm">
-            <p className="break-words font-semibold">{index + 1}. <ExerciseName id={set.exercise} /></p>
+            <p className="break-words font-semibold">{ordinals[index]}. <ExerciseName id={set.exercise} />{records.has(set.uiId) && <span className="ml-2 inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"><Trophy className="size-3" aria-hidden="true" />{t("Record", "PR")}</span>}</p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
-            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir}</p>
+            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir ?? "–"}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
           </div>
           <button type="button" onClick={() => { setSets((current) => current.filter((entry) => entry.uiId !== set.uiId)); setSaved(false); }} aria-label={`${t("Elimină setul", "Remove set")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>

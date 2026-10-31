@@ -1,7 +1,8 @@
 // Layout of the workout card, separated from drawing so it can be tested without a canvas.
 // The card is always 1080x1920 (9:16). Content is placed with a fixed, predictable ladder of tiers:
 // the first tier whose content fits wins, and the last tier lists as many whole exercises as fit and says
-// how many were left out. Exercises and records are never dropped in any other situation.
+// how many were left out. Exercises are never dropped in any other situation; the records box is capped in height
+// and ends with "+N records" when there are too many to list.
 import type { WorkoutSummary } from "./workout-summary.ts";
 
 export const CARD_WIDTH = 1080;
@@ -11,6 +12,7 @@ export const CONTENT_BOTTOM = CARD_HEIGHT - 150; // the footer lives below this 
 export const MIN_FONT_SIZE = 20;
 
 const INNER = CARD_WIDTH - PAD * 2;
+const MAX_RECORDS_BOX = 420; // tallest the records box may be
 const CONTENT_TOP = 650; // below the header and the stat tiles
 
 export const COLORS = {
@@ -29,6 +31,7 @@ export type SummaryLabels = {
   recordBadge: string;
   moreExercises: (count: number) => string;
   moreSets: (count: number) => string;
+  moreRecords: (count: number) => string;
   setsSummary: (total: number, top: string) => string;
 };
 
@@ -77,6 +80,30 @@ function wrapLines(text: string, maxWidth: number, size: number, weight: number,
   );
 }
 
+// Wraps a list of sets into at most `maxLines` lines, one whole set at a time, so a line never starts or ends with
+// the separator. Sets that do not fit are dropped from the end and counted in "+N sets" together with `hidden`.
+function wrapSets(
+  sets: string[], hidden: number, sep: string, maxWidth: number, size: number, weight: number, maxLines: number,
+  moreSets: (count: number) => string, measure: Measure,
+): string[] {
+  for (let shown = sets.length; shown >= 1; shown--) {
+    const dropped = hidden + sets.length - shown;
+    const parts = [...sets.slice(0, shown), ...(dropped > 0 ? [moreSets(dropped)] : [])];
+    const lines: string[] = [];
+    let line = "";
+    for (const part of parts) {
+      const next = line ? `${line}${sep}${part}` : part;
+      if (line && measure(next, size, weight) > maxWidth) {
+        lines.push(line);
+        line = part;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    if (lines.length <= maxLines) return lines.map((entry) => ellipsize(entry, maxWidth, size, weight, measure));
+  }
+  return [ellipsize(sets[0] ?? "", maxWidth, size, weight, measure)];
+}
+
 function fitSize(text: string, maxWidth: number, sizes: number[], weight: number, measure: Measure): number {
   return sizes.find((size) => measure(text, size, weight) <= maxWidth) ?? sizes[sizes.length - 1];
 }
@@ -123,12 +150,17 @@ function recordsBox(summary: WorkoutSummary, tier: Tier, labels: SummaryLabels, 
   if (records.length === 0) return { items, bottom: top };
   const cols = tier.recordCols;
   const headH = cols === 1 ? 96 : 80;
-  const rows = Math.ceil(records.length / cols);
+  // The box is capped so dozens of PRs cannot push the exercises off the card: the last cell says how many are left.
+  const capacity = Math.max(cols, Math.floor((MAX_RECORDS_BOX - headH - 20) / tier.recordRow) * cols);
+  const shown = records.length > capacity
+    ? [...records.slice(0, capacity - 1), { name: labels.moreRecords(records.length - capacity + 1), text: "" }]
+    : records;
+  const rows = Math.ceil(shown.length / cols);
   const boxH = headH + rows * tier.recordRow + 20;
   items.push({ kind: "rect", x: PAD, y: top, w: INNER, h: boxH, r: 32, fill: COLORS.recordFill, stroke: COLORS.recordStroke });
   items.push({ kind: "text", text: `★  ${labels.recordsTitle.toUpperCase()}`, x: PAD + 36, y: top + 56, size: cols === 1 ? 28 : 24, weight: 800, color: COLORS.emeraldLight });
   const cellW = (INNER - 72 - (cols - 1) * 24) / cols;
-  records.forEach((record, index) => {
+  shown.forEach((record, index) => {
     const x = PAD + 36 + (index % cols) * (cellW + 24);
     const baseline = top + headH + Math.floor(index / cols) * tier.recordRow;
     const valueWidth = measure(record.text, tier.recordSize, 700);
@@ -166,10 +198,9 @@ function exerciseCell(exercise: WorkoutSummary["exercises"][number], tier: Tier,
     y += Math.round(tier.nameSize * 1.2) + 6;
   }
 
-  const extra = exercise.hiddenSets > 0 ? `  ·  ${labels.moreSets(exercise.hiddenSets)}` : "";
   const setLines = tier.compactSets
     ? [ellipsize(labels.setsSummary(exercise.totalSets, exercise.top), width, tier.setSize, 500, measure)]
-    : wrapLines(exercise.sets.join("  ·  ") + extra, width, tier.setSize, 500, tier.setLines, measure);
+    : wrapSets(exercise.sets, exercise.hiddenSets, "  ·  ", width, tier.setSize, 500, tier.setLines, labels.moreSets, measure);
   const setLineH = Math.round(tier.setSize * 1.3);
   setLines.forEach((line, index) => place({ kind: "text", text: line, x, y: y + setLineH * (index + 1) - 6, size: tier.setSize, weight: 500, color: COLORS.muted }));
   y += setLineH * setLines.length;
