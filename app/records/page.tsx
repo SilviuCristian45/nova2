@@ -125,7 +125,7 @@ export default async function RecordsPage() {
                       {kgToUnit(Number(record.weight), unit).toLocaleString(locale)} <span className="text-sm text-zinc-500 font-normal">{unit} ×</span> {record.reps} <span className="text-sm text-zinc-500 font-normal"><Text ro="repetări" en="reps" /></span>
                     </span>
                     <span className="text-[11px] font-mono text-zinc-500 mt-1 flex items-center gap-1.5">
-                      <span className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">{record.rir} RIR</span>
+                      <span className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">{record.rir === null ? "–" : `${record.rir} RIR`}</span>
                       {record.date}
                     </span>
                   </div>

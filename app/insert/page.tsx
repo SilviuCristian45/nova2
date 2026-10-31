@@ -46,6 +46,7 @@ import {
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
+import { workoutSplit } from "@/lib/workout-save";
 import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
 import {
   cardioName,
@@ -285,7 +286,7 @@ export default function InsertWorkoutPage() {
       setBaselines((prev) => ({ ...prev, [exercise]: recordBaseline }));
 
       setLastPerformance(
-        `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} (RIR ${bestSet.rir})${notesText}`,
+        `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} ${bestSet.rir === null || bestSet.rir === undefined ? "" : ` (RIR ${bestSet.rir})`}${notesText}`,
       );
 
       const recommendedPerformance = calculateProgression(bestSet, format, progressionStepKg(unit));
@@ -410,7 +411,7 @@ export default function InsertWorkoutPage() {
       setNumber,
       reps: Number(reps),
       weight: weight === "" ? 0 : toKg(Number(weight)),
-      rir: rir === "" ? 0 : Number(rir),
+      rir: rir === "" ? null : Number(rir), // optional: empty means "not recorded", not 0
       setType,
       notes: notes.trim(),
     };
@@ -457,10 +458,12 @@ export default function InsertWorkoutPage() {
 
     setError(null);
     restTimer.skip();
+    // The split of the logged sets, not whatever the picker shows now (like /offline).
+    const savedSplit = workoutSplit(sessionSets, split);
     const summaryInput: SummaryInput = {
       date: localDate(),
       mode,
-      title: mode === "cardio" ? "Cardio" : workoutLabelText(split, t),
+      title: mode === "cardio" ? "Cardio" : workoutLabelText(savedSplit, t),
       durationSec: time > 0 ? time : null,
       sets: mode === "strength" ? sessionSets : [],
       cardio: mode === "cardio" ? cardioEntries : [],
@@ -506,7 +509,7 @@ export default function InsertWorkoutPage() {
                   kind: "workout",
                   date: localDate(),
                   mode,
-                  split,
+                  split: savedSplit,
                   sets: mode === "strength" ? sessionSets : [],
                   cardio: mode === "cardio" ? cardioEntries : [],
                 },
@@ -543,7 +546,13 @@ export default function InsertWorkoutPage() {
               return false;
             }
           }
-          const result = await saveWorkout(mode, split, sessionSets, cardioEntries);
+          const result = await saveWorkout(
+            mode,
+            savedSplit,
+            localDate(),
+            sessionSets,
+            cardioEntries,
+          );
 
           if (result.error) {
             setError(result.error);
@@ -571,7 +580,7 @@ export default function InsertWorkoutPage() {
     .reverse()
     .find((s) => s.exercise === exercise && personalRecords.has(s.id));
   const exerciseHint = latestRecord
-    ? `🏆 ${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} (RIR ${latestRecord.rir})${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
+    ? `🏆 ${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} ${latestRecord.rir === null ? "" : ` (RIR ${latestRecord.rir})`}${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
     : lastPerformance;
 
   if (!ready || (ownerId && loadedDraftKey !== draftKey && !error)) {
@@ -989,7 +998,7 @@ export default function InsertWorkoutPage() {
                       <Text ro="repetări" en="reps" />
                     </span>
                     <span className="opacity-30">•</span>
-                    <span>{s.rir} RIR</span>
+                    <span>{s.rir === null ? "–" : `${s.rir} RIR`}</span>
 
                     {s.notes && (
                       <>

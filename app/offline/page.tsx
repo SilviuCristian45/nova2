@@ -175,7 +175,7 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
                 {workout.workout_sets.map((set) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
                   <p className="break-words font-semibold"><ExerciseName id={set.exercise} /></p>
                   <p className="text-muted-foreground">{t("Set", "Set")} {set.set_number}{" · "}<WorkoutLabel value={set.set_type} /></p>
-                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir.toLocaleString(locale)}</p>
+                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir === null ? "–" : set.rir.toLocaleString(locale)}</p>
                   {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
                 </div>)}
                 {workout.cardio_sessions.map((entry) => <div key={entry.id} className="rounded-xl border bg-background p-3 text-sm">
@@ -279,9 +279,9 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     setError(null);
     setSaved(false);
     if (mode === "strength") {
-      const r = Number(reps), w = Number(weight), reserve = Number(rir);
-      if (!reps.trim() || !weight.trim() || !rir.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || toKg(w) > 10000 || !Number.isSafeInteger(reserve) || reserve < 0 || reserve > 5) {
-        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR un număr întreg între 0 și 5. Completează toate câmpurile numerice.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR a whole number between 0 and 5. Complete all numeric fields."));
+      const r = Number(reps), w = Number(weight), reserve = rir.trim() === "" ? null : Number(rir); // RIR is optional
+      if (!reps.trim() || !weight.trim() || !Number.isSafeInteger(r) || r < 1 || r > 100000 || !Number.isFinite(w) || w < 0 || toKg(w) > 10000 || (reserve !== null && (!Number.isSafeInteger(reserve) || reserve < 0 || reserve > 5))) {
+        setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR (opțional) un număr întreg între 0 și 5.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR (optional) a whole number between 0 and 5."));
         return;
       }
       setSets((current) => [...current, { uiId: crypto.randomUUID(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
@@ -369,7 +369,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block space-y-1 text-sm"><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" value={reps} onChange={(event) => setReps(event.target.value)} className={inputClass} /></label>
             <label className="block space-y-1 text-sm"><span>{t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" required min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
+            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
           </div>
           <p className="text-xs text-muted-foreground">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
           <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
@@ -389,7 +389,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
           <div className="min-w-0 flex-1 space-y-1 text-sm">
             <p className="break-words font-semibold">{index + 1}. <ExerciseName id={set.exercise} /></p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
-            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir}</p>
+            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir ?? "–"}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
           </div>
           <button type="button" onClick={() => { setSets((current) => current.filter((entry) => entry.uiId !== set.uiId)); setSaved(false); }} aria-label={`${t("Elimină setul", "Remove set")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>

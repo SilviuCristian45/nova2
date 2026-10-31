@@ -87,7 +87,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
       id: Math.random().toString(36).substring(2, 9),
       split, exercise, setNumber: sessionSets.length + 1,
       reps: Number(reps), weight: weight === "" ? 0 : toKg(Number(weight)),
-      rir: rir === "" ? 0 : Number(rir), setType
+      rir: rir === "" ? null : Number(rir), setType
     }
     setSessionSets((prev) => [...prev, newSet])
     setReps("") 
@@ -267,7 +267,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
                   <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{s.reps}</span> <Text ro="repetări" en="reps" />
                 </span>
                 <span className="opacity-30">•</span> 
-                <span>{s.rir} RIR</span>
+                <span>{s.rir === null ? "–" : `${s.rir} RIR`}</span>
               </div>
             </div>
             <button onClick={() => setSessionSets(prev => prev.filter(x => x.id !== s.id))} className="p-2.5 text-red-700 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 hover:border-red-500/30 hover:bg-red-500/10 rounded-xl active:scale-95">

@@ -50,9 +50,10 @@ begin
       or trunc((row_entry->>'setNumber')::numeric) <> (row_entry->>'setNumber')::numeric
       or jsonb_typeof(row_entry->'weight') is distinct from 'number'
       or (row_entry->>'weight')::numeric not between 0 and 10000
-      or jsonb_typeof(row_entry->'rir') is distinct from 'number'
-      or (row_entry->>'rir')::numeric not between 0 and 5
-      or trunc((row_entry->>'rir')::numeric) <> (row_entry->>'rir')::numeric
+      or case when coalesce(jsonb_typeof(row_entry->'rir'), 'null') = 'null' then false -- RIR is optional
+              when jsonb_typeof(row_entry->'rir') <> 'number' then true
+              else (row_entry->>'rir')::numeric not between 0 and 5
+                or trunc((row_entry->>'rir')::numeric) <> (row_entry->>'rir')::numeric end
     then raise exception 'Invalid workout set'; end if;
     insert into public.workout_sets (workout_id, user_id, split, exercise, set_number, reps, weight, rir, set_type, notes)
       values (p_workout_id, owner, row_entry->>'split', row_entry->>'exercise',

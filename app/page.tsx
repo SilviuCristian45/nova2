@@ -436,7 +436,7 @@ export default async function HistoryPage(props: any) {
                                 <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                   {set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps} <Text ro="repetări" en="reps" />
                                   <span className="font-normal text-zinc-500 ml-1.5 text-xs">
-                                    ({set.rir} RIR)
+                                    {set.rir !== null && `(${set.rir} RIR)`}
                                   </span>
                                 </span>
                               </div>

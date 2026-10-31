@@ -19,7 +19,7 @@ type WorkoutSet = {
   set_type: string;
   weight: number;
   reps: number;
-  rir: number;
+  rir: number | null;
   notes: string | null;
 };
 
