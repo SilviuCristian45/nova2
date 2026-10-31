@@ -16,6 +16,7 @@ declare
   kind text := entry->>'kind';
   entry_date date;
   row_entry jsonb;
+  bad_rir boolean;
 begin
   if owner is null then raise exception 'Authentication required'; end if;
   if mutation_id is null or jsonb_typeof(entry) <> 'object' then raise exception 'Invalid entry'; end if;
@@ -62,6 +63,11 @@ begin
       values (mutation_id, owner, entry->>'mode',
         case when entry->>'mode' = 'strength' then entry->>'split' else 'CARDIO' end, entry_date);
     for row_entry in select value from jsonb_array_elements(entry->'sets') loop
+      -- RIR is optional (null or missing); when present it is a whole number 0-5.
+      bad_rir := case when coalesce(jsonb_typeof(row_entry->'rir'), 'null') = 'null' then false
+        when jsonb_typeof(row_entry->'rir') <> 'number' then true
+        else (row_entry->>'rir')::numeric not between 0 and 5
+          or trunc((row_entry->>'rir')::numeric) <> (row_entry->>'rir')::numeric end;
       if length(coalesce(row_entry->>'exercise', '')) not between 1 and 300
         or length(coalesce(row_entry->>'split', '')) not between 1 and 100
         or length(coalesce(row_entry->>'setType', '')) not between 1 and 100
@@ -74,10 +80,7 @@ begin
         or trunc((row_entry->>'setNumber')::numeric) <> (row_entry->>'setNumber')::numeric
         or jsonb_typeof(row_entry->'weight') is distinct from 'number'
         or (row_entry->>'weight')::numeric not between 0 and 10000
-        or case when coalesce(jsonb_typeof(row_entry->'rir'), 'null') = 'null' then false -- RIR is optional
-                when jsonb_typeof(row_entry->'rir') <> 'number' then true
-                else (row_entry->>'rir')::numeric not between 0 and 5
-                  or trunc((row_entry->>'rir')::numeric) <> (row_entry->>'rir')::numeric end
+        or bad_rir
       then raise exception 'Invalid workout set'; end if;
       insert into public.workout_sets (workout_id, user_id, split, exercise, set_number, reps, weight, rir, set_type, notes)
         values (mutation_id, owner, row_entry->>'split', row_entry->>'exercise',
