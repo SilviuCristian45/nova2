@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart, Search } from "lucid
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
+import { editSetsFromRows } from "@/lib/workout-edit"
 import { cardioName, exerciseName, matchesExerciseQuery } from "@/lib/exercise-catalog"
 import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { useUnits } from "@/app/components/units-provider"
@@ -46,10 +47,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
   const [mode] = useState<"strength" | "cardio">(isCardio ? "cardio" : "strength")
   
   // Date existente
-  const mappedSets = (initialWorkout.workout_sets || []).map((s: any) => ({
-    id: s.id, split: s.split, exercise: s.exercise, setNumber: s.set_number,
-    reps: s.reps, weight: s.weight, rir: s.rir, setType: s.set_type
-  })).sort((a: any, b: any) => a.setNumber - b.setNumber)
+  const mappedSets = editSetsFromRows(initialWorkout.workout_sets || [])
 
   const mappedCardio = (initialWorkout.cardio_sessions || []).map((c: any) => ({
     id: c.id, activity: c.activity, durationMin: c.duration_min
