@@ -45,6 +45,7 @@ import {
 } from "@/utils/fitness";
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
+import { restoreDraft, type DraftState } from "@/lib/workout-draft";
 import {
   cardioName,
   exerciseName,
@@ -339,6 +340,14 @@ export default function InsertWorkoutPage() {
     [sessionSets, baselines],
   );
 
+  // Read by the restore effect, which must not run again whenever the sets change.
+  const latestDraft = useRef<
+    DraftState<(typeof sessionSets)[number], (typeof cardioEntries)[number]>
+  >({ sets: [], cardio: [], mode: "strength" });
+  useEffect(() => {
+    latestDraft.current = { sets: sessionSets, cardio: cardioEntries, mode };
+  }, [sessionSets, cardioEntries, mode]);
+
   // Local Storage
   useEffect(() => {
     if (!draftKey) return;
@@ -348,16 +357,14 @@ export default function InsertWorkoutPage() {
       try {
         const state = await readOfflineDatabase();
         if (cancelled || state.activeOwner !== ownerId) return;
-        const draft = localStorage.getItem(key);
-        const parsed = draft
-          ? JSON.parse(draft)
-          : { sets: [], cardio: [], mode: "strength" };
-        if (!Array.isArray(parsed.sets) || !Array.isArray(parsed.cardio))
-          throw new Error("Invalid workout draft");
-        setSessionSets(parsed.sets);
-        setCardioEntries(parsed.cardio);
-        setMode(parsed.mode === "cardio" ? "cardio" : "strength");
-        setSetNumber(parsed.sets.length + 1);
+        const restored = restoreDraft(
+          latestDraft.current,
+          localStorage.getItem(key),
+        );
+        setSessionSets(restored.sets);
+        setCardioEntries(restored.cardio);
+        setMode(restored.mode);
+        setSetNumber(restored.sets.length + 1);
         setLoadedDraftKey(key);
       } catch (error) {
         console.error("Workout draft could not be loaded:", error);
