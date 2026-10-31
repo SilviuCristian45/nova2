@@ -5,12 +5,13 @@ import { WorkoutLabel } from "@/app/components/workout-label"
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart, Search } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart } from "lucide-react"
 
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
+import { ExerciseCombobox } from "@/app/components/exercise-combobox"
 import { editSetsFromRows } from "@/lib/workout-edit"
-import { cardioName, exerciseName, matchesExerciseQuery } from "@/lib/exercise-catalog"
+import { cardioName } from "@/lib/exercise-catalog"
 import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { useUnits } from "@/app/components/units-provider"
 
@@ -65,8 +66,6 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
   const [rir, setRir] = useState("")
   const [setType, setSetType] = useState<SetType>("Working Set")
 
-  const [exerciseQuery, setExerciseQuery] = useState("")
-  const [isExerciseOpen, setIsExerciseOpen] = useState(false)
 
   // Formular Cardio
   const [cardioActivity, setCardioActivity] = useState(CARDIO_ACTIVITIES[0])
@@ -77,7 +76,6 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
     const newExercises = getExercisesForSplit(split)
     setAvailableExercises(newExercises)
     setExercise(newExercises[0]) 
-    setExerciseQuery("") 
   }, [split])
 
   function handleAddSet(e: React.FormEvent) {
@@ -156,52 +154,8 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
             </select>
           </div>
        
-          <div className="flex flex-col gap-1.5 relative mt-1">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Exercițiu / Aparat" en="Exercise / Machine" /></label>
-            <div className="relative">
-              <input
-                type="text"
-                value={isExerciseOpen ? exerciseQuery : exerciseName(exercise, language)}
-                onChange={(e) => {
-                  setExerciseQuery(e.target.value)
-                  setIsExerciseOpen(true)
-                }}
-                onFocus={() => {
-                  setExerciseQuery("") 
-                  setIsExerciseOpen(true)
-                }}
-                onBlur={() => setTimeout(() => setIsExerciseOpen(false), 150)}
-                placeholder={t("Caută exercițiul...", "Search exercises...")}
-                className="h-12 w-full pl-4 pr-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all shadow-inner"
-              />
-              <Search className="absolute right-4 top-3.5 size-4 text-zinc-500 pointer-events-none" />
-            </div>
-
-            {isExerciseOpen && (
-              <ul className="absolute z-[999] top-[76px] left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 p-1.5 shadow-2xl shadow-black">
-                {availableExercises.filter(ex => matchesExerciseQuery(ex, exerciseQuery)).length > 0 ? (
-                  availableExercises.filter(ex => matchesExerciseQuery(ex, exerciseQuery)).map((ex) => (
-                    <li
-                      key={ex}
-                      onMouseDown={(e) => {
-                        e.preventDefault() 
-                        setExercise(ex)
-                        setIsExerciseOpen(false)
-                      }}
-                      className={`cursor-pointer rounded-lg px-3 py-2.5 text-sm transition-all ${
-                        exercise === ex 
-                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20'
-                          : 'hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent'
-                      }`}
-                    >
-                      <ExerciseName id={ex} />
-                    </li>
-                  ))
-                ) : (
-                  <li className="px-3 py-4 text-sm text-zinc-500 text-center font-medium"><Text ro="Nu am găsit acest exercițiu." en="No matching exercise found." /></li>
-                )}
-              </ul>
-            )}
+          <div className="mt-1">
+            <ExerciseCombobox key={split} exercises={availableExercises} value={exercise} onChange={setExercise} />
           </div>
 
           <div className="grid grid-cols-3 gap-3 mt-2">

@@ -14,7 +14,6 @@ import {
   Loader2,
   Save,
   Trash2,
-  Search,
   Zap,
   Play,
   Pause,
@@ -48,12 +47,11 @@ import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
 import { idleTimer, pauseTimer as pauseTimerState, startTimer as startTimerState, timerSeconds, type TimerState } from "@/lib/workout-timer";
 import { workoutSplit } from "@/lib/workout-save";
+import { ExerciseCombobox } from "@/app/components/exercise-combobox";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
 import {
   cardioName,
-  exerciseName,
-  matchesExerciseQuery,
 } from "@/lib/exercise-catalog";
 import { CardioName, ExerciseName } from "@/app/components/exercise-name";
 
@@ -161,8 +159,6 @@ export default function InsertWorkoutPage() {
   const [rir, setRir] = useState("");
   const [setType, setSetType] = useState<SetType>("Working Set");
 
-  const [exerciseQuery, setExerciseQuery] = useState("");
-  const [isExerciseOpen, setIsExerciseOpen] = useState(false);
   const [lastPerformance, setLastPerformance] = useState<string | null>(null);
 
   // Formular Cardio
@@ -208,7 +204,6 @@ export default function InsertWorkoutPage() {
     const newExercises = getExercisesForSplit(split);
     setAvailableExercises(newExercises);
     setExercise(newExercises[0]);
-    setExerciseQuery("");
   }, [split]);
 
   // Best set of the last session per exercise, from before this workout: the PR baseline.
@@ -436,6 +431,7 @@ export default function InsertWorkoutPage() {
         origin: { y: 0.6 },
         colors: ["#10b981", "#34d399", "#059669"], // Culori smarald de PR
         zIndex: 100,
+        disableForReducedMotion: true,
       });
     }
 
@@ -487,6 +483,7 @@ export default function InsertWorkoutPage() {
           angle: 60,
           spread: 55,
           origin: { x: 0 },
+          disableForReducedMotion: true,
           colors: ["#10b981", "#f59e0b", "#3b82f6"],
         });
         confetti({
@@ -494,6 +491,7 @@ export default function InsertWorkoutPage() {
           angle: 120,
           spread: 55,
           origin: { x: 1 },
+          disableForReducedMotion: true,
           colors: ["#10b981", "#f59e0b", "#3b82f6"],
         });
         if (Date.now() < end) requestAnimationFrame(frame);
@@ -716,65 +714,7 @@ export default function InsertWorkoutPage() {
             </div>
 
             <div className="flex flex-col gap-1.5 relative mt-1">
-              <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1">
-                <Text ro="Exercițiu / Aparat" en="Exercise / Machine" />
-              </label>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  value={isExerciseOpen ? exerciseQuery : exerciseName(exercise, language)}
-                  onChange={(e) => {
-                    setExerciseQuery(e.target.value);
-                    setIsExerciseOpen(true);
-                  }}
-                  onFocus={() => {
-                    setExerciseQuery("");
-                    setIsExerciseOpen(true);
-                  }}
-                  onBlur={() => setTimeout(() => setIsExerciseOpen(false), 150)}
-                  placeholder={t("Caută exercițiul...", "Search exercises...")}
-                  className="h-12 w-full pl-4 pr-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all shadow-inner"
-                />
-                <Search className="absolute right-4 top-3.5 size-4 text-zinc-500 pointer-events-none" />
-              </div>
-
-              {isExerciseOpen && (
-                <ul className="absolute z-[999] top-[76px] left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 p-1.5 shadow-2xl shadow-black">
-                  {availableExercises.filter((ex) =>
-                    matchesExerciseQuery(ex, exerciseQuery),
-                  ).length > 0 ? (
-                    availableExercises
-                      .filter((ex) =>
-                        matchesExerciseQuery(ex, exerciseQuery),
-                      )
-                      .map((ex) => (
-                        <li
-                          key={ex}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setExercise(ex);
-                            setIsExerciseOpen(false);
-                          }}
-                          className={`cursor-pointer rounded-lg px-3 py-2.5 text-sm transition-all ${
-                            exercise === ex
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20"
-                              : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-transparent"
-                          }`}
-                        >
-                          <ExerciseName id={ex} />
-                        </li>
-                      ))
-                  ) : (
-                    <li className="px-3 py-4 text-sm text-zinc-500 text-center font-medium">
-                      <Text
-                        ro="Nu am găsit acest exercițiu."
-                        en="No matching exercise found."
-                      />
-                    </li>
-                  )}
-                </ul>
-              )}
+              <ExerciseCombobox key={split} exercises={availableExercises} value={exercise} onChange={setExercise} />
 
               {exerciseHint && (
                 <div
