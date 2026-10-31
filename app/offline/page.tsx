@@ -14,6 +14,7 @@ import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
 import { randomId } from "@/lib/random-id";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
+import { displayOrdinals } from "@/lib/set-numbering";
 import { rejectedEntryExport } from "@/lib/offline/rejected";
 import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
@@ -228,9 +229,9 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
                 <span className="mt-1 block text-xs text-muted-foreground">{workout.workout_sets.length} {t("seturi", "sets")}{" · "}{workout.cardio_sessions.length} {t("activități cardio", "cardio entries")}{" · "}{t("Deschide detaliile", "Expand details")}</span>
               </summary>
               <div className="space-y-3 border-t bg-secondary/10 p-4">
-                {workout.workout_sets.map((set) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
+                {workout.workout_sets.map((set, setIndex) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
                   <p className="break-words font-semibold"><ExerciseName id={set.exercise} /></p>
-                  <p className="text-muted-foreground">{t("Set", "Set")} {set.set_number}{" · "}<WorkoutLabel value={set.set_type} /></p>
+                  <p className="text-muted-foreground">{t("Set", "Set")} {displayOrdinals(workout.workout_sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]}{" · "}<WorkoutLabel value={set.set_type} /></p>
                   <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir === null ? "–" : set.rir.toLocaleString(locale)}</p>
                   {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
                 </div>)}
@@ -329,6 +330,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [finished, setFinished] = useState<SummaryInput | null>(null);
+  const ordinals = displayOrdinals(sets.map((set, index) => ({ exercise: set.exercise, order: index })));
   // ownerId is only known after mount, so localStorage is never read during server rendering.
   const hasDraft = useMemo(() => {
     try {
@@ -349,7 +351,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR (opțional) un număr întreg între 0 și 5.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR (optional) a whole number between 0 and 5."));
         return;
       }
-      setSets((current) => [...current, { uiId: randomId(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
+      setSets((current) => [...current, { uiId: randomId(), split, exercise, setNumber: current.length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
       restTimer.start();
     } else {
       const minutes = Number(duration);
@@ -376,10 +378,10 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     // Builder fields are not persisted until explicitly added to the workout.
     const payload: OfflinePayload = {
       kind: "workout", date, mode, split: mode === "strength" ? sets[0].split : "CARDIO",
-      sets: mode === "strength" ? sets.map((set, index, all) => ({
+      sets: mode === "strength" ? sets.map((set, index) => ({
         split: set.split, exercise: set.exercise, reps: set.reps, weight: set.weight,
         rir: set.rir, setType: set.setType, notes: set.notes,
-        setNumber: all.slice(0, index + 1).filter((entry) => entry.exercise === set.exercise).length,
+        setNumber: index + 1, // position in the workout; shown per exercise
       })) : [],
       cardio: mode === "cardio" ? cardio.map(({ activity, durationMin }) => ({ activity, durationMin })) : [],
     };
@@ -458,7 +460,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         {(mode === "strength" ? sets.length === 0 : cardio.length === 0) && <p className="text-sm text-muted-foreground">{t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}</p>}
         {mode === "strength" ? sets.map((set, index) => <div key={set.uiId} className="flex items-start gap-3 rounded-xl border p-3">
           <div className="min-w-0 flex-1 space-y-1 text-sm">
-            <p className="break-words font-semibold">{index + 1}. <ExerciseName id={set.exercise} /></p>
+            <p className="break-words font-semibold">{ordinals[index]}. <ExerciseName id={set.exercise} /></p>
             <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
             <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir ?? "–"}</p>
             {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}

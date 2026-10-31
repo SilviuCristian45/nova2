@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart } from "lucide-react"
 import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
 import { ExerciseCombobox } from "@/app/components/exercise-combobox"
+import { displayOrdinals } from "@/lib/set-numbering"
 import { editSetsFromRows } from "@/lib/workout-edit"
 import { cardioName } from "@/lib/exercise-catalog"
 import { CardioName, ExerciseName } from "@/app/components/exercise-name"
@@ -77,6 +78,9 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
     setAvailableExercises(newExercises)
     setExercise(newExercises[0]) 
   }, [split])
+
+  // Shown numbers are per exercise; the stored number is the position (see lib/set-numbering.ts).
+  const ordinals = displayOrdinals(sessionSets.map((s, index) => ({ exercise: s.exercise, order: index })))
 
   function handleAddSet(e: React.FormEvent) {
     e.preventDefault()
@@ -209,7 +213,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
           <div key={s.id} className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2.5">
-                <span className="font-mono text-zinc-500 font-bold">#{idx + 1}</span>
+                <span className="font-mono text-zinc-500 font-bold">#{ordinals[idx]}</span>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200"><ExerciseName id={s.exercise} /></span>
                 {getSetTypeBadge(s.setType || s.set_type)}
               </div>

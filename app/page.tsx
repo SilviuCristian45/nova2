@@ -1,3 +1,4 @@
+import { displayOrdinals } from "@/lib/set-numbering";
 import { Text } from "@/app/components/language-provider"
 import { WorkoutLabel } from "@/app/components/workout-label"
 import { getLanguage } from "@/app/language"
@@ -424,11 +425,11 @@ export default async function HistoryPage(props: any) {
                         </summary>
                         
                         <div className="mt-3 flex flex-col gap-2 border-t border-zinc-200/80 dark:border-zinc-800/80 pt-3 text-xs font-mono">
-                          {sets.map((set: any) => (
+                          {sets.map((set: any, setIndex: number) => (
                             <div key={set.id} className="flex flex-col py-1.5 border-b last:border-0 border-zinc-200 dark:border-zinc-900">
                               <div className="flex items-center justify-between">
                                 <span className="text-zinc-500 font-sans font-semibold flex items-center gap-2">
-                                  #{set.set_number} 
+                                  #{displayOrdinals(sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]} 
                                   <span className="text-[10px] uppercase tracking-wider font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-300/50 dark:border-zinc-700/50">
                                     <WorkoutLabel value={set.set_type} />
                                   </span>

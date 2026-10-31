@@ -46,6 +46,7 @@ import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
 import { idleTimer, pauseTimer as pauseTimerState, startTimer as startTimerState, timerSeconds, type TimerState } from "@/lib/workout-timer";
+import { displayOrdinals, positionSetNumbers } from "@/lib/set-numbering";
 import { workoutSplit } from "@/lib/workout-save";
 import { ExerciseCombobox } from "@/app/components/exercise-combobox";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
@@ -153,7 +154,6 @@ export default function InsertWorkoutPage() {
     getExercisesForSplit("Push"),
   );
   const [exercise, setExercise] = useState(availableExercises[0]);
-  const [setNumber, setSetNumber] = useState(1);
   const [reps, setReps] = useState("");
   const [weight, setWeight] = useState("");
   const [rir, setRir] = useState("");
@@ -318,6 +318,12 @@ export default function InsertWorkoutPage() {
     });
   }, [draftExercises]);
 
+  // Shown numbers: 1, 2, 3... within each exercise (the stored number is the position in the workout).
+  const ordinals = useMemo(
+    () => displayOrdinals(sessionSets.map((s, index) => ({ exercise: s.exercise, order: index }))),
+    [sessionSets],
+  );
+
   // Derived from the current list, so deleting a set re-evaluates every PR after it.
   const personalRecords = useMemo(
     () => draftPersonalRecords(sessionSets, baselines),
@@ -350,7 +356,6 @@ export default function InsertWorkoutPage() {
         setMode(restored.mode);
         setTimer(restored.timer);
         setNow(Date.now());
-        setSetNumber(restored.sets.length + 1);
         setLoadedDraftKey(key);
       } catch (error) {
         console.error("Workout draft could not be loaded:", error);
@@ -411,7 +416,7 @@ export default function InsertWorkoutPage() {
       id: Math.random().toString(36).substring(2, 9),
       split,
       exercise,
-      setNumber,
+      setNumber: sessionSets.length + 1, // position in the workout; the user sees the number within the exercise
       reps: Number(reps),
       weight: weight === "" ? 0 : toKg(Number(weight)),
       rir: rir === "" ? null : Number(rir), // optional: empty means "not recorded", not 0
@@ -436,7 +441,6 @@ export default function InsertWorkoutPage() {
     }
 
     setSessionSets((prev) => [...prev, newSet]);
-    setSetNumber((n) => n + 1);
     restTimer.start();
     setReps("");
     setRir("");
@@ -516,7 +520,7 @@ export default function InsertWorkoutPage() {
                   date: localDate(),
                   mode,
                   split: savedSplit,
-                  sets: mode === "strength" ? sessionSets : [],
+                  sets: mode === "strength" ? positionSetNumbers(sessionSets) : [],
                   cardio: mode === "cardio" ? cardioEntries : [],
                 },
                 ownerId,
@@ -556,7 +560,7 @@ export default function InsertWorkoutPage() {
             mode,
             savedSplit,
             localDate(),
-            sessionSets,
+            positionSetNumbers(sessionSets),
             cardioEntries,
           );
 
@@ -755,8 +759,9 @@ export default function InsertWorkoutPage() {
                 <input
                   type="number"
                   min={1}
-                  value={setNumber}
-                  onChange={(e) => setSetNumber(Number(e.target.value))}
+                  value={sessionSets.filter((s) => s.exercise === exercise).length + 1}
+                  readOnly
+                  aria-readonly="true"
                   className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors"
                 />
               </div>
@@ -906,7 +911,7 @@ export default function InsertWorkoutPage() {
           </h3>
 
           {mode === "strength" &&
-            sessionSets.map((s) => (
+            sessionSets.map((s, index) => (
               <div
                 key={s.id}
                 className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm"
@@ -914,7 +919,7 @@ export default function InsertWorkoutPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-zinc-500 font-bold">
-                      #{s.setNumber}
+                      #{ordinals[index]}
                     </span>
                     <span className="font-bold text-zinc-800 dark:text-zinc-200">
                       <ExerciseName id={s.exercise} />
