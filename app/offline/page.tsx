@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Trash2 } from "lucide-react";
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
@@ -12,6 +12,7 @@ import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
+import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import type { OfflineCardio, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
 import { CARDIO_ACTIVITIES, EXERCISES, SET_TYPES, SPLITS } from "@/lib/workout-data";
@@ -273,6 +274,15 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [finished, setFinished] = useState<SummaryInput | null>(null);
+  // ownerId is only known after mount, so localStorage is never read during server rendering.
+  const hasDraft = useMemo(() => {
+    try {
+      return ownerId ? draftHasEntries(localStorage.getItem(`workout_draft_v1_${ownerId}`)) : false;
+    } catch (error) {
+      console.warn("Workout draft could not be checked:", error);
+      return false;
+    }
+  }, [ownerId]);
 
   function addEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -354,6 +364,12 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       <h2 className="flex items-center gap-2 text-xl font-bold"><Dumbbell className="size-5" aria-hidden="true" />{t("Antrenament nou", "New workout")}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{t("1. Adaugă seturile sau activitățile în listă. 2. Salvează explicit antrenamentul complet. Lista nesalvată nu este păstrată dacă închizi pagina.", "1. Add sets or activities to the list. 2. Explicitly save the full workout. Unsaved lists are not kept if you close this page.")}</p>
     </div>
+    <p className="rounded-xl border bg-secondary/10 p-3 text-xs text-muted-foreground">
+      {t("Aici nu se calculează recorduri personale și nu există durata antrenamentului. Antrenamentele nesincronizate nu intră în recordurile din pagina principală de înregistrare până nu se sincronizează.", "Personal records and the workout duration are not available here. Workouts that have not synced yet are not part of the records on the main log page until they do.")}
+    </p>
+    {hasDraft && <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+      {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
+    </p>}
     <fieldset disabled={disabled || saving} className="min-w-0 space-y-5 disabled:opacity-60">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1 text-sm"><span>{t("Data antrenamentului", "Workout date")}</span><input type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); }} className={inputClass} /></label>
