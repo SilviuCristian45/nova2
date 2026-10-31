@@ -3,6 +3,7 @@ import { getLanguage } from "@/app/language"
 import { ExerciseName } from "@/app/components/exercise-name"
 import { getWeightUnit } from "@/app/units"
 import { kgToUnit } from "@/lib/units"
+import { recordsByExercise, type RecordRow } from "@/lib/personal-record"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -11,12 +12,6 @@ import { Trophy, ArrowLeft, AlertTriangle } from "lucide-react"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-// Funcția care calculează 1RM (Formula lui Epley)
-function calculate1RM(weight: number, reps: number) {
-  if (weight === 0) return 0
-  if (reps === 1) return weight
-  return Math.round(weight * (1 + reps / 30))
-}
 
 export default async function RecordsPage() {
   const { locale } = await getLanguage()
@@ -29,39 +24,35 @@ export default async function RecordsPage() {
     redirect("/login")
   }
 
-  // Aducem toate seturile utilizatorului pentru a extrage recordurile
-  const { data: sets, error } = await supabase
-    .from("workout_sets")
-    .select("exercise, weight, reps, rir, created_at")
-    .eq("user_id", user.id)
-    .gt("weight", 0) // Ignorăm seturile cu greutate 0 (ex: bodyweight fără extra greutate)
-
-  if (error) {
-    return <div className="p-5 text-red-700 dark:text-red-500 font-bold"><Text ro="Eroare la încărcarea recordurilor:" en="Could not load records:" /> {error.message}</div>
+  // Aducem toate seturile utilizatorului (Supabase întoarce max 1000 de rânduri pe cerere: paginăm)
+  const PAGE_SIZE = 1000
+  const sets: RecordRow[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("workout_sets")
+      .select("id, exercise, weight, reps, rir, set_type, workouts!inner(performed_on)")
+      .eq("user_id", user.id)
+      .gt("weight", 0) // Ignorăm seturile cu greutate 0 (ex: bodyweight fără extra greutate)
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) {
+      return <div className="p-5 text-red-700 dark:text-red-500 font-bold"><Text ro="Eroare la încărcarea recordurilor:" en="Could not load records:" /> {error.message}</div>
+    }
+    for (const row of data ?? []) {
+      const parent = Array.isArray(row.workouts) ? row.workouts[0] : row.workouts
+      sets.push({ ...row, performed_on: parent.performed_on })
+    }
+    if (!data || data.length < PAGE_SIZE) break
   }
 
-  // Grupăm și calculăm cel mai bun set pentru fiecare exercițiu
-  const personalRecords = new Map<string, { weight: number, reps: number, rir: number, date: string, oneRM: number }>()
-
-  sets?.forEach((set) => {
-    const current1RM = calculate1RM(set.weight, set.reps)
-    const existingPR = personalRecords.get(set.exercise)
-
-    if (!existingPR || current1RM > existingPR.oneRM) {
-      personalRecords.set(set.exercise, {
-        weight: set.weight,
-        reps: set.reps,
-        rir: set.rir,
-        date: new Date(set.created_at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }),
-        oneRM: current1RM
-      })
+  // Cel mai bun set pe exercițiu (fără Warmup), cu data antrenamentului, nu a inserării
+  const sortedRecords = recordsByExercise(sets).map((record) => {
+    const [y, m, d] = record.performedOn.split("-").map(Number)
+    return {
+      ...record,
+      date: new Date(y, m - 1, d).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }),
     }
   })
-
-  // Transformăm Map-ul în array și îl sortăm (cele mai grele 1RM primele, pentru efect dramatic)
-  const sortedRecords = Array.from(personalRecords.entries())
-    .map(([exercise, data]) => ({ exercise, ...data }))
-    .sort((a, b) => b.oneRM - a.oneRM)
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 pb-10">

@@ -46,6 +46,7 @@ import {
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
+import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
 import {
   cardioName,
   exerciseName,
@@ -236,17 +237,20 @@ export default function InsertWorkoutPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("workout_sets")
-        .select("weight, reps, rir, created_at, set_type, notes")
-        .eq("user_id", user.id)
-        .eq("exercise", exercise)
-        .order("created_at", { ascending: false })
-        .order("weight", { ascending: false })
-        .order("reps", { ascending: false })
-        .limit(10);
+      let data: Awaited<ReturnType<typeof fetchRecentSets>> = [];
+      let recordBaseline: BestSet | null = null;
+      let error = false;
+      try {
+        [data, recordBaseline] = await Promise.all([
+          fetchRecentSets(supabase, user.id, exercise),
+          fetchRecordBaseline(supabase, user.id, exercise),
+        ]);
+      } catch (e) {
+        console.error("Exercise history could not be loaded:", e);
+        error = true;
+      }
 
-      if (error || !data || data.length === 0) {
+      if (error || data.length === 0) {
         setLastPerformance(
           t(
             "Exercițiu nou. Setează primul record!",
@@ -278,10 +282,7 @@ export default function InsertWorkoutPage() {
       const notesText = bestSet.notes ? ` (${bestSet.notes})` : "";
 
       requestedBaselines.current.add(exercise);
-      setBaselines((prev) => ({
-        ...prev,
-        [exercise]: { weight: Number(bestSet.weight), reps: Number(bestSet.reps) },
-      }));
+      setBaselines((prev) => ({ ...prev, [exercise]: recordBaseline }));
 
       setLastPerformance(
         `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} (RIR ${bestSet.rir})${notesText}`,
@@ -310,21 +311,7 @@ export default function InsertWorkoutPage() {
       } = await supabase.auth.getUser();
       const loaded: Record<string, BestSet | null> = {};
       for (const name of missing) {
-        let best: BestSet | null = null;
-        if (user) {
-          const { data } = await supabase
-            .from("workout_sets")
-            .select("weight, reps, rir, created_at, set_type, notes")
-            .eq("user_id", user.id)
-            .eq("exercise", name)
-            .order("created_at", { ascending: false })
-            .order("weight", { ascending: false })
-            .order("reps", { ascending: false })
-            .limit(10);
-          const set = data && data.length > 0 ? getBestSetFromLastSession(data) : null;
-          if (set) best = { weight: Number(set.weight), reps: Number(set.reps) };
-        }
-        loaded[name] = best;
+        loaded[name] = user ? await fetchRecordBaseline(supabase, user.id, name) : null;
       }
       setBaselines((prev) => ({ ...loaded, ...prev }));
     }

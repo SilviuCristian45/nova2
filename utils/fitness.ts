@@ -5,6 +5,13 @@ export interface WorkoutSet {
   created_at: string;
   set_type?: string;
   notes?: string | null;
+  // Joined parent workout (`workouts!inner(performed_on)`); PostgREST returns one object for a to-one relation.
+  workouts?: { performed_on: string } | { performed_on: string }[] | null;
+}
+
+function sessionDay(set: WorkoutSet): string {
+  const parent = Array.isArray(set.workouts) ? set.workouts[0] : set.workouts;
+  return parent?.performed_on ?? set.created_at.split("T")[0];
 }
 
 export interface PredictionResult {
@@ -19,13 +26,12 @@ export function getBestSetFromLastSession(
 ): WorkoutSet | null {
   if (!sets || sets.length === 0) return null;
 
-  // 1. Găsim data celei mai recente sesiuni (luăm data primului set din listă, fiind deja ordonate descrescător)
-  const mostRecentDate = sets[0].created_at.split("T")[0];
+  // 1. Cea mai recentă sesiune = cea mai nouă dată a antrenamentului (performed_on), nu momentul inserării
+  //    (created_at): un antrenament offline sincronizat târziu sau unul importat nu trebuie să pară "ultimul".
+  const mostRecentDate = sets.map(sessionDay).reduce((a, b) => (b > a ? b : a));
 
   // 2. Filtrăm doar seturile care aparțin acelei zile
-  const setsFromLastSession = sets.filter(
-    (s) => s.created_at.split("T")[0] === mostRecentDate,
-  );
+  const setsFromLastSession = sets.filter((s) => sessionDay(s) === mostRecentDate);
 
   if (setsFromLastSession.length === 0) return null;
 
