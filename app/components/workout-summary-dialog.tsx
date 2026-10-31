@@ -42,6 +42,7 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
           recordBadge: t("Record", "PR"),
           moreExercises: (count) => t(`+ încă ${count} exerciții`, `+ ${count} more exercises`),
           moreSets: (count) => t(`+${count} seturi`, `+${count} sets`),
+          moreRecords: (count) => t(`+${count} recorduri`, `+${count} records`),
           setsSummary: (total, top) => `${total} ${t("seturi", "sets")} · ${top}`,
         });
         if (cancelled) return;
