@@ -16,6 +16,7 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
   const { format, toUnit, unit } = useUnits();
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [alt, setAlt] = useState("");
   const [failed, setFailed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // Fixed at mount: the card is a snapshot of the finished workout.
@@ -28,7 +29,6 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
 
   useEffect(() => {
     let cancelled = false;
-    let objectUrl: string | null = null;
     async function generate() {
       try {
         const summary = buildWorkoutSummary(snapshot, {
@@ -46,9 +46,13 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
           setsSummary: (total, top) => `${total} ${t("seturi", "sets")} · ${top}`,
         });
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(image);
         setBlob(image);
-        setUrl(objectUrl);
+        setAlt(
+          `${t("Rezumatul antrenamentului", "Workout summary")}: ${summary.title}, ${summary.dateLabel}. ` +
+            summary.stats.map((stat) => `${stat.label} ${stat.value}`).join(", ") +
+            (summary.records.length ? `. ${t("Recorduri personale", "Personal records")}: ${summary.records.length}` : ""),
+        );
+        setUrl(URL.createObjectURL(image));
       } catch (error) {
         console.error("Workout summary image could not be created:", error);
         if (!cancelled) setFailed(true);
@@ -57,14 +61,32 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
     void generate();
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [snapshot, language, locale, format, toUnit, unit, t]);
+
+  // The previous image URL is revoked only after the new one is rendered (and on unmount), so the
+  // download link never points at a revoked URL while a new card is being generated.
+  useEffect(() => {
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
 
   // Escape closes; Tab stays inside the dialog; focus goes back to where it was.
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const dialog = dialogRef.current;
+    // The page behind must not be reachable (Tab, screen readers) or scroll while the dialog is open.
+    const inerted: HTMLElement[] = [];
+    for (let node: HTMLElement | null = dialog; node && node !== document.body; node = node.parentElement) {
+      for (const sibling of Array.from(node.parentElement?.children ?? [])) {
+        if (sibling !== node && sibling instanceof HTMLElement && !sibling.inert) {
+          sibling.inert = true;
+          inerted.push(sibling);
+        }
+      }
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     dialog?.focus();
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -95,6 +117,8 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      inerted.forEach((element) => { element.inert = false; });
+      document.body.style.overflow = previousOverflow;
       if (previous && document.contains(previous)) previous.focus();
     };
   }, []);
@@ -126,7 +150,7 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
       <div className="flex w-full max-w-sm flex-1 items-center justify-center">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={t("Previzualizare imagine antrenament", "Workout image preview")} className="max-h-[62dvh] w-auto rounded-2xl border border-zinc-800 shadow-2xl" />
+          <img src={url} alt={alt || t("Previzualizare imagine antrenament", "Workout image preview")} className="max-h-[62dvh] w-auto rounded-2xl border border-zinc-800 shadow-2xl" />
         ) : failed ? (
           <p role="alert" className="rounded-xl border border-zinc-700 p-4 text-center text-sm text-zinc-300">
             {t("Imaginea nu a putut fi generată, dar antrenamentul este salvat.", "The image could not be created, but your workout is saved.")}
