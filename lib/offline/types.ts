@@ -9,6 +9,8 @@ export type OfflinePayload =
   | { kind: "workout"; date: string; mode: "strength" | "cardio"; split: string; sets: OfflineSet[]; cardio: OfflineCardio[] };
 export type OfflineMutation = {
   id: string; ownerId: string; createdAt: string; payload: OfflinePayload;
+  // Set when the server refused this entry as invalid: it stays queued, is skipped by sync, and waits for the user.
+  rejected?: { reason: string; at: string };
 };
 export type OfflineWorkout = {
   id: string; performed_on: string; workout_mode: string; split: string;

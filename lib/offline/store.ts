@@ -56,6 +56,12 @@ export function lockOfflineAccount() {
   return transact((state) => ({ ...state, activeOwner: null, enabled: false, revision: state.revision + 1 }));
 }
 
+// The login is no longer valid (expired session, other account). Offline data, queues and the "enabled" flag are
+// kept: signing in again resumes syncing. Unlike lockOfflineAccount this does not switch offline sync off.
+export function suspendOfflineAccount() {
+  return transact((state) => ({ ...state, activeOwner: null, revision: state.revision + 1 }));
+}
+
 export function enableOfflineDownload() {
   return transact((state) => state.enabled ? state : { ...state, enabled: true, revision: state.revision + 1 });
 }
@@ -81,6 +87,39 @@ export function acknowledgeMutation(ownerId: string, id: string) {
       queue: account.queue.filter((entry) => entry.id !== id),
       snapshot: { ...account.snapshot, workouts: account.snapshot.workouts.map((w) => w.id === id ? { ...w, pending: false } : w) },
     } } };
+  });
+}
+
+function updateQueue(state: OfflineDatabase, ownerId: string, change: (queue: OfflineMutation[]) => OfflineMutation[], snapshot?: (s: OfflineSnapshot) => OfflineSnapshot): OfflineDatabase {
+  const account = state.accounts[ownerId];
+  if (!account) return state;
+  return { ...state, accounts: { ...state.accounts, [ownerId]: {
+    queue: change(account.queue), snapshot: snapshot ? snapshot(account.snapshot) : account.snapshot,
+  } } };
+}
+
+export function rejectMutation(ownerId: string, id: string, reason: string) {
+  return transact((state) => updateQueue(state, ownerId, (queue) =>
+    queue.map((entry) => entry.id === id ? { ...entry, rejected: { reason, at: new Date().toISOString() } } : entry)));
+}
+
+export function retryRejectedMutation(ownerId: string, id: string) {
+  return transact((state) => updateQueue(state, ownerId, (queue) =>
+    queue.map((entry) => {
+      if (entry.id !== id) return entry;
+      const retry = { ...entry };
+      delete retry.rejected;
+      return retry;
+    })));
+}
+
+// Only a rejected entry can be discarded, and only by an explicit user action (after offering the export).
+export function discardRejectedMutation(ownerId: string, id: string) {
+  return transact((state) => {
+    const entry = state.accounts[ownerId]?.queue.find((e) => e.id === id);
+    if (!entry?.rejected) return state;
+    return updateQueue(state, ownerId, (queue) => queue.filter((e) => e.id !== id),
+      (snapshot) => ({ ...snapshot, workouts: snapshot.workouts.filter((w) => w.id !== id) }));
   });
 }
 

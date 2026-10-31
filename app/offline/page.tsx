@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Trash2 } from "lucide-react";
+import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Download, Trash2 } from "lucide-react";
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
@@ -14,9 +14,10 @@ import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
 import { randomId } from "@/lib/random-id";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
+import { rejectedEntryExport } from "@/lib/offline/rejected";
 import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
-import type { OfflineCardio, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
+import type { OfflineCardio, OfflineMutation, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
 import { CARDIO_ACTIVITIES, EXERCISES, SET_TYPES, SPLITS } from "@/lib/workout-data";
 
 const inputClass = "h-11 w-full min-w-0 rounded-xl border bg-background px-3 text-sm";
@@ -31,7 +32,7 @@ function failureMessage(error: unknown, fallback: string, t: (ro: string, en: st
 
 export default function OfflinePage() {
   const { t, locale } = useLanguage();
-  const { ready, ownerId, online, syncing, pending, error, snapshot, sync, forget } = useOffline();
+  const { ready, ownerId, online, syncing, pending, error, errorKind, rejected, otherPending, snapshot, sync, forget, retryRejected, discardRejected } = useOffline();
   const [actionError, setActionError] = useState<string | null>(null);
   const [forgetting, setForgetting] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -51,7 +52,9 @@ export default function OfflinePage() {
 
   async function forgetData() {
     if (!window.confirm(t(
-      "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute. Datele deja sincronizate rămân în cont.",
+      rejected.length > 0
+        ? "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute, inclusiv cele respinse de server pe care nu le-ai exportat încă. Datele deja sincronizate rămân în cont."
+        : "Ștergi datele offline de pe acest dispozitiv? Toate înregistrările nesincronizate vor fi pierdute. Datele deja sincronizate rămân în cont.",
       "Remove offline data from this device? All unsynced entries will be lost. Already synced data stays in your account.",
     ))) return;
     setActionError(null);
@@ -107,6 +110,15 @@ export default function OfflinePage() {
         {(error || actionError) && <p role="alert" className="mt-4 break-words rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
           {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || (error && localizeOfflineMessage(error, t))}
         </p>}
+        {errorKind === "session" && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+          {t("Sesiunea a expirat sau nu mai este validă. Autentifică-te din nou: toate înregistrările offline sunt păstrate pe acest dispozitiv și se vor sincroniza după autentificare.", "Your session expired or is no longer valid. Sign in again: all offline entries are kept on this device and will sync after you sign in.")}
+        </p>}
+        {errorKind && errorKind !== "session" && errorKind !== "owner" && <p className="mt-2 text-xs text-muted-foreground">
+          {t("Nimic nu a fost șters. Sincronizarea se reia automat când conexiunea și serverul sunt disponibile.", "Nothing was deleted. Sync resumes automatically when the connection and the server are available.")}
+        </p>}
+        {otherPending > 0 && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+          {t(`${otherPending} înregistrări așteaptă sincronizarea pentru un alt cont de pe acest dispozitiv. Autentifică-te în acel cont ca să le sincronizezi; ele nu se pierd la schimbarea contului.`, `${otherPending} entries on this device are waiting to sync for another account. Sign in to that account to sync them; switching accounts does not lose them.`)}
+        </p>}
         {activeSnapshot && <p className="mt-4 text-xs text-muted-foreground">
           {t("Ultima descărcare:", "Last downloaded:")}{" "}
           <time dateTime={activeSnapshot.downloadedAt}>{new Date(activeSnapshot.downloadedAt).toLocaleString(locale)}</time>
@@ -125,6 +137,7 @@ export default function OfflinePage() {
         </section>
           : <>
             <OwnerWorkspace key={ownerId} snapshot={activeSnapshot} disabled={forgetting} />
+            {rejected.length > 0 && <RejectedEntries entries={rejected} onRetry={retryRejected} onDiscard={discardRejected} />}
             <section className={`${panelClass} space-y-3`}>
               <h2 className="font-bold">{t("Date pe acest dispozitiv", "Data on this device")}</h2>
               <p className="text-sm text-muted-foreground">{t(
@@ -138,6 +151,46 @@ export default function OfflinePage() {
           </>}
     </main>
   );
+}
+
+function RejectedEntries({ entries, onRetry, onDiscard }: { entries: OfflineMutation[]; onRetry: (id: string) => Promise<void>; onDiscard: (id: string) => Promise<void> }) {
+  const { t, locale } = useLanguage();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function exportEntry(entry: OfflineMutation) {
+    const { filename, json } = rejectedEntryExport(entry);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function run(id: string, action: () => Promise<void>) {
+    setBusy(id);
+    try { await action(); } finally { setBusy(null); }
+  }
+
+  return <section className={`${panelClass} space-y-3 border-red-500/30`} aria-labelledby="rejected-title">
+    <h2 id="rejected-title" className="font-bold">{t("Înregistrări respinse de server", "Entries rejected by the server")} ({entries.length})</h2>
+    <p className="text-sm text-muted-foreground">{t(
+      "Serverul a refuzat aceste înregistrări ca invalide. Rămân pe dispozitiv până decizi: exportă-le ca fișier, reîncearcă sau șterge-le. Restul înregistrărilor se sincronizează normal.",
+      "The server refused these entries as invalid. They stay on this device until you decide: export them as a file, retry, or discard them. Other entries sync normally.",
+    )}</p>
+    <ul className="space-y-3">
+      {entries.map((entry) => <li key={entry.id} className="space-y-2 rounded-xl border p-3 text-sm">
+        <p className="font-semibold">{entry.payload.kind === "workout" ? t("Antrenament", "Workout") : entry.payload.kind === "steps" ? t("Pași", "Steps") : t("Greutate corporală", "Body weight")}{" · "}{entry.payload.date}</p>
+        <p className="break-words text-xs text-muted-foreground">{entry.rejected?.reason} {entry.rejected && <>({new Date(entry.rejected.at).toLocaleString(locale)})</>}</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => exportEntry(entry)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold"><Download className="size-4" aria-hidden="true" />{t("Exportă", "Export")}</button>
+          <button type="button" disabled={busy === entry.id} onClick={() => void run(entry.id, () => onRetry(entry.id))} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold">{t("Reîncearcă", "Retry")}</button>
+          <button type="button" disabled={busy === entry.id} onClick={() => {
+            if (window.confirm(t("Ștergi definitiv această înregistrare de pe dispozitiv? Dacă nu ai exportat-o, nu o mai poți recupera.", "Permanently delete this entry from the device? If you have not exported it, it cannot be recovered."))) void run(entry.id, () => onDiscard(entry.id));
+          }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" />{t("Șterge", "Discard")}</button>
+        </div>
+      </li>)}
+    </ul>
+  </section>;
 }
 
 function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | null; disabled: boolean }) {
