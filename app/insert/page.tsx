@@ -47,6 +47,7 @@ import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
 import { restoreDraft, type DraftState } from "@/lib/workout-draft";
 import { workoutSplit } from "@/lib/workout-save";
+import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
 import {
   cardioName,
@@ -218,6 +219,7 @@ export default function InsertWorkoutPage() {
   const requestedBaselines = useRef(new Set<string>());
 
   const [recommendedPerformance, setRecommendedPerformance] = useState("");
+  const [recommendedIsNew, setRecommendedIsNew] = useState(false);
 
   // Fetch ultima performanță
   useEffect(() => {
@@ -225,6 +227,7 @@ export default function InsertWorkoutPage() {
 
     async function fetchLastPerformance() {
       setLastPerformance(t("Se caută istoricul...", "Loading history..."));
+      setRecommendedIsNew(false);
       setRecommendedPerformance(
         t(
           "Va recomandam greutatea de lucru si repetarile",
@@ -286,11 +289,12 @@ export default function InsertWorkoutPage() {
       setBaselines((prev) => ({ ...prev, [exercise]: recordBaseline }));
 
       setLastPerformance(
-        `${t("Ultima oară ai facut", "Last time you did ")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} ${bestSet.rir === null || bestSet.rir === undefined ? "" : ` (RIR ${bestSet.rir})`}${notesText}`,
+        `${t("Ultima oară ai făcut", "Last time you did")}: ${weightText}${bestSet.reps} ${t("repetări", "reps")} ${bestSet.rir === null || bestSet.rir === undefined ? "" : ` (RIR ${bestSet.rir})`}${notesText}`,
       );
 
-      const recommendedPerformance = calculateProgression(bestSet, format, progressionStepKg(unit));
-      setRecommendedPerformance(recommendedPerformance.message);
+      const recommendation = calculateProgression(bestSet, format, progressionStepKg(unit), t);
+      setRecommendedPerformance(recommendation.message);
+      setRecommendedIsNew(recommendation.kind === "new");
     }
 
     fetchLastPerformance();
@@ -358,7 +362,7 @@ export default function InsertWorkoutPage() {
         console.error("Workout draft could not be loaded:", error);
         if (!cancelled)
           setError(
-            "Workout draft could not be loaded. / Ciorna nu a putut fi încărcată.",
+            t("Ciorna nu a putut fi încărcată.", "Workout draft could not be loaded."),
           );
       }
     }
@@ -366,7 +370,7 @@ export default function InsertWorkoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [draftKey, ownerId]);
+  }, [draftKey, ownerId, t]);
 
   useEffect(() => {
     if (!draftKey || loadedDraftKey !== draftKey) return;
@@ -540,7 +544,7 @@ export default function InsertWorkoutPage() {
               }
               setError(
                 error instanceof Error
-                  ? error.message
+                  ? localizeOfflineMessage(error.message, t)
                   : t("Salvarea a eșuat.", "Save failed."),
               );
               return false;
@@ -565,7 +569,7 @@ export default function InsertWorkoutPage() {
         } catch (error) {
           setError(
             error instanceof Error
-              ? error.message
+              ? localizeOfflineMessage(error.message, t)
               : t("Salvarea a eșuat.", "Save failed."),
           );
           return false;
@@ -786,9 +790,7 @@ export default function InsertWorkoutPage() {
               {recommendedPerformance && (
                 <div
                   className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border w-fit text-[11px] font-bold ${
-                    recommendedPerformance.includes(
-                      t("Exercițiu nou", "New exercise"),
-                    )
+                    recommendedIsNew
                       ? "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
                       : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
                   }`}

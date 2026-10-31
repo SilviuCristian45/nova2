@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { localDate } from "@/lib/daily-metrics";
 import type { OfflineDatabase, OfflinePayload, OfflineSnapshot } from "./types";
 import { validOfflinePayload } from "./model";
+import { randomId } from "@/lib/random-id";
 import { acknowledgeMutation, activateSnapshot, enableOfflineDownload, enqueueMutation, forgetOfflineAccount, lockOfflineAccount, readOfflineDatabase } from "./store";
 
 const EVENT = "replog-offline-change";
@@ -76,7 +77,7 @@ export async function saveOfflineMutation(payload: OfflinePayload, expectedOwner
   if (!validOfflinePayload(payload, localDate())) throw new Error("Invalid offline entry. Check the date and values.");
   const state = await readOfflineDatabase();
   if (!state.activeOwner || state.activeOwner !== expectedOwner) throw new Error("Account changed. Sign in online and download data before offline logging.");
-  const id = crypto.randomUUID();
+  const id = randomId();
   await enqueueMutation({ id, ownerId: state.activeOwner, createdAt: new Date().toISOString(), payload });
   notify(true);
   return id;

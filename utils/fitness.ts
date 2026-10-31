@@ -50,40 +50,57 @@ export function getBestSetFromLastSession(
   return bestSet;
 }
 
+export type ProgressionKind = "new" | "increase" | "repeat";
+
 export function calculateProgression(
   bestSet: WorkoutSet | null,
   // Weights are kg: formatWeight shows them in the user's unit, stepKg is the plate jump (2.5 kg / 5 lb)
   formatWeight: (kg: number) => string = (kg) => `${kg}kg`,
   stepKg = 2.5,
-): PredictionResult {
+  t: (ro: string, en: string) => string = (ro) => ro,
+): PredictionResult & { kind: ProgressionKind } {
   if (!bestSet) {
     return {
+      kind: "new",
       recommendedWeight: 0,
       recommendedReps: 8,
-      message: "Exercițiu nou. Setează prima greutate de referință!",
+      message: t(
+        "Exercițiu nou. Setează prima greutate de referință!",
+        "New exercise. Set your first reference weight!",
+      ),
     };
   }
 
   const weight = Number(bestSet.weight);
   const reps = Number(bestSet.reps);
+  // RIR is optional: without it the effort is unknown, so the weight is never raised on that set alone.
   const rir =
-    bestSet.rir !== null && bestSet.rir !== undefined ? Number(bestSet.rir) : 2;
+    bestSet.rir !== null && bestSet.rir !== undefined ? Number(bestSet.rir) : null;
+  const rirText = rir === null ? "" : ` (RIR ${rir})`;
 
   const TARGET_REPS = 10;
 
-  if (reps >= TARGET_REPS && rir <= 2) {
+  if (reps >= TARGET_REPS && rir !== null && rir <= 2) {
     const newWeight = weight + stepKg;
     return {
+      kind: "increase",
       recommendedWeight: newWeight,
       recommendedReps: 6,
-      message: `🏆 Data trecută ai făcut ${formatWeight(weight)} × ${reps} reps (RIR ${rir}). Azi urcăm la ${formatWeight(newWeight)} pentru 8 repetări!`,
+      message: t(
+        `🏆 Data trecută ai făcut ${formatWeight(weight)} × ${reps} reps${rirText}. Azi urcăm la ${formatWeight(newWeight)} pentru 8 repetări!`,
+        `🏆 Last time you did ${formatWeight(weight)} × ${reps} reps${rirText}. Today we go up to ${formatWeight(newWeight)} for 8 reps!`,
+      ),
     };
   } else {
     const newReps = reps + 1;
     return {
+      kind: "repeat",
       recommendedWeight: weight,
       recommendedReps: newReps,
-      message: `🏆 Păstrăm ${formatWeight(weight)}. Ținta de azi: încearcă să scoți ${newReps} repetări (data trecută ai avut ${reps}).`,
+      message: t(
+        `🏆 Păstrăm ${formatWeight(weight)}. Ținta de azi: încearcă să scoți ${newReps} repetări (data trecută ai avut ${reps}).`,
+        `🏆 Keep ${formatWeight(weight)}. Today's target: try for ${newReps} reps (last time you had ${reps}).`,
+      ),
     };
   }
 }

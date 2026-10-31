@@ -12,6 +12,8 @@ import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
 import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metrics";
+import { randomId } from "@/lib/random-id";
+import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { draftHasEntries } from "@/lib/workout-draft";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import type { OfflineCardio, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
@@ -23,8 +25,8 @@ const panelClass = "min-w-0 rounded-2xl border bg-card p-4 shadow-sm sm:p-6";
 type LocalSet = OfflineSet & { uiId: string };
 type LocalCardio = OfflineCardio & { uiId: string };
 
-function failureMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+function failureMessage(error: unknown, fallback: string, t: (ro: string, en: string) => string) {
+  return error instanceof Error ? localizeOfflineMessage(error.message, t) : fallback;
 }
 
 export default function OfflinePage() {
@@ -41,7 +43,7 @@ export default function OfflinePage() {
     try {
       await sync();
     } catch (error) {
-      setActionError(failureMessage(error, t("Sincronizarea a eșuat.", "Sync failed.")));
+      setActionError(failureMessage(error, t("Sincronizarea a eșuat.", "Sync failed."), t));
     } finally {
       setRetrying(false);
     }
@@ -57,7 +59,7 @@ export default function OfflinePage() {
     try {
       await forget();
     } catch (error) {
-      setActionError(failureMessage(error, t("Ștergerea locală a eșuat.", "Could not remove local data.")));
+      setActionError(failureMessage(error, t("Ștergerea locală a eșuat.", "Could not remove local data."), t));
     } finally {
       setForgetting(false);
     }
@@ -103,7 +105,7 @@ export default function OfflinePage() {
           </button>
         </div>
         {(error || actionError) && <p role="alert" className="mt-4 break-words rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
-          {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || error}
+          {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || (error && localizeOfflineMessage(error, t))}
         </p>}
         {activeSnapshot && <p className="mt-4 text-xs text-muted-foreground">
           {t("Ultima descărcare:", "Last downloaded:")}{" "}
@@ -229,7 +231,7 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
       await saveOfflineMutation(kind === "steps" ? { kind, date, steps: number } : { kind, date, weightKg: toKg(number) }, ownerId);
       setSaved(true);
     } catch (error) {
-      setError(failureMessage(error, t("Salvarea a eșuat. Datele au fost păstrate.", "Save failed. Your input was kept.")));
+      setError(failureMessage(error, t("Salvarea a eșuat. Datele au fost păstrate.", "Save failed. Your input was kept."), t));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -294,7 +296,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         setError(t("Repetările trebuie să fie întregi și pozitive, greutatea între 0 și 10000, iar RIR (opțional) un număr întreg între 0 și 5.", "Reps must be positive whole numbers, weight between 0 and 10000, and RIR (optional) a whole number between 0 and 5."));
         return;
       }
-      setSets((current) => [...current, { uiId: crypto.randomUUID(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
+      setSets((current) => [...current, { uiId: randomId(), split, exercise, setNumber: current.filter((set) => set.exercise === exercise).length + 1, reps: r, weight: toKg(w), rir: reserve, setType, notes }]);
       restTimer.start();
     } else {
       const minutes = Number(duration);
@@ -302,7 +304,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         setError(t("Durata trebuie să fie un număr întreg de minute, între 1 și 1440.", "Duration must be a whole number of minutes between 1 and 1440."));
         return;
       }
-      setCardio((current) => [...current, { uiId: crypto.randomUUID(), activity, durationMin: minutes }]);
+      setCardio((current) => [...current, { uiId: randomId(), activity, durationMin: minutes }]);
     }
   }
 
@@ -352,7 +354,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       setSaved(true);
       setFinished(summary);
     } catch (error) {
-      setError(failureMessage(error, t("Salvarea a eșuat. Antrenamentul a fost păstrat.", "Save failed. Your workout was kept.")));
+      setError(failureMessage(error, t("Salvarea a eșuat. Antrenamentul a fost păstrat.", "Save failed. Your workout was kept."), t));
     } finally {
       savingRef.current = false;
       setSaving(false);
