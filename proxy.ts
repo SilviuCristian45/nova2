@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path === "/offline" || path === "/sw.js" || path === "/manifest.json" ||
+  if (path === "/offline" || path === "/privacy" || path === "/sw.js" || path === "/manifest.json" ||
     /^\/(?:workbox|worker|fallback)-[^/]+\.js$/.test(path)) {
     return NextResponse.next();
   }
