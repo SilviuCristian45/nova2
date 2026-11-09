@@ -3,8 +3,8 @@
 import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Target, Save, Loader2, Flame, Wheat, Droplet, Cookie } from "lucide-react"
+import { Save, Loader2 } from "lucide-react"
+import { Button, Card, Field, Input, Screen } from "@/app/components/ui"
 import { getUserTargets, saveUserTargets } from "@/app/meals/action"
 import { EnergyRecommendation } from "./energy-recommendation"
 
@@ -36,89 +36,36 @@ export default function EditTargetsPage() {
     }
   }
 
-  if (isLoading) return <div className="min-h-dvh flex items-center justify-center bg-white dark:bg-zinc-950"><Loader2 className="size-8 animate-spin text-orange-700 dark:text-orange-500" /></div>
+  if (isLoading) return <Screen title={<Text ro="Obiective" en="Goals" />} back="/meals/progress"><div role="status" className="flex justify-center py-20 text-lime-text"><Loader2 className="size-8 animate-spin" /></div></Screen>
+
+  const macroField = (key: "protein" | "carbs" | "fat" | "fiber", label: React.ReactNode, text: string) => (
+    <Field label={label} htmlFor={`target-${key}`}>
+      <Input id={`target-${key}`} big type="number" inputMode="numeric" value={targets[key]}
+        onChange={e => setTargets({ ...targets, [key]: Number(e.target.value) })} className={text} />
+    </Field>
+  )
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      
-      <header className="flex items-center gap-4 mb-8 mt-2">
-        <Link href="/meals/progress" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all">
-          <ArrowLeft className="size-5" />
-        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
-        <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-          <Target className="size-6 text-orange-700 dark:text-orange-500" /> <Text ro="Obiectivele Tale" en="Your goals" />
-        </h1>
-      </header>
+    <Screen title={<Text ro="Obiectivele tale" en="Your goals" />} back="/meals/progress">
+      <EnergyRecommendation onApply={(recommended) => setTargets(recommended)} />
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 animate-in fade-in slide-in-from-bottom-4">
-        <EnergyRecommendation onApply={(recommended) => setTargets(recommended)} />
-
-        {/* KCAL */}
-        <div className="flex flex-col gap-2 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-orange-500/30">
-          <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-            <Flame className="size-4 text-orange-700 dark:text-orange-500" /> <Text ro="Total Calorii (Kcal)" en="Total calories (kcal)" />
-          </label>
-          <input 
-            type="number" 
-            value={targets.kcal} 
-            onChange={e => setTargets({...targets, kcal: Number(e.target.value)})}
-            className="h-14 px-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-2xl font-black text-orange-700 dark:text-orange-400 outline-none focus:border-orange-500 transition-all"
-          />
+      <Card>
+        <Field label={<Text ro="Total calorii (kcal)" en="Total calories (kcal)" />} htmlFor="target-kcal">
+          <Input id="target-kcal" type="number" inputMode="numeric" value={targets.kcal}
+            onChange={e => setTargets({ ...targets, kcal: Number(e.target.value) })}
+            className="min-h-14 text-[24px] font-bold tabular-nums" />
+        </Field>
+        <div className="grid grid-cols-2 gap-2.5">
+          {macroField("protein", <Text ro="Proteine (g)" en="Protein (g)" />, "text-lime-text")}
+          {macroField("carbs", <Text ro="Carbohidrați (g)" en="Carbohydrates (g)" />, "text-ice-text")}
+          {macroField("fat", <Text ro="Grăsimi (g)" en="Fat (g)" />, "text-gold-text")}
+          {macroField("fiber", <Text ro="Fibre (g)" en="Fibre (g)" />, "text-lilac-text")}
         </div>
+      </Card>
 
-        {/* MACROS GRID */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <div className="size-3 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-[6px]">P</div> <Text ro="Proteine (g)" en="Protein (g)" />
-            </label>
-            <input 
-              type="number" value={targets.protein} onChange={e => setTargets({...targets, protein: Number(e.target.value)})}
-              className="h-12 px-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-lg font-bold text-emerald-700 dark:text-emerald-400 outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Wheat className="size-3 text-cyan-700 dark:text-cyan-400" /> <Text ro="Carbohidrați (g)" en="Carbohydrates (g)" />
-            </label>
-            <input 
-              type="number" value={targets.carbs} onChange={e => setTargets({...targets, carbs: Number(e.target.value)})}
-              className="h-12 px-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-lg font-bold text-cyan-700 dark:text-cyan-400 outline-none focus:border-cyan-500"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Droplet className="size-3 text-yellow-700 dark:text-yellow-400" /> <Text ro="Grăsimi (g)" en="Fat (g)" />
-            </label>
-            <input 
-              type="number" value={targets.fat} onChange={e => setTargets({...targets, fat: Number(e.target.value)})}
-              className="h-12 px-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-lg font-bold text-yellow-700 dark:text-yellow-400 outline-none focus:border-yellow-500"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Cookie className="size-3 text-purple-700 dark:text-purple-400" /> <Text ro="Fibre (g)" en="Fibre (g)" />
-            </label>
-            <input 
-              type="number" value={targets.fiber} onChange={e => setTargets({...targets, fiber: Number(e.target.value)})}
-              className="h-12 px-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-lg font-bold text-purple-700 dark:text-purple-400 outline-none focus:border-purple-500"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="mt-6 h-14 w-full bg-emerald-500 text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-400 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
-        >
-          {isSaving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-          <Text ro="Salvează Obiectivele" en="Save goals" />
-        </button>
-
-      </div>
-    </main>
+      <Button large icon={Save} onClick={handleSave} busy={isSaving}>
+        <Text ro="Salvează obiectivele" en="Save goals" />
+      </Button>
+    </Screen>
   )
 }

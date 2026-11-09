@@ -4,6 +4,7 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, ScanLine } from "lucide-react";
+import { iconButtonClass } from "@/app/components/ui";
 
 interface BarcodeScannerProps {
   onResult: (code: string) => void;
@@ -62,17 +63,17 @@ export default function BarcodeScanner({
   }, [onResult]);
 
   return (
-    <div className="fixed inset-0 z-[999] bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-background text-foreground">
       {/* HEADER SCANNER */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-zinc-50 dark:from-zinc-950 to-transparent">
-        <h2 className="text-zinc-900 dark:text-zinc-100 font-bold text-lg flex items-center gap-2">
-          <ScanLine className="size-5 text-orange-700 dark:text-orange-500" />
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-background to-transparent p-5">
+        <h2 className="flex items-center gap-2 text-[20px] font-semibold tracking-[-0.4px]">
+          <ScanLine className="size-5 text-lime-text" />
           <Text ro="Scanează Produsul" en="Scan product" />
         </h2>
         <button
           aria-label={t("Închide scannerul", "Close scanner")}
           onClick={onClose}
-          className="size-10 bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-full flex items-center justify-center transition-all backdrop-blur-md"
+          className={iconButtonClass()}
         >
           <X className="size-5" />
         </button>
@@ -80,17 +81,17 @@ export default function BarcodeScanner({
 
       {/* ZONA DE EROARE (dacă nu e permisă camera) */}
       {hasError && (
-        <div className="absolute z-10 bg-red-500/90 text-white p-4 rounded-xl max-w-[80%] text-center shadow-2xl backdrop-blur-md font-bold text-sm">
+        <div role="alert" className="absolute z-10 max-w-[80%] rounded-md bg-red p-3.5 text-center text-sm font-semibold text-white shadow-2xl">
           {t("Nu am putut accesa camera. Te rugăm să permiți accesul din browser.", "Could not access the camera. Please allow camera access in your browser.")}
         </div>
       )}
 
       {/* CONTAINERUL CAMEREI */}
-      <div className="w-full max-w-xl relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl bg-zinc-100 dark:bg-black">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-lg bg-black">
         <div id="barcode-reader" className="w-full min-h-[400px]"></div>
       </div>
 
-      <p className="mt-8 text-zinc-600 dark:text-zinc-400 font-medium text-sm text-center px-6">
+      <p className="mt-8 px-6 text-center text-sm font-medium text-muted">
         <Text ro="Încadrează codul de bare în dreptunghiul luminos pentru scanare automată." en="Position the barcode inside the highlighted rectangle to scan automatically." />
       </p>
     </div>

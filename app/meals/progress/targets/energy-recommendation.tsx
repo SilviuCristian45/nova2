@@ -4,15 +4,15 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { useUnits } from "@/app/components/units-provider"
 import { localDate } from "@/lib/daily-metrics"
 import { ACTIVITY_LEVELS, recommendEnergy, WINDOW_DAYS, type ActivityLevel, type EnergyInput } from "@/lib/energy"
-import { Calculator, Loader2, Sparkles } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { getEnergyData, saveEnergyGoal } from "./actions"
+import { Button, Card, CardTitle, Field, Message, Select } from "@/app/components/ui"
 
 type Targets = { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
 
 const GOALS = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5]
-const selectClass = "h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-sm outline-none focus:border-orange-500"
 
 export function EnergyRecommendation({ onApply }: { onApply: (targets: Targets) => void }) {
   const { t, locale } = useLanguage()
@@ -43,9 +43,9 @@ export function EnergyRecommendation({ onApply }: { onApply: (targets: Targets) 
     if (res.error) setSaveError(res.error)
   }
 
-  if (error) return <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>
+  if (error) return <Message>{error}</Message>
   if (!input || !result) {
-    return <div className="flex justify-center p-6"><Loader2 className="size-6 animate-spin text-orange-700 dark:text-orange-500" /></div>
+    return <div className="flex justify-center p-6"><Loader2 className="size-6 animate-spin text-lime-text" /></div>
   }
 
   const kcal = (n: number) => `${n.toLocaleString(locale)} kcal`
@@ -79,60 +79,52 @@ export function EnergyRecommendation({ onApply }: { onApply: (targets: Targets) 
     : t(`mănâncă cu ~${kcal(change)} mai mult pe zi`, `eat ~${kcal(change)} more per day`)
 
   return (
-    <section className="flex flex-col gap-4 p-5 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
-      <h2 className="flex items-center gap-2 text-lg font-bold">
-        <Calculator className="size-5 text-orange-700 dark:text-orange-500" />
-        <Text ro="Recomandare automată" en="Automatic recommendation" />
-      </h2>
+    <Card>
+      <CardTitle><Text ro="Recomandare automată" en="Automatic recommendation" /></CardTitle>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-500">
-          <Text ro="Nivel de activitate" en="Activity level" />
-          <select value={input.activityLevel ?? ""} onChange={(e) => void update((e.target.value || null) as ActivityLevel | null, goal)} className={selectClass}>
-            <option value="" disabled>{t("Alege…", "Choose…")}</option>
-            {(Object.keys(ACTIVITY_LEVELS) as ActivityLevel[]).map((level) => <option key={level} value={level}>{activityLabels[level]}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-500">
-          <Text ro="Obiectiv" en="Goal" />
-          <select value={goal} onChange={(e) => void update(input.activityLevel, Number(e.target.value))} className={selectClass}>
-            {GOALS.map((g) => <option key={g} value={g}>
-              {g === 0 ? t("Menținere", "Maintain") : `${rate(g)} / ${t("săpt.", "week")}`}
-            </option>)}
-          </select>
-        </label>
+        <Field label={<Text ro="Nivel de activitate" en="Activity level" />}>
+          <Select title={t("Nivel de activitate", "Activity level")} placeholder={t("Alege…", "Choose…")} value={input.activityLevel ?? ""}
+            onChange={(value) => void update((value || null) as ActivityLevel | null, goal)}
+            options={(Object.keys(ACTIVITY_LEVELS) as ActivityLevel[]).map((level) => ({ value: level, label: activityLabels[level] }))} />
+        </Field>
+        <Field label={<Text ro="Obiectiv" en="Goal" />}>
+          <Select title={t("Obiectiv", "Goal")} value={String(goal)}
+            onChange={(value) => void update(input.activityLevel, Number(value))}
+            options={GOALS.map((g) => ({ value: String(g), label: g === 0 ? t("Menținere", "Maintain") : `${rate(g)} / ${t("săpt.", "week")}` }))} />
+        </Field>
       </div>
-      {saveError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{saveError}</p>}
+      {saveError && <Message>{saveError}</Message>}
 
       {profileMissing.length > 0 && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-[13px] text-soft">
           {t("Pentru estimarea din formulă completează în", "For the formula estimate, fill in")}{" "}
-          <Link href="/settings" className="font-semibold text-orange-700 underline dark:text-orange-400">{t("Setări", "Settings")}</Link>:{" "}
+          <Link href="/settings" className="font-semibold text-lime-text underline">{t("Setări", "Settings")}</Link>:{" "}
           {profileMissing.map((m) => missingLabels[m]).join(", ")}.
         </p>
       )}
       {result.missing.includes("weight") && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-[13px] text-soft">
           {t(`Nu ai nicio cântărire în ultimele ${WINDOW_DAYS} de zile. Adaug-o pe dashboard.`, `No weigh-in in the last ${WINDOW_DAYS} days. Add one on the dashboard.`)}
         </p>
       )}
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
+      <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         {[
           [t("Greutate", "Weight"), result.weightKg === null ? "—" : format(result.weightKg)],
           [t("Trend", "Trend"), trend === null ? "—" : `${rate(trend)}/${t("săpt.", "wk")}`],
           ["BMR", result.bmr === null ? "—" : kcal(result.bmr)],
           [t(`Mănânci (${result.loggedDays} zile)`, `Intake (${result.loggedDays} days)`), result.averageIntake === null ? "—" : kcal(result.averageIntake)],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-white dark:bg-zinc-950/60 p-3 border border-zinc-200 dark:border-zinc-800">
-            <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</dt>
-            <dd className="mt-1 font-bold">{value}</dd>
+          <div key={label} className="flex flex-col gap-1 rounded-md bg-inner p-3">
+            <dt className="text-xs font-medium text-muted">{label}</dt>
+            <dd className="font-semibold tabular-nums">{value}</dd>
           </div>
         ))}
       </dl>
 
       {result.tdee !== null && (
-        <p className="text-sm text-zinc-700 dark:text-zinc-300">
+        <p className="text-sm text-soft">
           {t("Consumul tău zilnic (TDEE)", "Your daily energy expenditure (TDEE)")}: <strong>{kcal(result.tdee)}</strong>{" "}
           {result.source === "adaptive"
             ? t(`— calculat din ce ai mâncat și cum s-a schimbat greutatea în ultimele ${WINDOW_DAYS} de zile.`, `— calculated from what you ate and how your weight changed over the last ${WINDOW_DAYS} days.`)
@@ -141,32 +133,31 @@ export function EnergyRecommendation({ onApply }: { onApply: (targets: Targets) 
       )}
 
       {trendText && changeText && (
-        <p className="flex gap-2 rounded-xl bg-orange-500/10 border border-orange-500/30 p-3 text-sm font-medium">
-          <Sparkles className="size-4 shrink-0 mt-0.5 text-orange-700 dark:text-orange-400" />
+        <p className="flex gap-2 rounded-md bg-lime-soft p-3.5 text-sm font-semibold text-lime-text">
+          <Sparkles className="mt-0.5 size-4 shrink-0" />
           <span>{trendText}. {goalText}, {changeText}.</span>
         </p>
       )}
 
       {result.targets && (
-        <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-950/60 p-4 border border-orange-500/30">
-          <p className="text-2xl font-black text-orange-700 dark:text-orange-400">{kcal(result.targets.kcal)}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="flex flex-col gap-3 rounded-md bg-inner p-3.5">
+          <p className="text-[32px] font-bold leading-none tracking-[-1px] tabular-nums">{kcal(result.targets.kcal)}</p>
+          <p className="text-[13px] text-soft">
             P {result.targets.protein} g · C {result.targets.carbs} g · {t("G", "F")} {result.targets.fat} g · {t("Fibre", "Fibre")} {result.targets.fiber} g
           </p>
           {result.floorApplied && (
-            <p className="text-xs text-red-700 dark:text-red-400">
+            <p className="text-xs font-semibold text-red-text">
               {t("Am limitat targetul la un minim sigur. Pentru un ritm mai rapid discută cu un medic sau nutriționist.", "The target was raised to a safe minimum. For a faster rate, talk to a doctor or dietitian.")}
             </p>
           )}
-          <button type="button" onClick={() => onApply(result.targets!)}
-            className="h-11 rounded-xl bg-orange-500 px-4 text-sm font-bold text-zinc-950 hover:bg-orange-400 transition-all">
+          <Button onClick={() => onApply(result.targets!)}>
             <Text ro="Folosește aceste valori" en="Use these values" />
-          </button>
-          <p className="text-xs text-zinc-500">
-            {t("Valorile se completează mai jos; apasă „Salvează Obiectivele” ca să le păstrezi.", "The values fill the form below; press “Save goals” to keep them.")}
+          </Button>
+          <p className="text-xs text-muted">
+            {t("Valorile se completează mai jos; apasă „Salvează obiectivele” ca să le păstrezi.", "The values fill the form below; press “Save goals” to keep them.")}
           </p>
         </div>
       )}
-    </section>
+    </Card>
   )
 }

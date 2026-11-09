@@ -4,12 +4,12 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { FoodLabel } from "@/app/components/food-label"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import dynamic from "next/dynamic"
-import { ArrowLeft, Search, Loader2, Plus, Check, ScanBarcode, Trash2, Save, Flame, Wheat, Droplet, Cookie } from "lucide-react"
+import { Search, Loader2, Plus, ScanBarcode, Trash2, Save, X } from "lucide-react"
 import confetti from "canvas-confetti"
 import { saveCompleteMeal, saveMealTemplate, getUserTemplates } from "../action"
 import { Bookmark, BookmarkPlus } from "lucide-react" // Extra iconițe
+import { Badge, BigNumber, Button, Card, CardTitle, Empty, Field, IconButton, Input, Label, Message, Screen, Segmented } from "@/app/components/ui"
 
 const BarcodeScanner = dynamic(() => import("@/app/components/barcode-scanner"), { ssr: false })
 
@@ -23,7 +23,7 @@ const MEAL_TYPES = [
 const DRAFT_KEY = "meal_draft_v1"
 
 export default function InsertMealPage() {
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
 
   const router = useRouter()
   
@@ -240,7 +240,7 @@ export default function InsertMealPage() {
     if (result.success) {
       localStorage.removeItem(DRAFT_KEY) // Curățăm ciorna
       
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#f97316', '#fb923c', '#fdba74'], disableForReducedMotion: true }) // Portocaliu
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#c8f031', '#ffc233', '#7cc4ff'], disableForReducedMotion: true })
       
       setTimeout(() => {
         router.push("/meals/history")
@@ -262,308 +262,202 @@ export default function InsertMealPage() {
   }, { kcal: 0, p: 0, c: 0, f: 0 })
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      
-      {/* HEADER */}
-      <header className="flex flex-col gap-6 mb-6 mt-2">
-        <div className="flex items-center justify-between">
-          <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all">
-            <ArrowLeft className="size-5" />
-          <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
-          <h1 className="text-xl font-bold tracking-tight"><Text ro="Adaugă Masă" en="Add meal" /></h1>
-          <div className="size-10"></div>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-1 p-1.5 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl bg-zinc-100 dark:bg-zinc-900/60 shadow-inner">
-          {MEAL_TYPES.map((type) => (
-            <button
-              key={type.id}
-              onClick={() => setMealType(type.id)}
-              className={`py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider ${
-                mealType === type.id 
-                  ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-md border border-zinc-300/50 dark:border-zinc-700/50"
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-transparent"
-              }`}
-            >
-              {t(type.label, type.id)}
-            </button>
-          ))}
-        </div>
-      </header>
+    <Screen title={<Text ro="Adaugă masă" en="Add meal" />} back="/meals">
+      <Segmented
+        label={t("Tipul mesei", "Meal type")}
+        value={mealType}
+        onChange={setMealType}
+        options={MEAL_TYPES.map((type) => ({ value: type.id, label: t(type.label, type.id) }))}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-      <section className="min-w-0">
-      {/* SEARCH BAR */}
-      {/* TABS: CĂUTARE / ȘABLOANE */}
-      <div className="flex bg-zinc-100 dark:bg-zinc-900/60 p-1 rounded-2xl mb-4 border border-zinc-200/80 dark:border-zinc-800/80">
-        <button onClick={() => setActiveTab("search")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${activeTab === "search" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}><Text ro="Căutare Aliment" en="Find food" /></button>
-        <button onClick={() => setActiveTab("templates")} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === "templates" ? "bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 shadow-sm" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}><Bookmark className="size-3"/> <Text ro="Mesele Mele" en="My meals" /></button>
-      </div>
+      <Segmented
+        label={t("Sursa alimentelor", "Food source")}
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          { value: "search", label: t("Căutare aliment", "Find food"), icon: Search },
+          { value: "templates", label: t("Mesele mele", "My meals"), icon: Bookmark },
+        ]}
+      />
 
       {activeTab === "search" ? (
-        <form onSubmit={handleSearch} className="flex items-center gap-2 mb-6">
+        <form onSubmit={handleSearch} className="flex items-center gap-2">
           <div className="relative flex-1">
-            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Caută (ex: orez)...", "Search (e.g. rice)...")} className="h-14 w-full pl-12 pr-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/80 text-zinc-900 dark:text-zinc-100 font-semibold focus:border-orange-500 outline-none shadow-inner" />
-            <Search className="absolute left-4 top-4 size-5 text-zinc-500" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted" />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Caută (ex: orez)...", "Search (e.g. rice)...")}
+              aria-label={t("Caută aliment", "Search food")}
+              className="min-h-[52px] w-full rounded-md border-[1.5px] border-transparent bg-card pl-11 pr-3.5 font-medium text-foreground outline-none transition-colors focus:border-lime focus-visible:outline-none" />
           </div>
-          <button type="button" onClick={() => setIsScanning(true)} className="size-14 flex items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-orange-700 dark:text-orange-400 shrink-0">
+          <button type="button" onClick={() => setIsScanning(true)} className="flex size-[52px] shrink-0 items-center justify-center rounded-md bg-card text-lime-text">
             <ScanBarcode className="size-6" />
-          <span className="sr-only"><Text ro="Scanează codul de bare" en="Scan barcode" /></span></button>
+            <span className="sr-only"><Text ro="Scanează codul de bare" en="Scan barcode" /></span>
+          </button>
         </form>
+      ) : templates.length === 0 ? (
+        <Empty icon={Bookmark}><Text ro="Nu ai niciun șablon salvat încă." en="You have no saved templates yet." /></Empty>
       ) : (
-        /* LISTA DE ȘABLOANE SALVATE */
-        <div className="flex flex-col gap-3 mb-6 animate-in fade-in">
-          {templates.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 text-sm"><Text ro="Nu ai niciun șablon salvat încă." en="You have no saved templates yet." /></div>
-          ) : (
-            templates.map(tpl => (
-              <div key={tpl.id} className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-3 hover:border-orange-500/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100">{tpl.name}</span>
-                  <span className="text-xs font-mono text-orange-700 dark:text-orange-400">{tpl.items.length} <Text ro="alimente" en="foods" /></span>
-                </div>
-                <div className="text-xs text-zinc-500 line-clamp-1">
-                  {tpl.items.map((i: any) => i.food.name).join(", ")}
-                </div>
-                <button onClick={() => loadTemplateIntoDraft(tpl.items)} className="mt-1 h-10 w-full bg-orange-500/10 text-orange-700 dark:text-orange-400 font-bold rounded-xl border border-orange-500/20 hover:bg-orange-500/20 transition-all flex justify-center items-center gap-2">
-                  <Plus className="size-4"/> <Text ro="Adaugă în Ciornă" en="Add to draft" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+        templates.map(tpl => (
+          <Card key={tpl.id}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[17px] font-semibold">{tpl.name}</span>
+              <Badge>{tpl.items.length} <Text ro="alimente" en="foods" /></Badge>
+            </div>
+            <p className="line-clamp-1 text-[13px] text-muted">{tpl.items.map((i: any) => i.food.name).join(", ")}</p>
+            <Button variant="soft" small icon={Plus} onClick={() => loadTemplateIntoDraft(tpl.items)}>
+              <Text ro="Adaugă în ciornă" en="Add to draft" />
+            </Button>
+          </Card>
+        ))
       )}
 
-      {/* POPUP DE GRAMAJ PENTRU ALIMENTUL SELECTAT */}
+      {/* Portion of the selected food */}
       {selectedFood && (
-        <div className="p-5 mb-6 border border-orange-500/30 rounded-3xl bg-orange-500/5 shadow-xl relative overflow-hidden animate-in slide-in-from-bottom-4">
-          <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="relative z-10">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 leading-tight"><FoodLabel value={selectedFood.name} /></h3>
-                <p className="text-xs text-orange-700/80 dark:text-orange-400/80 font-mono mb-4"><FoodLabel value={selectedFood.brand || ""} /></p>
-              </div>
-              <button onClick={() => setSelectedFood(null)} className="p-1 text-zinc-500 hover:text-red-700 dark:hover:text-red-400"><Trash2 className="size-4"/><span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
+        <Card tone="lime">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-[17px] font-semibold leading-tight text-foreground"><FoodLabel value={selectedFood.name} /></h2>
+              <p className="text-[13px] text-muted"><FoodLabel value={selectedFood.brand || ""} /></p>
             </div>
-            
-            <div className="flex items-end gap-3">
-              <div className="flex flex-col gap-1.5 flex-1">
-                <label className="text-[11px] uppercase font-bold text-zinc-500 pl-1"><Text ro="Grame" en="Grams" /></label>
-                <input 
-                  type="number" min="1" value={grams} onChange={(e) => setGrams(e.target.value)}
-                  className="h-12 px-4 rounded-xl border border-orange-500/30 bg-white dark:bg-zinc-950 text-orange-700 dark:text-orange-400 text-lg font-bold outline-none"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleAddToDraft}
-                className="h-12 px-6 flex items-center gap-2 rounded-xl bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30 font-bold hover:bg-orange-500 hover:text-zinc-950 transition-all active:scale-95"
-              >
-                <Plus className="size-5" /> <Text ro="Adaugă" en="Add" />
-              </button>
-            </div>
+            <IconButton plain icon={X} label={t("Elimină", "Remove")} onClick={() => setSelectedFood(null)} className="-mr-2 -mt-2" />
           </div>
-        </div>
+          <div className="flex items-end gap-2.5">
+            <Field label={<Text ro="Grame" en="Grams" />} htmlFor="food-grams" className="flex-1">
+              <Input id="food-grams" big type="number" inputMode="decimal" min="1" value={grams} onChange={(e) => setGrams(e.target.value)} />
+            </Field>
+            <Button icon={Plus} onClick={handleAddToDraft}>
+              <Text ro="Adaugă" en="Add" />
+            </Button>
+          </div>
+        </Card>
       )}
 
-      {/* REZULTATE CĂUTARE & CREARE MANUALĂ */}
-      {!selectedFood && (
-        <div className="flex flex-col gap-2 mb-6">
+      {/* Search results and custom food */}
+      {!selectedFood && activeTab === "search" && (
+        <>
           {isSearching && (
-            <div className="flex justify-center py-5 text-orange-700 dark:text-orange-500"><Loader2 className="size-6 animate-spin" /></div>
-          )}
-          
-          {/* Formularul de Creare Manuală */}
-          {isCreatingCustom ? (
-            <div className="p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/80 border border-orange-500/30 flex flex-col gap-3 animate-in fade-in">
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100"><Text ro="Creare Aliment Manual (per 100g)" en="Create custom food (per 100g)" /></h3>
-              
-              <input type="text" placeholder={t("Nume aliment...", "Food name...")} value={customFood.name} onChange={e => setCustomFood({...customFood, name: e.target.value})} className="h-12 px-4 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-sm outline-none focus:border-orange-500" />
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1">Kcal</label>
-                  <input type="number" placeholder="0" value={customFood.kcal} onChange={e => setCustomFood({...customFood, kcal: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-orange-500 text-orange-700 dark:text-orange-400 font-bold" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Proteine" en="Protein" /></label>
-                  <input type="number" placeholder="0" value={customFood.protein} onChange={e => setCustomFood({...customFood, protein: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 font-bold" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Carbo" en="Carbs" /></label>
-                  <input type="number" placeholder="0" value={customFood.carbs} onChange={e => setCustomFood({...customFood, carbs: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-cyan-500 text-cyan-700 dark:text-cyan-400 font-bold" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Grăsimi" en="Fat" /></label>
-                  <input type="number" placeholder="0" value={customFood.fat} onChange={e => setCustomFood({...customFood, fat: e.target.value})} className="h-10 px-3 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 outline-none focus:border-yellow-500 text-yellow-700 dark:text-yellow-400 font-bold" />
-                </div>
-              </div>
-
-              <div className="flex items-end gap-2 mt-2">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold pl-1"><Text ro="Porție mâncată (g)" en="Portion eaten (g)" /></label>
-                  <input type="number" value={grams} onChange={e => setGrams(e.target.value)} className="h-12 px-3 rounded-xl bg-white dark:bg-zinc-950 border border-orange-500/30 outline-none text-zinc-900 dark:text-zinc-100 font-bold" />
-                </div>
-                <button onClick={handleAddCustomFoodToDraft} className="h-12 px-6 bg-orange-500 text-zinc-950 font-bold rounded-xl flex items-center gap-2 hover:bg-orange-400">
-                  <Plus className="size-4" /> <Text ro="Adaugă" en="Add" />
-                </button>
-              </div>
-              <button onClick={() => setIsCreatingCustom(false)} className="text-xs text-zinc-500 mt-2 hover:text-zinc-700 dark:hover:text-zinc-300"><Text ro="Anulează" en="Cancel" /></button>
+            <div role="status" className="flex justify-center py-5 text-lime-text">
+              <Loader2 className="size-6 animate-spin" />
+              <span className="sr-only">{t("Se caută...", "Searching...")}</span>
             </div>
+          )}
+
+          {isCreatingCustom ? (
+            <Card>
+              <CardTitle><Text ro="Aliment creat manual (per 100 g)" en="Custom food (per 100 g)" /></CardTitle>
+              <Field label={<Text ro="Nume" en="Name" />} htmlFor="custom-name">
+                <Input id="custom-name" type="text" placeholder={t("Nume aliment...", "Food name...")} value={customFood.name} onChange={e => setCustomFood({...customFood, name: e.target.value})} />
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Kcal" htmlFor="custom-kcal">
+                  <Input id="custom-kcal" big type="number" inputMode="decimal" placeholder="0" value={customFood.kcal} onChange={e => setCustomFood({...customFood, kcal: e.target.value})} />
+                </Field>
+                <Field label={<Text ro="Proteine" en="Protein" />} htmlFor="custom-protein">
+                  <Input id="custom-protein" big type="number" inputMode="decimal" placeholder="0" value={customFood.protein} onChange={e => setCustomFood({...customFood, protein: e.target.value})} />
+                </Field>
+                <Field label={<Text ro="Carbohidrați" en="Carbs" />} htmlFor="custom-carbs">
+                  <Input id="custom-carbs" big type="number" inputMode="decimal" placeholder="0" value={customFood.carbs} onChange={e => setCustomFood({...customFood, carbs: e.target.value})} />
+                </Field>
+                <Field label={<Text ro="Grăsimi" en="Fat" />} htmlFor="custom-fat">
+                  <Input id="custom-fat" big type="number" inputMode="decimal" placeholder="0" value={customFood.fat} onChange={e => setCustomFood({...customFood, fat: e.target.value})} />
+                </Field>
+              </div>
+              <Field label={<Text ro="Porție mâncată (g)" en="Portion eaten (g)" />} htmlFor="custom-grams">
+                <Input id="custom-grams" big type="number" inputMode="decimal" value={grams} onChange={e => setGrams(e.target.value)} />
+              </Field>
+              {customFoodError && <Message>{customFoodError}</Message>}
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => { setIsCreatingCustom(false); setCustomFoodError("") }} className="flex-1"><Text ro="Anulează" en="Cancel" /></Button>
+                <Button icon={Plus} onClick={handleAddCustomFoodToDraft} className="flex-[2]"><Text ro="Adaugă" en="Add" /></Button>
+              </div>
+            </Card>
           ) : (
             <>
-              {results.map((food, idx) => (
-                <button
-                  key={food.id || food.barcode || idx}
-                  onClick={() => setSelectedFood(food)}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all text-left"
-                >
-                  <div className="flex flex-col pr-4">
-                    <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 line-clamp-1"><FoodLabel value={food.name} /></span>
-                    <span className="text-xs text-zinc-500 font-mono">{food.kcal_per_100g} kcal / 100g</span>
-                  </div>
-                  <Plus className="size-4 text-zinc-500 shrink-0" />
-                </button>
-              ))}
-              
+              {results.length > 0 && (
+                <Card padded={false}>
+                  {results.map((food, idx) => (
+                    <button key={food.id || food.barcode || idx} type="button" onClick={() => setSelectedFood(food)}
+                      className={`flex w-full items-center gap-3 px-[18px] py-3.5 text-left transition-colors active:bg-inner ${idx > 0 ? "border-t border-line" : ""}`}>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="line-clamp-1 font-medium"><FoodLabel value={food.name} /></span>
+                        <span className="text-[13px] text-muted tabular-nums">{food.kcal_per_100g} kcal / 100 g</span>
+                      </span>
+                      <Plus className="size-5 shrink-0 text-muted" />
+                    </button>
+                  ))}
+                </Card>
+              )}
               {!isSearching && (
-                <button 
-                  onClick={() => setIsCreatingCustom(true)}
-                  className="mt-2 p-3 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:text-orange-700 dark:hover:text-orange-400 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus className="size-4" /> <Text ro="Nu găsești ce cauți? Creează aliment" en="Can't find your food? Create it" />
-                </button>
+                <Button variant="outline" icon={Plus} onClick={() => setIsCreatingCustom(true)}>
+                  <Text ro="Nu găsești ce cauți? Creează aliment" en="Can't find your food? Create it" />
+                </Button>
               )}
             </>
           )}
-        </div>
+        </>
       )}
-      </section>
 
-      {/* ========================================= */}
-      {/* CIORNA CURENTĂ (Draft-ul mesei) */}
-      {/* ========================================= */}
+      {/* Current draft of the meal */}
       {draftItems.length > 0 && (
-        <div className="flex flex-col gap-3 pb-6 animate-in fade-in lg:sticky lg:top-6">
-          
-          {/* HEADER TOTALURI MASĂ */}
-          <div className="flex flex-col gap-1.5 px-2 mt-4 bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-2xl shadow-inner">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-200/60 dark:border-zinc-800/60 pb-1.5 mb-1">
-              <Text ro="Total Masă" en="Meal total" />
-            </h3>
-            <div className="flex items-center justify-between text-xs font-mono font-bold">
-              <span className="text-orange-700 dark:text-orange-400 text-sm">{Math.round(draftTotals.kcal)} kcal</span>
-              <div className="flex gap-3">
-                <span className="text-emerald-700 dark:text-emerald-400">{Math.round(draftTotals.p * 10) / 10}g P</span>
-                <span className="text-cyan-700 dark:text-cyan-400">{Math.round(draftTotals.c * 10) / 10}g C</span>
-                <span className="text-yellow-700 dark:text-yellow-400">{Math.round(draftTotals.f * 10) / 10}<Text ro="g G" en="g F" /></span>
-              </div>
+        <>
+          <Card>
+            <Label><Text ro="Total masă" en="Meal total" /></Label>
+            <BigNumber value={Math.round(draftTotals.kcal).toLocaleString(locale)} unit="kcal" />
+            <div className="flex flex-wrap gap-x-3 text-[13px] font-medium tabular-nums">
+              <span className="text-lime-text">{Math.round(draftTotals.p * 10) / 10}g P</span>
+              <span className="text-ice-text">{Math.round(draftTotals.c * 10) / 10}g C</span>
+              <span className="text-gold-text">{Math.round(draftTotals.f * 10) / 10}g {t("G", "F")}</span>
             </div>
-          </div>
+          </Card>
 
-          {/* LISTA ALIMENTELOR ADĂUGATE */}
-          <div className="flex flex-col gap-2">
-            {draftItems.map((item) => {
-              // Calculăm macros pentru gramajul specific al acestui item
+          <ul className="flex flex-col overflow-hidden rounded-lg bg-card">
+            {draftItems.map((item, index) => {
               const multiplier = item.grams / 100;
               const itemKcal = Math.round(item.food.kcal_per_100g * multiplier);
               const itemP = Math.round((item.food.protein_per_100g * multiplier) * 10) / 10;
               const itemC = Math.round((item.food.carbs_per_100g * multiplier) * 10) / 10;
               const itemF = Math.round((item.food.fat_per_100g * multiplier) * 10) / 10;
-
               return (
-                <div key={item.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/40 relative overflow-hidden">
-                  <div className="flex items-start justify-between z-10 relative">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 leading-tight"><FoodLabel value={item.food.name} /></span>
-                      <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{item.grams}g</span>
-                    </div>
-                    <button 
-                      onClick={() => setDraftItems(prev => prev.filter(x => x.id !== item.id))}
-                      className="p-1.5 text-red-700/70 dark:text-red-500/70 hover:text-red-700 dark:hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors active:scale-95 shrink-0"
-                    >
-                      <Trash2 className="size-4" />
-                    <span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
+                <li key={item.id} className={`flex items-start gap-3 px-[18px] py-3.5 ${index > 0 ? "border-t border-line" : ""}`}>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="break-words font-medium leading-tight"><FoodLabel value={item.food.name} /></span>
+                    <span className="text-[13px] text-muted tabular-nums">{item.grams} g · <span className="font-semibold text-foreground">{itemKcal}</span> kcal</span>
+                    <span className="flex flex-wrap gap-x-3 text-[13px] tabular-nums">
+                      <span className="text-lime-text">P {itemP}g</span>
+                      <span className="text-ice-text">C {itemC}g</span>
+                      <span className="text-gold-text">{t("G", "F")} {itemF}g</span>
+                    </span>
                   </div>
-
-                  {/* RANDUL CU MACRO-URI PENTRU ITEM-UL CURENT */}
-                  <div className="grid grid-cols-4 gap-1 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-1 z-10 relative">
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-700 dark:text-zinc-300">
-                      <Flame className="size-3 text-orange-700 dark:text-orange-500" />
-                      <span>{itemKcal}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400">
-                      <span className="font-bold">P:</span>
-                      <span>{itemP}g</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-700 dark:text-cyan-400">
-                      <span className="font-bold">C:</span>
-                      <span>{itemC}g</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-yellow-700 dark:text-yellow-400">
-                      <span className="font-bold"><Text ro="G:" en="F:" /></span>
-                      <span>{itemF}g</span>
-                    </div>
-                  </div>
-
-                  {/* MESAJ DE EROARE (Apare doar dacă e cazul) */}
-              {customFoodError && (
-                <div className="text-xs font-bold text-red-700 dark:text-red-400 bg-red-500/10 p-3 rounded-xl border border-red-500/20 mt-1 animate-in fade-in">
-                  {customFoodError}
-                </div>)}
-                </div>
-                
-                
+                  <IconButton plain icon={Trash2} label={t("Elimină", "Remove")} className="-mr-2"
+                    onClick={() => setDraftItems(prev => prev.filter(x => x.id !== item.id))} />
+                </li>
               )
             })}
-          </div>
+          </ul>
 
-          
+          <Button large icon={Save} onClick={handleFinishMeal} busy={isSavingComplete} className="mt-2">
+            <Text ro="Finalizează masa" en="Finish meal" />
+          </Button>
 
-          {/* Butonul Uriaș de Salvare */}
-          <button
-            onClick={handleFinishMeal}
-            disabled={isSavingComplete}
-            className="h-14 w-full mt-4 bg-emerald-500 text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-400 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20"
-          >
-            {isSavingComplete ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-            <Text ro="Finalizează Masa" en="Finish meal" />
-          </button>
-          {/* SECȚIUNE SALVARE ȘABLON (TEMPLATE) */}
-          <div className="mt-2 flex flex-col gap-2">
-            {!showTemplateInput ? (
-              <button 
-                onClick={() => setShowTemplateInput(true)}
-                className="h-12 w-full border border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-zinc-600 dark:text-zinc-400 text-sm font-bold flex items-center justify-center gap-2 hover:border-orange-500/50 hover:text-orange-700 dark:hover:text-orange-400 transition-all"
-              >
-                <BookmarkPlus className="size-4" /> <Text ro="Salvează combinația ca Șablon" en="Save this combination as a template" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 p-2 bg-zinc-100 dark:bg-zinc-900 rounded-2xl border border-orange-500/30 animate-in fade-in">
-                <input 
-                  type="text" 
-                  placeholder={t("Nume (ex: Omletă dimineață)...", "Name (e.g. Morning omelette)...")}
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  className="flex-1 h-10 bg-transparent px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
-                />
-                <button 
-                  onClick={handleSaveTemplate}
-                  disabled={isSavingTemplate}
-                  className="h-10 px-4 bg-orange-500 text-zinc-950 text-xs font-bold rounded-xl hover:bg-orange-400"
-                >
-                  {isSavingTemplate ? "..." : t("Salvează", "Save")}
-                </button>
-                <button onClick={() => setShowTemplateInput(false)} className="px-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"><Trash2 className="size-4"/><span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
+          {!showTemplateInput ? (
+            <Button variant="outline" icon={BookmarkPlus} onClick={() => setShowTemplateInput(true)}>
+              <Text ro="Salvează combinația ca șablon" en="Save this combination as a template" />
+            </Button>
+          ) : (
+            <Card>
+              <Field label={<Text ro="Nume șablon" en="Template name" />} htmlFor="template-name">
+                <Input id="template-name" type="text" placeholder={t("Nume (ex: Omletă dimineață)...", "Name (e.g. Morning omelette)...")}
+                  value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+              </Field>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowTemplateInput(false)} className="flex-1"><Text ro="Anulează" en="Cancel" /></Button>
+                <Button onClick={handleSaveTemplate} busy={isSavingTemplate} className="flex-[2]">{t("Salvează", "Save")}</Button>
               </div>
-            )}
-          </div>
-        </div>
+            </Card>
+          )}
+        </>
       )}
-      </div>
 
       {isScanning && <BarcodeScanner onResult={handleBarcodeScan} onClose={() => setIsScanning(false)} />}
-    </main>
+    </Screen>
   )
 }

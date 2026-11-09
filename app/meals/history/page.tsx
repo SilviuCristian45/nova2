@@ -3,8 +3,8 @@
 import { Text, useLanguage } from "@/app/components/language-provider"
 import { FoodLabel } from "@/app/components/food-label"
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, CalendarDays, ChevronRight, Loader2, Utensils, Flame, Wheat, Droplet, Cookie, Search, ChevronLeft } from "lucide-react"
+import { ArrowLeft, ChevronRight, Loader2, Utensils, Search, ChevronLeft } from "lucide-react"
+import { Badge, BigNumber, Button, Card, Empty, Field, IconButton, Input, Label, Screen } from "@/app/components/ui"
 import { createClient } from "@/utils/supabase/client"
 
 const MEAL_LABELS: Record<string, string> = {
@@ -166,228 +166,120 @@ export default function MealsHistoryPage() {
     return new Date(dateString).toLocaleDateString(locale, options)
   }
 
-  return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col p-5 lg:px-10 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      
-      {/* VEDEREA 1: LISTA ZILELOR + FILTRE */}
-      {!selectedDate && (
-        <div className="animate-in fade-in slide-in-from-left-4 duration-300 flex flex-col min-h-[90dvh]">
-          <header className="flex flex-col gap-6 mb-4 mt-2">
-            <Link href="/meals" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all w-fit">
-              <ArrowLeft className="size-5" />
-            <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
-            <div className="flex items-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-inner">
-                <CalendarDays className="size-6 text-orange-700 dark:text-orange-500" />
+  // Day list, or the details of one day.
+  if (selectedDate) {
+    const day = allHistoryData[selectedDate]
+    return (
+      <main className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5 pb-12 text-foreground">
+        <header className="mb-2 flex items-center gap-1.5">
+          <IconButton plain icon={ArrowLeft} label={t("Înapoi", "Back")} onClick={() => setSelectedDate(null)} className="-ml-2.5" />
+          <h1 className="min-w-0 flex-1 text-[28px] font-bold capitalize leading-tight tracking-[-0.8px]">{formatDate(selectedDate)}</h1>
+        </header>
+
+        <Card>
+          <Label><Text ro="Total zilnic" en="Daily total" /></Label>
+          <BigNumber value={Math.round(day.totalKcal).toLocaleString(locale)} unit="kcal" />
+          <MacroLine p={day.totalP} c={day.totalC} f={day.totalF} />
+          <p className="text-[13px] text-muted">{day.mealsList.length} <Text ro="mese" en="meals" /></p>
+        </Card>
+
+        {day.mealsList.map((meal: any, index: number) => (
+          <Card key={meal.id} padded={false}>
+            <div className="flex items-center justify-between gap-3 px-[18px] pt-4 pb-3">
+              <div className="flex min-w-0 flex-col">
+                <span className="text-[17px] font-semibold"><Text ro="Masa" en="Meal" /> {index + 1}</span>
+                <span className="text-[13px] text-muted">{MEAL_LABELS[meal.mealType] ? t(MEAL_LABELS[meal.mealType], meal.mealType) : meal.mealType}</span>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight"><Text ro="Istoric Mese" en="Meal history" /></h1>
-            </div>
-          </header>
-
-          <div className="flex flex-col gap-3 mb-6 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col flex-1 gap-1">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1"><Text ro="De la" en="From" /></label>
-                <input 
-                  type="date" 
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-10 px-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-orange-500"
-                />
-              </div>
-              <div className="flex flex-col flex-1 gap-1">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase pl-1"><Text ro="Până la" en="To" /></label>
-                <input 
-                  type="date" 
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-10 px-3 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-orange-500"
-                />
-              </div>
-            </div>
-            <button 
-              onClick={() => fetchHistory(true)}
-              className="h-10 w-full bg-zinc-200 dark:bg-zinc-800 text-orange-700 dark:text-orange-400 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all text-sm"
-            >
-              <Search className="size-4" />
-              <Text ro="Aplică Filtre" en="Apply filters" />
-            </button>
-          </div>
-
-          {isLoading ? (
-            <div className="flex justify-center py-20 text-orange-700 dark:text-orange-500">
-              <Loader2 className="size-8 animate-spin" />
-            </div>
-          ) : displayedDates.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 font-medium text-sm px-4 bg-zinc-100 dark:bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
-              <Text ro="Nu am găsit mese înregistrate pentru perioada selectată." en="No meals found for the selected period." />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 flex-1 md:grid-cols-2">
-              {displayedDates.map((date) => (
-                <button
-                  key={date}
-                  onClick={() => setSelectedDate(date)}
-                  className="group flex items-center justify-between p-5 rounded-3xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:border-orange-500/50 transition-all text-left shadow-md"
-                >
-                  <div className="flex flex-col gap-2">
-                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 capitalize">{formatDate(date)}</span>
-                    
-                    {/* NOU: Rândul cu Macros și numărul de mese */}
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="text-xs text-orange-700 dark:text-orange-400 font-mono font-bold">
-                        {Math.round(allHistoryData[date].totalKcal)} Kcal
-                      </span>
-                      <span className="text-zinc-600 dark:text-zinc-700 text-[10px]">|</span>
-                      
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">{Math.round(allHistoryData[date].totalP)}g P</span>
-                        <span className="text-cyan-700 dark:text-cyan-400 font-bold">{Math.round(allHistoryData[date].totalC)}g C</span>
-                        <span className="text-yellow-700 dark:text-yellow-400 font-bold">{Math.round(allHistoryData[date].totalF)}<Text ro="g G" en="g F" /></span>
-                      </div>
-                      
-                      <span className="text-zinc-600 dark:text-zinc-700 text-[10px]">|</span>
-                      <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
-                        {allHistoryData[date].mealsList.length} <Text ro="mese" en="meals" />
-                      </span>
-                    </div>
-
-                  </div>
-                  <ChevronRight className="size-5 text-zinc-500 group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors shrink-0 ml-2" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* PAGINARE */}
-          {!isLoading && totalPages > 1 && (
-            <div className="mt-6 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-between pb-6">
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
-              >
-                <ChevronLeft className="size-5" />
-              <span className="sr-only"><Text ro="Înapoi" en="Previous" /></span></button>
-              
-              <span className="text-xs font-bold text-zinc-500 font-mono">
-                <Text ro="PAGINA" en="PAGE" /> {page} <Text ro="DIN" en="OF" /> {totalPages}
+              <span className="text-right tabular-nums">
+                <span className="text-[17px] font-semibold">{meal.totals.kcal}</span> <span className="text-[13px] text-muted">kcal</span>
               </span>
-
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="size-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-all"
-              >
-                <ChevronRight className="size-5" />
-              <span className="sr-only"><Text ro="Înainte" en="Next" /></span></button>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* VEDEREA 2: DETALII ZI */}
-      {selectedDate && (
-        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-          <header className="flex flex-col gap-6 mb-6 mt-2">
-            <div className="flex items-center justify-between">
-              <button 
-                onClick={() => setSelectedDate(null)}
-                className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all"
-              >
-                <ArrowLeft className="size-5" />
-              <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></button>
-              <h1 className="text-sm font-bold tracking-tight text-zinc-700 dark:text-zinc-300 capitalize">
-                {formatDate(selectedDate)}
-              </h1>
-              <div className="size-10"></div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border border-orange-500/20 bg-orange-500/10 rounded-2xl shadow-inner">
-              <div className="flex flex-col">
-                <span className="text-[10px] text-orange-700 dark:text-orange-500 font-bold uppercase tracking-widest"><Text ro="Total Zilnic" en="Daily total" /></span>
-                <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                  {Math.round(allHistoryData[selectedDate].totalKcal)} <span className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">kcal</span>
-                </span>
-              </div>
-              <div className="text-xs font-bold text-zinc-600 dark:text-zinc-400 font-mono bg-white dark:bg-zinc-950/60 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                {allHistoryData[selectedDate].mealsList.length} <Text ro="Mese" en="Meals" />
-              </div>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 gap-5 pb-10 lg:grid-cols-2">
-            {allHistoryData[selectedDate].mealsList.map((meal: any, index: number) => (
-              <div key={meal.id} className="flex flex-col gap-3 p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800/80 shadow-md">
-                
-                <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-zinc-800/60 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="size-7 rounded-lg bg-orange-500 text-zinc-950 font-black text-xs flex items-center justify-center shadow-sm">
-                      #{index + 1}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100">
-                        <Text ro="Masa" en="Meal" /> {index + 1}
-                      </span>
-                      <span className="text-[10px] text-zinc-500 font-medium">
-                        {MEAL_LABELS[meal.mealType] ? t(MEAL_LABELS[meal.mealType], meal.mealType) : meal.mealType}
-                      </span>
-                    </div>
+            {meal.items.map((item: any) => (
+              <div key={item.id} className="flex flex-col gap-1.5 border-t border-line px-[18px] py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="break-words font-medium leading-tight"><FoodLabel value={item.name || t("Necunoscut", "Unknown")} /></span>
+                    {item.brand && item.brand !== "Fără Brand" && (
+                      <span className="text-xs text-muted">{item.brand === "Creat Manual" ? t("Creat manual", "Custom food") : item.brand}</span>
+                    )}
                   </div>
-
-                  <div className="flex items-center gap-2 font-mono text-xs">
-                    <span className="text-orange-700 dark:text-orange-400 font-bold">{meal.totals.kcal} kcal</span>
-                    <span className="text-zinc-500 dark:text-zinc-600">|</span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">{meal.totals.protein}g P</span>
-                  </div>
+                  <Badge className="shrink-0 tabular-nums">{item.weight} g</Badge>
                 </div>
-
-                <div className="flex flex-col gap-2">
-                  {meal.items.map((item: any) => (
-                    <div key={item.id} className="p-3 rounded-2xl bg-white dark:bg-zinc-950/70 border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-2">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs text-zinc-800 dark:text-zinc-200 leading-tight"><FoodLabel value={item.name || t("Necunoscut", "Unknown")} /></span>
-                          {item.brand && item.brand !== "Fără Brand" && (
-                            <span className="text-[9px] text-zinc-500 font-mono uppercase">{item.brand === "Creat Manual" ? t("Creat manual", "Custom food") : item.brand}</span>
-                          )}
-                        </div>
-                        <span className="text-[11px] font-bold bg-zinc-200 dark:bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-700 dark:text-zinc-300 shrink-0 font-mono">
-                          {item.weight}g
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-5 gap-1 pt-2 border-t border-zinc-200 dark:border-zinc-900 text-[10px] font-mono">
-                        <div className="flex items-center gap-1 text-zinc-700 dark:text-zinc-300">
-                          <Flame className="size-3 text-orange-700 dark:text-orange-500" />
-                          <span>{item.kcal}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-                          <span className="font-bold">P:</span>
-                          <span>{item.protein}g</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-cyan-700 dark:text-cyan-400">
-                          <span className="font-bold">C:</span>
-                          <span>{item.carbs}g</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-yellow-700 dark:text-yellow-400">
-                          <span className="font-bold"><Text ro="G:" en="F:" /></span>
-                          <span>{item.fat}g</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
-                          <Cookie className="size-3" />
-                          <span>{item.fiber}g</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px] tabular-nums">
+                  <span><span className="font-semibold">{item.kcal}</span> <span className="text-muted">kcal</span></span>
+                  <span className="text-lime-text">P {item.protein}g</span>
+                  <span className="text-ice-text">C {item.carbs}g</span>
+                  <span className="text-gold-text">{t("G", "F")} {item.fat}g</span>
+                  <span className="text-lilac-text">{t("Fibre", "Fibre")} {item.fiber}g</span>
                 </div>
               </div>
             ))}
-          </div>
+          </Card>
+        ))}
+      </main>
+    )
+  }
+
+  return (
+    <Screen title={<Text ro="Istoric mese" en="Meal history" />} back="/meals">
+      <Card>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label={<Text ro="De la" en="From" />} htmlFor="meals-from">
+            <Input id="meals-from" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </Field>
+          <Field label={<Text ro="Până la" en="To" />} htmlFor="meals-to">
+            <Input id="meals-to" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </Field>
         </div>
+        <Button variant="secondary" icon={Search} onClick={() => fetchHistory(true)}>
+          <Text ro="Aplică filtrele" en="Apply filters" />
+        </Button>
+      </Card>
+
+      {isLoading ? (
+        <div role="status" className="flex justify-center py-20 text-lime-text">
+          <Loader2 className="size-8 animate-spin" />
+          <span className="sr-only">{t("Se încarcă...", "Loading...")}</span>
+        </div>
+      ) : displayedDates.length === 0 ? (
+        <Empty icon={Utensils}><Text ro="Nu am găsit mese înregistrate pentru perioada selectată." en="No meals found for the selected period." /></Empty>
+      ) : (
+        <Card padded={false}>
+          {displayedDates.map((date, index) => (
+            <button key={date} type="button" onClick={() => setSelectedDate(date)}
+              className={`flex w-full items-center gap-3 px-[18px] py-4 text-left transition-colors active:bg-inner ${index > 0 ? "border-t border-line" : ""}`}>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[17px] font-medium capitalize">{formatDate(date)}</span>
+                <span className="text-[13px] text-muted tabular-nums">
+                  <span className="font-semibold text-foreground">{Math.round(allHistoryData[date].totalKcal)}</span> kcal · {allHistoryData[date].mealsList.length} <Text ro="mese" en="meals" />
+                </span>
+                <MacroLine p={allHistoryData[date].totalP} c={allHistoryData[date].totalC} f={allHistoryData[date].totalF} />
+              </span>
+              <ChevronRight className="size-5 shrink-0 text-muted" />
+            </button>
+          ))}
+        </Card>
       )}
 
-    </main>
+      {!isLoading && totalPages > 1 && (
+        <nav aria-label={t("Paginare", "Pagination")} className="mt-2 flex items-center justify-between gap-2">
+          <IconButton icon={ChevronLeft} label={t("Înapoi", "Previous")} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} />
+          <span className="text-sm text-muted tabular-nums"><Text ro="Pagina" en="Page" /> {page} <Text ro="din" en="of" /> {totalPages}</span>
+          <IconButton icon={ChevronRight} label={t("Înainte", "Next")} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} />
+        </nav>
+      )}
+    </Screen>
+  )
+}
+
+// Protein / carbs / fat of a day, coloured like the macro bars.
+function MacroLine({ p, c, f }: { p: number; c: number; f: number }) {
+  const { t } = useLanguage()
+  return (
+    <span className="flex flex-wrap gap-x-3 text-[13px] font-medium tabular-nums">
+      <span className="text-lime-text">{Math.round(p)}g P</span>
+      <span className="text-ice-text">{Math.round(c)}g C</span>
+      <span className="text-gold-text">{Math.round(f)}g {t("G", "F")}</span>
+    </span>
   )
 }
