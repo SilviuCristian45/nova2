@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 // Setările pentru culorile telefonului (Status bar)
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f4ef" },
     { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
   width: "device-width",

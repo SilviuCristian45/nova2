@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Aplicatia mea web',
     start_url: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#ffffff',
+    background_color: '#09090b',
+    theme_color: '#09090b',
     icons: [
       {
         src: '/icons/icon-192.png',

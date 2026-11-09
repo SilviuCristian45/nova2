@@ -2,54 +2,96 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* One brand accent (lime) carries every primary action; the other hues are muted and only separate data
+   (set types, macros, chart series, errors). Surfaces are told apart by fill, not by outlines.
+   Each accent has a solid fill, a text colour tuned per theme, and soft/border tints of the solid. */
 :root {
   color-scheme: light;
-  --background: #fafafa;
-  --foreground: #171717;
+  --background: #f5f4ef;
   --card: #ffffff;
-  --secondary: #e4e4e7;
-  --muted-foreground: #52525b;
-  --primary: #047857;
-  --primary-foreground: #ffffff;
-  --chart-grid: #e4e4e7;
-  --chart-axis: #71717a;
-  --chart-cyan: #0e7490;
-  --chart-green: #047857;
-  --chart-rose: #be123c;
+  --inner: #efede6;
+  --control: #e8e6de;
+  --border: #0000001a;
+  --foreground: #0c0c0d;
+  --text-soft: #4a4a4f;
+  --muted: #7a7a80;
+  --placeholder: #a3a3a8;
+  --on-solid: #0c0c0d;
+
+  --lime: #c8f031;  --lime-text: #4d6a00;  --lime-soft: #c8f03133;  --lime-border: #c8f03166;
+  --coral: #ff7a59; --coral-text: #c2410c; --coral-soft: #ff7a5933; --coral-border: #ff7a5966;
+  --ice: #7cc4ff;   --ice-text: #1d5f94;   --ice-soft: #7cc4ff33;   --ice-border: #7cc4ff66;
+  --lilac: #b7a4ff; --lilac-text: #5b3fc4; --lilac-soft: #b7a4ff33; --lilac-border: #b7a4ff66;
+  --gold: #ffc233;  --gold-text: #8a5a00;  --gold-soft: #ffc23333;  --gold-border: #ffc23366;
+  --red: #ff5a5f;   --red-text: #c0272d;   --red-soft: #ff5a5f33;   --red-border: #ff5a5f66;
+
+  --chart-grid: #0000001a;
+  --chart-axis: #7a7a80;
 }
 
 .dark {
   color-scheme: dark;
   --background: #09090b;
-  --foreground: #f4f4f5;
-  --card: #18181b;
-  --secondary: #27272a;
-  --muted-foreground: #a1a1aa;
-  --primary: #34d399;
-  --primary-foreground: #09090b;
-  --chart-grid: #27272a;
-  --chart-axis: #a1a1aa;
-  --chart-cyan: #22d3ee;
-  --chart-green: #10b981;
-  --chart-rose: #fb7185;
+  --card: #151517;
+  --inner: #1e1e21;
+  --control: #26262a;
+  --border: #ffffff17;
+  --foreground: #f6f6f4;
+  --text-soft: #b4b4ba;
+  --muted: #85858c;
+  --placeholder: #5c5c63;
+  --on-solid: #0c0c0d;
+
+  --lime-text: #c8f031;  --lime-soft: #c8f0311f;  --lime-border: #c8f03140;
+  --coral-text: #ff8f72; --coral-soft: #ff7a591f; --coral-border: #ff7a5940;
+  --ice-text: #8fceff;   --ice-soft: #7cc4ff1f;   --ice-border: #7cc4ff40;
+  --lilac-text: #c6b8ff; --lilac-soft: #b7a4ff1f; --lilac-border: #b7a4ff40;
+  --gold-text: #ffd05c;  --gold-soft: #ffc2331f;  --gold-border: #ffc23340;
+  --red-text: #ff7a7e;   --red-soft: #ff5a5f1f;   --red-border: #ff5a5f40;
+
+  --chart-grid: #ffffff14;
+  --chart-axis: #85858c;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-secondary: var(--secondary);
+  --color-inner: var(--inner);
+  --color-control: var(--control);
+  --color-line: var(--border);
+  --color-foreground: var(--foreground);
+  --color-soft: var(--text-soft);
+  --color-muted: var(--muted);
+  --color-placeholder: var(--placeholder);
+  --color-on-solid: var(--on-solid);
+
+  --color-lime: var(--lime);   --color-lime-text: var(--lime-text);   --color-lime-soft: var(--lime-soft);   --color-lime-border: var(--lime-border);
+  --color-coral: var(--coral); --color-coral-text: var(--coral-text); --color-coral-soft: var(--coral-soft); --color-coral-border: var(--coral-border);
+  --color-ice: var(--ice);     --color-ice-text: var(--ice-text);     --color-ice-soft: var(--ice-soft);     --color-ice-border: var(--ice-border);
+  --color-lilac: var(--lilac); --color-lilac-text: var(--lilac-text); --color-lilac-soft: var(--lilac-soft); --color-lilac-border: var(--lilac-border);
+  --color-gold: var(--gold);   --color-gold-text: var(--gold-text);   --color-gold-soft: var(--gold-soft);   --color-gold-border: var(--gold-border);
+  --color-red: var(--red);     --color-red-text: var(--red-text);     --color-red-soft: var(--red-soft);     --color-red-border: var(--red-border);
+
+  --color-primary: var(--lime);
+  --color-primary-foreground: var(--on-solid);
+
+  /* Transitional aliases for screens not yet moved to the tokens above; removed once every screen is ported. */
+  --color-secondary: var(--control);
   --color-secondary-foreground: var(--foreground);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
+  --color-muted-foreground: var(--muted);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @layer base {
   * {
-    border-color: var(--secondary);
+    border-color: var(--border);
   }
 
   button:not(:disabled), a, summary, select {
@@ -57,8 +99,12 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--lime);
     outline-offset: 3px;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--placeholder);
   }
 }
 
@@ -66,4 +112,5 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-size: 15px;
 }
