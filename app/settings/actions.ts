@@ -3,6 +3,7 @@
 import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { removeDriveLink } from "@/lib/drive-service"
 import { revalidatePath } from "next/cache"
 import { rememberWeightUnit } from "@/app/units"
 
@@ -107,6 +108,8 @@ export async function deleteAllData(confirmation: string): Promise<ActionResult>
   if (!user) return { error: t("Neautorizat", "Not signed in") }
   if (!confirmed) return { error: t("Emailul introdus nu se potrivește.", "The email you typed does not match.") }
 
+  // The Google token is revoked first; delete_my_data then drops the Drive link with everything else.
+  await removeDriveLink(user.id).catch((error) => console.error("Drive token not revoked:", error))
   const { error } = await supabase.rpc("delete_my_data")
   if (error) return { error: error.message }
 
@@ -121,6 +124,8 @@ export async function deleteAccount(confirmation: string): Promise<ActionResult>
   if (!confirmed) return { error: t("Emailul introdus nu se potrivește.", "The email you typed does not match.") }
 
   // Hard delete: every table cascades from auth.users, so this erases all of the user's rows.
+  // The Google Drive token is revoked before its row disappears with the account.
+  await removeDriveLink(user.id).catch((error) => console.error("Drive token not revoked:", error))
   try {
     const { error } = await createAdminClient().auth.admin.deleteUser(user.id)
     if (error) throw error

@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server"
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path === "/offline" || path === "/privacy" || path === "/sw.js" || path === "/manifest.json" ||
+  // /api/drive/cron has no session: it checks its own CRON_SECRET.
+  if (path === "/offline" || path === "/privacy" || path === "/api/drive/cron" || path === "/sw.js" || path === "/manifest.json" ||
     /^\/(?:workbox|worker|fallback)-[^/]+\.js$/.test(path)) {
     return NextResponse.next();
   }
