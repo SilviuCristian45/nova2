@@ -8,7 +8,7 @@ function Names({ primary, secondary }: { primary: string; secondary: string | nu
   return (
     <>
       {primary}
-      {secondary && <span className="block text-[11px] font-normal leading-snug text-zinc-500">{secondary}</span>}
+      {secondary && <span className="block text-[11px] font-normal leading-snug text-muted">{secondary}</span>}
     </>
   );
 }

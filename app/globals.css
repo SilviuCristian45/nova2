@@ -53,6 +53,13 @@
   --chart-axis: #85858c;
 }
 
+/* Only the palette above: Tailwind's default colours are switched off so a stray `emerald-500` fails loudly. */
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-card: var(--card);
@@ -72,13 +79,6 @@
   --color-gold: var(--gold);   --color-gold-text: var(--gold-text);   --color-gold-soft: var(--gold-soft);   --color-gold-border: var(--gold-border);
   --color-red: var(--red);     --color-red-text: var(--red-text);     --color-red-soft: var(--red-soft);     --color-red-border: var(--red-border);
 
-  --color-primary: var(--lime);
-  --color-primary-foreground: var(--on-solid);
-
-  /* Transitional aliases for screens not yet moved to the tokens above; removed once every screen is ported. */
-  --color-secondary: var(--control);
-  --color-secondary-foreground: var(--foreground);
-  --color-muted-foreground: var(--muted);
 
   --radius-sm: 10px;
   --radius-md: 14px;

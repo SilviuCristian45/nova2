@@ -16,7 +16,7 @@ export default function PrivacyPage() {
     <main className="mx-auto w-full max-w-2xl px-5 py-8 leading-relaxed sm:px-8">
       <section lang="ro">
         <h1 className="text-2xl font-bold">RepLog – Politica de confidențialitate</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Ultima actualizare: 4 noiembrie 2026</p>
+        <p className="mt-2 text-sm text-muted">Ultima actualizare: 4 noiembrie 2026</p>
 
         <h2 className={h2}>Datele tale rămân pe telefon</h2>
         <p className="mt-2">RepLog este o aplicație de înregistrare a antrenamentelor, meselor, pașilor și greutății. Toate datele (profil, antrenamente, mese, pași, greutate) sunt stocate local, pe telefonul tău. Aplicația mobilă nu are servere, conturi proprii sau baze de date în cloud, nu colectăm date despre tine și nu folosim reclame sau statistici de utilizare.</p>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
 
       <section lang="en">
         <h1 className="text-2xl font-bold">RepLog – Privacy Policy</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Last updated: November 4, 2026</p>
+        <p className="mt-2 text-sm text-muted">Last updated: November 4, 2026</p>
 
         <h2 className={h2}>Your data stays on your phone</h2>
         <p className="mt-2">RepLog is an app for logging workouts, meals, steps and weight. All data (profile, workouts, meals, steps, weight) is stored locally on your phone. The mobile app has no servers, accounts or cloud databases of its own, we do not collect data about you, and we use no ads or usage analytics.</p>
