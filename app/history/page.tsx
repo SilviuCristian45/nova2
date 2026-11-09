@@ -5,9 +5,11 @@ import { getLanguage } from "@/app/language"
 import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { getWeightFormatter } from "@/app/units"
 import Link from "next/link";
-import { ArrowLeft, Calendar, Dumbbell, Heart, ChevronDown, Flame, Filter, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Dumbbell, ChevronDown, Flame, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteWorkoutButton } from "./delete-button";
+import { SetTypeBadge } from "@/app/components/workout-parts";
+import { Badge, Card, Empty, Field, Message, Screen, buttonClass, iconButtonClass, inputClass } from "@/app/components/ui";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,11 +55,11 @@ export default async function HistoryPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center p-5 text-center">
-        <h1 className="text-2xl font-bold mb-2"><Text ro="Sesiune Expirată" en="Session expired" /></h1>
-        <p className="text-muted-foreground mb-6"><Text ro="Trebuie să te loghezi din nou pentru a vedea istoricul." en="Please sign in again to view your history." /></p>
-        <Link href="/login" className="px-6 py-2 bg-primary text-primary-foreground rounded-xl font-bold"><Text ro="Mergi la Login" en="Go to sign in" /></Link>
-      </main>
+      <Screen back={false} className="min-h-dvh justify-center text-center">
+        <h1 className="text-[28px] font-bold tracking-[-0.8px]"><Text ro="Sesiune expirată" en="Session expired" /></h1>
+        <p className="text-muted"><Text ro="Trebuie să te loghezi din nou pentru a vedea istoricul." en="Please sign in again to view your history." /></p>
+        <Link href="/login" className={buttonClass()}><Text ro="Mergi la login" en="Go to sign in" /></Link>
+      </Screen>
     );
   }
 
@@ -77,105 +79,90 @@ export default async function HistoryPage({
     .order("performed_on", { ascending: false })
     .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
   if (error && error.code !== "PGRST103") {
-    return <p role="alert" className="p-5 text-red-700 dark:text-red-400 text-center"><Text ro="Eroare Supabase:" en="Database error:" /> {error.message}</p>;
+    return <Screen title={<Text ro="Istoric" en="History" />}><Message><Text ro="Eroare Supabase:" en="Database error:" /> {error.message}</Message></Screen>;
   }
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
   const pageHref = (page: number) => `?${new URLSearchParams({ page: String(page), startDate, endDate })}`;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 sm:p-8 bg-background text-foreground">
-      <header className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link href="/" aria-label={t("Înapoi", "Back")} className="p-2 -ml-2 text-muted-foreground hover:bg-secondary rounded-xl"><ArrowLeft className="size-5" /></Link>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight"><Text ro="Istoric" en="History" /></h1>
-        </div>
-        {streak > 0 && <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full border border-orange-500/20">
-          <Flame className="size-4" /><span className="text-sm font-bold">{streak} <Text ro="săpt." en="wk" /></span>
-        </div>}
-      </header>
-
-      <form method="GET" className="grid gap-3 mb-6 bg-card p-4 rounded-2xl border border-secondary sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:col-span-3"><Filter className="size-4" /> <Text ro="Filtrează antrenamentele" en="Filter workouts" /></div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="history-start" className="text-xs text-muted-foreground"><Text ro="De la" en="From" /></label>
-          <input id="history-start" type="date" name="startDate" defaultValue={startDate} className="h-11 min-w-0 px-3 text-sm rounded-xl border bg-background" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="history-end" className="text-xs text-muted-foreground"><Text ro="Până la" en="To" /></label>
-          <input id="history-end" type="date" name="endDate" defaultValue={endDate} className="h-11 min-w-0 px-3 text-sm rounded-xl border bg-background" />
-        </div>
-        <button type="submit" className="h-11 px-5 bg-secondary text-secondary-foreground text-sm font-bold rounded-xl hover:bg-secondary/80"><Text ro="Aplică Filtrele" en="Apply filters" /></button>
+    <Screen title={<Text ro="Istoric" en="History" />}
+      right={streak > 0 ? <Badge tone="coral" className="gap-1 text-[13px]"><Flame className="size-3.5" />{streak} <Text ro="săpt." en="wk" /></Badge> : undefined}>
+      <form method="GET">
+        <Card>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label={<Text ro="De la" en="From" />} htmlFor="history-start">
+              <input id="history-start" type="date" name="startDate" defaultValue={startDate} className={inputClass()} />
+            </Field>
+            <Field label={<Text ro="Până la" en="To" />} htmlFor="history-end">
+              <input id="history-end" type="date" name="endDate" defaultValue={endDate} className={inputClass()} />
+            </Field>
+          </div>
+          <button type="submit" className={buttonClass({ variant: "secondary" })}><Text ro="Aplică filtrele" en="Apply filters" /></button>
+        </Card>
       </form>
 
       {!workouts?.length ? (
-        <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
-          <Dumbbell className="size-10 mb-3 opacity-30" /><p><Text ro="Nu am găsit antrenamente în această perioadă." en="No workouts found for this period." /></p>
-        </div>
+        <Empty icon={Dumbbell}><Text ro="Nu am găsit antrenamente în această perioadă." en="No workouts found for this period." /></Empty>
       ) : (
-        <div className="grid items-start gap-5 lg:grid-cols-2">
-          {workouts.map((workout) => {
-            const isCardio = workout.workout_mode === "cardio";
-            const date = new Date(`${workout.performed_on}T00:00:00`).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-            const groupedSets: Record<string, WorkoutSet[]> = {};
-            if (!isCardio) {
-              for (const set of workout.workout_sets ?? []) {
-                (groupedSets[set.exercise] ??= []).push(set);
-              }
+        workouts.map((workout) => {
+          const isCardio = workout.workout_mode === "cardio";
+          const date = new Date(`${workout.performed_on}T00:00:00`).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+          const groupedSets: Record<string, WorkoutSet[]> = {};
+          if (!isCardio) {
+            for (const set of workout.workout_sets ?? []) {
+              (groupedSets[set.exercise] ??= []).push(set);
             }
-            return (
-              <article key={workout.id} className="min-w-0 flex flex-col border rounded-2xl bg-card shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between gap-2 p-4 border-b bg-secondary/20">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background border">
-                      {isCardio ? <Heart className="size-5 text-rose-600 dark:text-rose-400" /> : <Dumbbell className="size-5" />}
-                    </div>
-                    <div className="min-w-0">
-                      <h2 className="font-bold text-lg break-words">{isCardio ? t("Sesiune Cardio", "Cardio session") : <WorkoutLabel value={workout.split} />}</h2>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Calendar className="size-3 shrink-0" />{date}</p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Link href={`/edit/${workout.id}`} aria-label={t("Editează antrenament", "Edit workout")} className="p-2 text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600 rounded-xl"><Pencil className="size-5" /></Link>
-                    <DeleteWorkoutButton id={workout.id} />
-                  </div>
+          }
+          return (
+            <Card key={workout.id} padded={false}>
+              <div className="flex items-center gap-2 py-3 pl-[18px] pr-2">
+                <div className="min-w-0 flex-1">
+                  <h2 className="break-words text-[17px] font-semibold">{isCardio ? t("Sesiune cardio", "Cardio session") : <WorkoutLabel value={workout.split} />}</h2>
+                  <p className="text-[13px] text-muted">
+                    {date}
+                    {!isCardio && <> · <span className="tabular-nums">{workout.workout_sets?.length ?? 0}</span> <Text ro="seturi" en="sets" /></>}
+                  </p>
                 </div>
-                <div className="p-4 flex flex-col gap-3">
-                  {isCardio ? workout.cardio_sessions?.map((session: { id: string; activity: string; duration_min: number }) => (
-                    <div key={session.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border bg-background">
-                      <span className="font-semibold"><CardioName id={session.activity} /></span><span className="text-sm text-muted-foreground">{session.duration_min} min</span>
-                    </div>
-                  )) : Object.entries(groupedSets).map(([exercise, sets]) => (
-                    <details key={exercise} className="group border rounded-xl p-3 bg-background">
-                      <summary className="flex items-center justify-between gap-3 list-none">
-                        <span className="font-semibold text-sm"><ExerciseName id={exercise} /> <span className="text-muted-foreground font-normal">({sets.length} <Text ro="seturi" en="sets" />)</span></span>
-                        <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open:rotate-180 transition-transform" />
-                      </summary>
-                      <div className="mt-3 flex flex-col gap-2 border-t pt-3 text-sm">
-                        {sets.map((set, setIndex) => (
-                          <div key={set.id} className="py-1 border-b last:border-0">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-muted-foreground"><Text ro="Set" en="Set" /> {displayOrdinals(sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]} <span className="text-[10px] uppercase bg-secondary px-1.5 py-0.5 rounded-md"><WorkoutLabel value={set.set_type} /></span></span>
-                              <span className="font-bold">{set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps}<span className="font-normal text-muted-foreground ml-1">(RIR {set.rir})</span></span>
-                            </div>
-                            {set.notes && <p className="text-xs text-blue-700 dark:text-blue-400 italic mt-1 bg-blue-500/10 px-2 py-1 rounded-md break-words">{set.notes}</p>}
-                          </div>
-                        ))}
+                <Link href={`/edit/${workout.id}`} aria-label={t("Editează antrenament", "Edit workout")} title={t("Editează antrenament", "Edit workout")} className={iconButtonClass({ plain: true })}><Pencil className="size-5" /></Link>
+                <DeleteWorkoutButton id={workout.id} />
+              </div>
+              {isCardio ? workout.cardio_sessions?.map((session: { id: string; activity: string; duration_min: number }) => (
+                <div key={session.id} className="flex items-center justify-between gap-3 border-t border-line px-[18px] py-3.5">
+                  <span className="font-medium"><CardioName id={session.activity} /></span>
+                  <span className="text-[17px] font-semibold text-coral-text tabular-nums">{session.duration_min} <span className="text-[13px] font-normal text-muted">min</span></span>
+                </div>
+              )) : Object.entries(groupedSets).map(([exercise, sets]) => (
+                <details key={exercise} className="group border-t border-line">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-[18px] py-3 [&::-webkit-details-marker]:hidden">
+                    <span className="font-medium"><ExerciseName id={exercise} /> <span className="font-normal text-muted">· {sets.length} <Text ro="seturi" en="sets" /></span></span>
+                    <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="mx-[18px] mb-3 flex flex-col rounded-md bg-inner">
+                    {sets.map((set, setIndex) => (
+                      <div key={set.id} className="flex flex-col gap-1 border-b border-line px-3 py-2.5 last:border-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="w-5 text-sm text-muted tabular-nums">{displayOrdinals(sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]}</span>
+                          <span className="font-semibold tabular-nums">{set.weight > 0 ? `${format(Number(set.weight))} × ` : ""}{set.reps}</span>
+                          {set.rir !== null && <span className="text-[13px] text-muted">RIR {set.rir}</span>}
+                          <SetTypeBadge type={set.set_type} />
+                        </div>
+                        {set.notes && <p className="break-words pl-7 text-[13px] text-muted">{set.notes}</p>}
                       </div>
-                    </details>
-                  ))}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </Card>
+          );
+        })
       )}
       {totalPages > 1 && (
-        <nav aria-label={t("Paginare", "Pagination")} className="mt-8 mb-4 flex flex-wrap gap-2 items-center justify-between border-t pt-4">
-          <Link href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage <= 1} className={`flex items-center gap-1 text-sm p-2 rounded-xl ${currentPage <= 1 ? "pointer-events-none opacity-40" : "hover:bg-secondary"}`}><ChevronLeft className="size-4" /><Text ro="Înapoi" en="Back" /></Link>
-          <span className="text-sm text-muted-foreground"><Text ro="Pagina" en="Page" /> {currentPage} <Text ro="din" en="of" /> {totalPages}</span>
-          <Link href={pageHref(Math.min(totalPages, currentPage + 1))} aria-disabled={currentPage >= totalPages} className={`flex items-center gap-1 text-sm p-2 rounded-xl ${currentPage >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-secondary"}`}><Text ro="Înainte" en="Next" /><ChevronRight className="size-4" /></Link>
+        <nav aria-label={t("Paginare", "Pagination")} className="mt-2 flex items-center justify-between gap-2">
+          <Link href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage <= 1} className={buttonClass({ variant: "secondary", small: true })}><ChevronLeft className="size-4" /><Text ro="Înapoi" en="Back" /></Link>
+          <span className="text-sm text-muted tabular-nums"><Text ro="Pagina" en="Page" /> {currentPage} <Text ro="din" en="of" /> {totalPages}</span>
+          <Link href={pageHref(Math.min(totalPages, currentPage + 1))} aria-disabled={currentPage >= totalPages} className={buttonClass({ variant: "secondary", small: true })}><Text ro="Înainte" en="Next" /><ChevronRight className="size-4" /></Link>
         </nav>
       )}
-    </main>
+    </Screen>
   );
 }

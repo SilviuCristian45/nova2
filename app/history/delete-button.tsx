@@ -4,6 +4,7 @@ import { useLanguage } from "@/app/components/language-provider"
 import { useTransition } from "react"
 import { Loader2, Trash2 } from "lucide-react"
 import { deleteWorkout } from "./actions"
+import { iconButtonClass } from "@/app/components/ui"
 
 export function DeleteWorkoutButton({ id }: { id: string }) {
   const { t } = useLanguage()
@@ -26,8 +27,9 @@ export function DeleteWorkoutButton({ id }: { id: string }) {
     <button 
       onClick={handleDelete}
       disabled={isPending}
-      className="p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 rounded-md transition-colors disabled:opacity-50"
+      className={iconButtonClass({ plain: true })}
       title={t("Șterge antrenament", "Delete workout")}
+      aria-label={t("Șterge antrenament", "Delete workout")}
     >
       {isPending ? <Loader2 className="size-5 animate-spin" /> : <Trash2 className="size-5" />}
     </button>
