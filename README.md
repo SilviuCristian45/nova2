@@ -78,6 +78,37 @@ Run the focused offline validation with Node.js 22.18+:
 node --test lib/offline.test.mjs
 ```
 
+## Automatic Google Drive backup
+
+**Settings → Automatic Google Drive backup** links a Google account and uploads the same `replog-export` v1 file as
+**Your data → Download** to the hidden app folder of that Drive (scope `drive.appdata`: the app sees only its own
+files). Frequency: off / daily / weekly / monthly; the latest 5 backups are kept. Backups run on the server: an hourly
+cron, plus a catch-up call when the app is opened. Restoring merges a Drive backup into the account (preview and
+confirmation first); backups made by the RepLog phone app appear in the same list, since both use the same folder.
+
+### Setup
+
+1. Run `supabase/migrations/202611090001_google_drive_backups.sql` in the Supabase SQL Editor.
+2. In the **same Google Cloud project as the phone app**, use (or create) an OAuth client of type **Web application**
+   and add the authorized redirect URIs `https://<your-domain>/api/drive/callback` and
+   `http://localhost:3000/api/drive/callback`. On the consent screen add the scopes `openid`, `email` and
+   `.../auth/drive.appdata`, then **publish the app ("In production")**: in "Testing" Google expires refresh tokens
+   after 7 days and automatic backups would stop. These scopes are non-sensitive and need no verification.
+3. Set the server environment variables:
+
+   | Variable | Value |
+   | --- | --- |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | the Web OAuth client (the secret stays on the server) |
+   | `GOOGLE_REDIRECT_URI` | `https://<your-domain>/api/drive/callback` |
+   | `DRIVE_TOKEN_KEY` | 32 random bytes, base64 (`openssl rand -base64 32`); encrypts the stored refresh tokens |
+   | `CRON_SECRET` | a long random string |
+   | `SUPABASE_SERVICE_ROLE_KEY` | already required for barcode scanning and account deletion |
+
+   Without these the Drive card stays hidden.
+4. Call the cron every hour: `curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/drive/cron`
+   (a cron job or a small container on the VPS). On Vercel, a `crons` entry in `vercel.json` for `/api/drive/cron`
+   works too (Vercel sends `Authorization: Bearer $CRON_SECRET` itself), but hourly schedules need a paid plan.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

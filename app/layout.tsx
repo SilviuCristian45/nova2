@@ -9,6 +9,8 @@ import { getWeightUnit } from "./units";
 import { UnitsProvider } from "./components/units-provider";
 import { OfflineProvider } from "@/lib/offline/client";
 import { OfflineStatus } from "./components/offline-status";
+import { DriveAutoSync } from "./components/drive-auto-sync";
+import { driveConfigured } from "@/lib/google-drive";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -72,6 +74,7 @@ export default async function RootLayout({
               <ThemeToggle />
             </div>
             <OfflineStatus />
+            {driveConfigured() && <DriveAutoSync />}
             {children}
             </OfflineProvider>
             </UnitsProvider>

@@ -8,7 +8,8 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 ## Stack și direcție
 - Next.js 16 (App Router, `proxy.ts` în loc de middleware), React 19, Tailwind 4, TypeScript, `@ducanh2912/next-pwa`.
 - Supabase: Postgres + Auth + RLS. Clienți: `lib/supabase/server.ts` (anon, cu sesiune), `utils/supabase/client.ts` (browser),
-  `lib/supabase/admin.ts` (service_role, `server-only`: doar ștergerea contului și catalogul de coduri de bare).
+  `lib/supabase/admin.ts` (service_role, `server-only`: ștergerea contului, catalogul de coduri de bare și tabelul
+  `google_drive_backups`, accesat doar prin `lib/drive-service.ts`).
 - Țintă: self-hosted pe VPS prin docker-compose (încă nefăcut: lipsesc `output: "standalone"`, Dockerfile, compose).
 - Modulul ML (Python/FastAPI) e în pauză.
 
@@ -28,10 +29,22 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
   complet și `revoke … from public, anon`.
 - Variabile de mediu: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
   (fără ea nu merg scanarea codurilor de bare și ștergerea contului).
+  Backup Google Drive: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `DRIVE_TOKEN_KEY`
+  (32 bytes base64, criptează refresh token-urile), `CRON_SECRET` (pentru `/api/drive/cron`, apelat orar). Fără ele
+  cardul din Setări nu apare. Detalii în README („Automatic Google Drive backup”).
+
+## Design
+- Tokenii sunt în `app/globals.css` (lime = singurul accent pentru acțiuni; coral/ice/lilac/gold/red doar pentru date;
+  suprafețe `card` / `inner` / `control`, fără contururi). Paleta implicită Tailwind e dezactivată: `zinc-*`, `emerald-*`
+  etc. nu mai există.
+- Componentele sunt în `app/components/ui` (`Screen`, `Card`, `Button`, `Select`, `Segmented`...). Seturile și badge-urile
+  de tip set sunt în `app/components/workout-parts.tsx`, folosite identic în `/insert`, `/offline` și `/edit`.
+- Nu suprascrie prin `className` o clasă pe care componenta o setează deja (padding, fundal, min-height): în Tailwind 4
+  câștigă ordinea din CSS, nu cea din atribut. Adaugă o opțiune la componentă (ex. `compact`, `small`).
 
 ## Reguli care nu se văd ușor din cod
 - **GDPR:** toate tabelele cu date de utilizator au FK `on delete cascade` spre `auth.users`. Un tabel nou trebuie:
-  cascade, RLS, inclus în `app/api/account/export/route.ts`, în funcția SQL `import_my_data` și în `delete_my_data`.
+  cascade, RLS, inclus în export (`lib/account-export.ts`), în funcția SQL `import_my_data` și în `delete_my_data`.
 - **Catalog comun de alimente:** produsele cu cod de bare au `user_id = null` și se scriu doar pe server, prin
   `lib/foods.ts` (date de la Open Food Facts, niciodată valori trimise de client). Alimentele manuale sunt private.
 - **Offline:** salvările trec prin coada din IndexedDB (`saveOfflineMutation`) când `useOffline().ownerId` există;
