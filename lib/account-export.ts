@@ -3,11 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 const PAGE_SIZE = 1000
 
 export type ExportAccount = { id: string; email?: string | null; created_at?: string | null }
+// The Google Drive link as it appears in an export: never the refresh token.
+export type ExportDriveBackup = { email: string | null; frequency: string; last_backup_at: string | null }
 
 // GDPR data portability: everything stored about one user, in the "replog-export" v1 format that
 // /api/account/import (and the mobile app) read. Every query filters on the user's id explicitly, so this works
 // with the signed-in user's client (the export route) and with the service-role client (the Drive backup cron).
-export async function buildExport(supabase: SupabaseClient, account: ExportAccount) {
+// The Drive link table is readable only with the service-role key, so the caller passes it in (`driveBackup`).
+export async function buildExport(supabase: SupabaseClient, account: ExportAccount, driveBackup: ExportDriveBackup | null = null) {
   const userId = account.id
 
   // Supabase returns at most 1000 rows per request, so read every table page by page.
@@ -65,5 +68,8 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     meal_templates: templates,
     daily_steps: steps,
     daily_weight: weights,
+    google_drive_backup: driveBackup
+      ? { email: driveBackup.email, frequency: driveBackup.frequency, last_backup_at: driveBackup.last_backup_at }
+      : null,
   }
 }
