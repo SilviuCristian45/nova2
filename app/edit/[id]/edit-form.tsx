@@ -115,7 +115,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
         setError(result.error)
         return
       }
-      router.push("/?history=true")
+      router.push("/history")
       router.refresh()
     })
   }
@@ -125,7 +125,7 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
       
       {/* HEADER */}
       <header className="flex flex-col gap-6 mb-6 mt-2">
-        <Link href="/?history=true" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 w-fit">
+        <Link href="/history" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 w-fit">
           <ArrowLeft className="size-5" />
         <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
         <div className="flex items-center gap-3">

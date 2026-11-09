@@ -12,12 +12,12 @@ export function tap() {
 }
 
 type ButtonProps = Omit<ComponentProps<"button">, "onClick"> & {
-  variant?: ButtonVariant; tone?: Tone; large?: boolean; icon?: LucideIcon; busy?: boolean;
+  variant?: ButtonVariant; tone?: Tone; large?: boolean; small?: boolean; icon?: LucideIcon; busy?: boolean;
   // A returned promise shows the spinner and ignores further presses until it settles (no double saves).
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => unknown;
 };
 
-export function Button({ variant = "primary", tone, large, icon: Icon, busy, disabled, onClick, className, children, type = "button", ...rest }: ButtonProps) {
+export function Button({ variant = "primary", tone, large, small, icon: Icon, busy, disabled, onClick, className, children, type = "button", ...rest }: ButtonProps) {
   const [running, setRunning] = useState(false);
   const loading = busy || running;
   async function press(event: React.MouseEvent<HTMLButtonElement>) {
@@ -34,7 +34,7 @@ export function Button({ variant = "primary", tone, large, icon: Icon, busy, dis
   }
   return (
     <button {...rest} type={type} disabled={disabled || loading} aria-busy={loading || undefined} onClick={press}
-      className={buttonClass({ variant, tone, large, className })}>
+      className={buttonClass({ variant, tone, large, small, className })}>
       {loading ? <Loader2 className="size-[18px] animate-spin" /> : Icon ? <Icon className={large ? "size-5" : "size-[18px]"} /> : null}
       {children}
     </button>

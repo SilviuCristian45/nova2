@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { lockOfflineAccount } from "@/lib/offline/store";
 import { useLanguage } from "./language-provider";
+import { iconButtonClass } from "./ui";
 
 export function SignOutButton() {
   const { t } = useLanguage();
@@ -26,10 +27,10 @@ export function SignOutButton() {
   return (
     <div className="flex flex-col items-end gap-1">
       <button type="button" disabled={pending} onClick={() => void signOut()} aria-label={t("Deconectare", "Sign out")}
-        className="rounded-xl border border-zinc-200 bg-zinc-100 p-2.5 text-zinc-600 transition-all disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        <LogOut className="size-4" />
+        title={t("Deconectare", "Sign out")} className={iconButtonClass()}>
+        <LogOut className="size-5" />
       </button>
-      {error && <p role="alert" className="max-w-52 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="max-w-52 text-xs font-semibold text-red-text">{error}</p>}
     </div>
   );
 }

@@ -3,7 +3,8 @@
 
 import { Text, useLanguage } from "@/app/components/language-provider"
 import { useState } from "react";
-import { Target, Edit2, Check, X, Loader2 } from "lucide-react";
+import { Pencil, Check, X, Loader2 } from "lucide-react";
+import { IconButton, Input, Label } from "./ui";
 import { updateDailyGoal } from "../profiles/profile";
 
 interface GoalSettingProps {
@@ -23,7 +24,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
   async function handleSave() {
     const newGoal = parseInt(goal, 10);
     if (isNaN(newGoal) || newGoal <= 0) {
-      setMessage(t("❌ Invalid", "❌ Invalid"));
+      setMessage(t("Invalid", "Invalid"));
       setTimeout(() => setMessage(null), 2000);
       return;
     }
@@ -40,7 +41,7 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
     const result = await updateDailyGoal(formData);
 
     if (result?.error) {
-      setMessage(t("❌ Eroare", "❌ Error"));
+      setMessage(t("Eroare", "Error"));
     } else {
       setIsEditing(false);
       setMessage(null);
@@ -55,76 +56,28 @@ export default function GoalSetting({ currentGoal }: GoalSettingProps) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800/80 mb-4 shadow-inner relative overflow-hidden">
-      <div className="flex items-center gap-3 relative z-10">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-inner">
-          <Target className="size-5 text-amber-600 dark:text-amber-500" />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-500 pl-1">
-            <Text ro="Obiectiv Zilnic" en="Daily goal" />
-          </span>
-
-          {isEditing ? (
-            <input
-              type="number"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              step="500"
-              min="1000"
-              className="h-8 w-28 px-2 rounded-lg border border-amber-500/50 bg-white dark:bg-zinc-950 text-amber-600 dark:text-amber-400 font-bold focus:ring-1 focus:ring-amber-500/50 outline-none transition-all shadow-inner"
-            />
-          ) : (
-            <span className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 pl-1">
-              {formattedGoal}{" "}
-              <span className="text-sm text-zinc-500 font-medium"><Text ro="pași" en="steps" /></span>
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1.5 relative z-10">
-        {message && (
-          <span
-            className={`text-xs font-bold ${message.startsWith("❌") ? "text-red-700 dark:text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}
-          >
-            {message}
-          </span>
-        )}
-
+    <section className="flex items-center gap-3 rounded-lg bg-card px-[18px] py-3.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <Label htmlFor="daily-goal"><Text ro="Obiectiv zilnic" en="Daily goal" /></Label>
         {isEditing ? (
-          <>
-            <button
-              aria-label={t("Salvează obiectivul", "Save goal")}
-              onClick={handleSave}
-              disabled={isPending}
-              className="size-9 flex items-center justify-center rounded-xl bg-amber-500 text-zinc-950 hover:bg-amber-400 disabled:opacity-50 transition-all active:scale-95"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Check className="size-4" />
-              )}
-            </button>
-            <button
-              aria-label={t("Anulează", "Cancel")}
-              onClick={handleCancel}
-              disabled={isPending}
-              className="size-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-all active:scale-95 border border-zinc-200 dark:border-zinc-700/50"
-            >
-              <X className="size-4" />
-            </button>
-          </>
+          <Input id="daily-goal" type="text" inputMode="numeric" value={goal} autoFocus
+            onChange={(e) => setGoal(e.target.value)} className="max-w-40" />
         ) : (
-          <button
-            aria-label={t("Editează obiectivul", "Edit goal")}
-            onClick={() => setIsEditing(true)}
-            className="size-9 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all active:scale-95 border border-zinc-200 dark:border-zinc-700/50"
-          >
-            <Edit2 className="size-4" />
-          </button>
+          <span className="text-[20px] font-semibold tracking-[-0.4px] tabular-nums">
+            {formattedGoal}{" "}
+            <span className="text-sm font-normal text-muted"><Text ro="pași" en="steps" /></span>
+          </span>
         )}
       </div>
-    </div>
+      {message && <span role="alert" className="text-xs font-semibold text-red-text">{message}</span>}
+      {isEditing ? (
+        <>
+          <IconButton icon={isPending ? Loader2 : Check} tone="lime" label={t("Salvează obiectivul", "Save goal")} onClick={handleSave} disabled={isPending} />
+          <IconButton icon={X} label={t("Anulează", "Cancel")} onClick={handleCancel} disabled={isPending} />
+        </>
+      ) : (
+        <IconButton icon={Pencil} label={t("Editează obiectivul", "Edit goal")} onClick={() => { setGoal(currentGoal.toString()); setIsEditing(true); }} />
+      )}
+    </section>
   );
 }

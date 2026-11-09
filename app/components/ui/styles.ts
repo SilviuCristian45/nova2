@@ -11,14 +11,14 @@ const variantClass: Record<Exclude<ButtonVariant, "soft">, string> = {
   danger: "bg-red text-white border-transparent",
 };
 
-// Pill button: 50px (60px when large), shrinks a little when pressed, half-transparent when disabled.
-export function buttonClass({ variant = "primary", tone = "lime", large, className }: {
-  variant?: ButtonVariant; tone?: Tone; large?: boolean; className?: string;
+// Pill button: 50px (60px when large, 40px when small), shrinks a little when pressed, half-transparent when disabled.
+export function buttonClass({ variant = "primary", tone = "lime", large, small, className }: {
+  variant?: ButtonVariant; tone?: Tone; large?: boolean; small?: boolean; className?: string;
 } = {}) {
   return cx(
     "inline-flex items-center justify-center gap-2 rounded-full border font-semibold transition-transform active:scale-[0.98]",
     "disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
-    large ? "min-h-[60px] px-6 text-[17px]" : "min-h-[50px] px-5 text-[15px]",
+    large ? "min-h-[60px] px-6 text-[17px]" : small ? "min-h-10 px-4 text-sm" : "min-h-[50px] px-5 text-[15px]",
     variant === "soft" ? cx(toneSoft[tone], toneBorder[tone]) : variantClass[variant],
     className,
   );

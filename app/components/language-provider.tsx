@@ -54,7 +54,7 @@ export function LanguageSelector() {
       aria-label={t("Limba interfeței", "Interface language")}
       value={language}
       onChange={(event) => setLanguage(event.target.value as Language)}
-      className="h-10 rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-medium text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      className="h-11 appearance-none rounded-full bg-control px-4 text-sm font-semibold text-soft"
     >
       <option value="en">English</option>
       <option value="ro">Română</option>
