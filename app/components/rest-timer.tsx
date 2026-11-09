@@ -159,30 +159,30 @@ export function RestTimerSettings({ timer }: { timer: RestTimer }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+        <span className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
           <Timer className="size-3.5" />{t("Pauză între seturi", "Rest between sets")}
         </span>
         {REST_PRESETS.map((seconds) => (
           <button key={seconds} type="button" onClick={() => timer.chooseDuration(seconds)} aria-pressed={timer.duration === seconds}
-            className={`h-8 rounded-lg border px-2.5 text-xs font-bold transition-all ${timer.duration === seconds
-              ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-              : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"}`}>
+            className={`h-9 rounded-full px-3 text-[13px] font-semibold tabular-nums transition-colors ${timer.duration === seconds
+              ? "bg-lime text-on-solid"
+              : "bg-inner text-muted"}`}>
             {formatClock(seconds)}
           </button>
         ))}
         <button type="button" onClick={() => void timer.toggleNotify()} aria-pressed={timer.notify}
           aria-label={timer.notify ? t("Oprește notificările", "Turn off notifications") : t("Pornește notificările", "Turn on notifications")}
-          className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold ${timer.notify
-            ? "border-emerald-500 text-emerald-700 dark:text-emerald-400" : "border-zinc-200 dark:border-zinc-800 text-zinc-500"}`}>
+          className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${timer.notify
+            ? "bg-lime-soft text-lime-text" : "bg-inner text-muted"}`}>
           {timer.notify ? <Bell className="size-3.5" /> : <BellOff className="size-3.5" />}
           {t("Notificare", "Notify")}
         </button>
       </div>
       {timer.permission === "denied" && (
-        <p className="text-xs text-red-700 dark:text-red-400">{t("Notificările sunt blocate din setările browserului.", "Notifications are blocked in your browser settings.")}</p>
+        <p className="text-xs font-semibold text-red-text">{t("Notificările sunt blocate din setările browserului.", "Notifications are blocked in your browser settings.")}</p>
       )}
       {timer.permission === "unsupported" && (
-        <p className="text-xs text-zinc-500">{t("Browserul nu suportă notificări. Pe iPhone, adaugă aplicația pe ecranul principal.", "This browser does not support notifications. On iPhone, add the app to your home screen.")}</p>
+        <p className="text-xs text-muted">{t("Browserul nu suportă notificări. Pe iPhone, adaugă aplicația pe ecranul principal.", "This browser does not support notifications. On iPhone, add the app to your home screen.")}</p>
       )}
     </div>
   );
@@ -195,26 +195,26 @@ export function RestTimerBar({ timer }: { timer: RestTimer }) {
   const progress = timer.running ? 1 - timer.remaining / Math.max(timer.duration, timer.remaining) : 1;
   return (
     <div role="timer" aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-50 bg-card/95 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-      <div className="h-1 bg-emerald-500 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
+      <div className="h-1.5 bg-inner"><div className="h-full rounded-r-full bg-lime transition-[width] duration-300" style={{ width: `${progress * 100}%` }} /></div>
+      <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-5 py-3">
         {timer.running ? <>
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-zinc-500">{t("Pauză", "Rest")}</span>
-            <span className="font-mono text-3xl font-black tabular-nums">{formatClock(timer.remaining)}</span>
+            <span className="text-[13px] font-medium text-muted">{t("Pauză", "Rest")}</span>
+            <span className="text-[32px] font-bold leading-tight tracking-[-1px] tabular-nums">{formatClock(timer.remaining)}</span>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => timer.adjust(-15)} aria-label={t("Scade 15 secunde", "Subtract 15 seconds")}
-              className="flex h-11 items-center gap-1 rounded-xl border border-zinc-200 dark:border-zinc-800 px-3 text-sm font-bold"><Minus className="size-4" />15</button>
+              className="flex h-11 items-center gap-1 rounded-full bg-control px-3 text-sm font-semibold tabular-nums"><Minus className="size-4" />15</button>
             <button type="button" onClick={() => timer.adjust(15)} aria-label={t("Adaugă 15 secunde", "Add 15 seconds")}
-              className="flex h-11 items-center gap-1 rounded-xl border border-zinc-200 dark:border-zinc-800 px-3 text-sm font-bold"><Plus className="size-4" />15</button>
+              className="flex h-11 items-center gap-1 rounded-full bg-control px-3 text-sm font-semibold tabular-nums"><Plus className="size-4" />15</button>
             <button type="button" onClick={timer.skip} aria-label={t("Sari peste pauză", "Skip rest")}
-              className="flex h-11 items-center gap-1.5 rounded-xl bg-emerald-500 px-3 text-sm font-bold text-zinc-950"><SkipForward className="size-4" />{t("Gata", "Skip")}</button>
+              className="flex h-11 items-center gap-1.5 rounded-full bg-lime px-4 text-sm font-semibold text-on-solid"><SkipForward className="size-4" />{t("Gata", "Skip")}</button>
           </div>
         </> : <>
-          <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">{t("Pauza s-a terminat. Următorul set!", "Rest is over. Next set!")}</span>
-          <button type="button" onClick={timer.skip} className="h-11 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 text-sm font-bold">OK</button>
+          <span className="text-[17px] font-bold text-lime-text">{t("Pauza s-a terminat. Următorul set!", "Rest is over. Next set!")}</span>
+          <button type="button" onClick={timer.skip} className="h-11 rounded-full bg-control px-5 text-sm font-semibold">OK</button>
         </>}
       </div>
     </div>

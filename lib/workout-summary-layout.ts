@@ -15,9 +15,10 @@ const INNER = CARD_WIDTH - PAD * 2;
 const MAX_RECORDS_BOX = 420; // tallest the records box may be
 const CONTENT_TOP = 650; // below the header and the stat tiles
 
+// The app's dark palette: lime accent, black text on lime, filled tiles.
 export const COLORS = {
-  text: "#fafafa", soft: "#e4e4e7", muted: "#a1a1aa", emerald: "#10b981", emeraldLight: "#6ee7b7", onEmerald: "#052e2b",
-  tile: "rgba(255,255,255,0.06)", recordFill: "rgba(16,185,129,0.14)", recordStroke: "rgba(16,185,129,0.45)",
+  text: "#f6f6f4", soft: "#b4b4ba", muted: "#85858c", accent: "#c8f031", accentText: "#c8f031", onAccent: "#0c0c0d",
+  tile: "#151517", recordFill: "rgba(200,240,49,0.12)", recordStroke: "rgba(200,240,49,0.25)",
 } as const;
 
 export type Measure = (text: string, size: number, weight: number) => number;
@@ -110,8 +111,8 @@ function fitSize(text: string, maxWidth: number, sizes: number[], weight: number
 
 function header(summary: WorkoutSummary, measure: Measure): LayoutItem[] {
   const items: LayoutItem[] = [
-    { kind: "rect", x: PAD, y: 90, w: 84, h: 84, r: 22, fill: COLORS.emerald },
-    { kind: "text", text: "R", x: PAD + 42, y: 152, size: 54, weight: 900, color: COLORS.onEmerald, align: "center" },
+    { kind: "rect", x: PAD, y: 90, w: 84, h: 84, r: 22, fill: COLORS.accent },
+    { kind: "text", text: "R", x: PAD + 42, y: 152, size: 54, weight: 900, color: COLORS.onAccent, align: "center" },
     { kind: "text", text: "RepLog", x: PAD + 108, y: 150, size: 48, weight: 800, color: COLORS.text },
   ];
   const titleSize = fitSize(summary.title, INNER, [110, 92, 76, 62, 52], 900, measure);
@@ -139,7 +140,7 @@ function header(summary: WorkoutSummary, measure: Measure): LayoutItem[] {
 
 function footer(): LayoutItem[] {
   return [
-    { kind: "rect", x: PAD, y: CARD_HEIGHT - 110, w: 64, h: 6, r: 0, fill: COLORS.emerald },
+    { kind: "rect", x: PAD, y: CARD_HEIGHT - 110, w: 64, h: 6, r: 0, fill: COLORS.accent },
     { kind: "text", text: "RepLog", x: PAD, y: CARD_HEIGHT - 56, size: 28, weight: 600, color: COLORS.muted },
   ];
 }
@@ -158,7 +159,7 @@ function recordsBox(summary: WorkoutSummary, tier: Tier, labels: SummaryLabels, 
   const rows = Math.ceil(shown.length / cols);
   const boxH = headH + rows * tier.recordRow + 20;
   items.push({ kind: "rect", x: PAD, y: top, w: INNER, h: boxH, r: 32, fill: COLORS.recordFill, stroke: COLORS.recordStroke });
-  items.push({ kind: "text", text: `★  ${labels.recordsTitle.toUpperCase()}`, x: PAD + 36, y: top + 56, size: cols === 1 ? 28 : 24, weight: 800, color: COLORS.emeraldLight });
+  items.push({ kind: "text", text: `★  ${labels.recordsTitle.toUpperCase()}`, x: PAD + 36, y: top + 56, size: cols === 1 ? 28 : 24, weight: 800, color: COLORS.accentText });
   const cellW = (INNER - 72 - (cols - 1) * 24) / cols;
   shown.forEach((record, index) => {
     const x = PAD + 36 + (index % cols) * (cellW + 24);
@@ -188,13 +189,13 @@ function exerciseCell(exercise: WorkoutSummary["exercises"][number], tier: Tier,
     const lineH = Math.round(tier.nameSize * 1.2);
     nameLines.forEach((line, index) => place({ kind: "text", text: line, x, y: y + lineH * (index + 1) - 8, size: tier.nameSize, weight: 800, color: COLORS.text }));
     if (exercise.record) {
-      place({ kind: "rect", x: x + width - pillW, y: y + 4, w: pillW, h: Math.round(tier.nameSize * 0.85), r: 20, fill: COLORS.emerald });
-      place({ kind: "text", text: pillText, x: x + width - pillW / 2, y: y + 4 + Math.round(tier.nameSize * 0.85) * 0.72, size: pillSize, weight: 800, color: COLORS.onEmerald, align: "center" });
+      place({ kind: "rect", x: x + width - pillW, y: y + 4, w: pillW, h: Math.round(tier.nameSize * 0.85), r: 20, fill: COLORS.accent });
+      place({ kind: "text", text: pillText, x: x + width - pillW / 2, y: y + 4 + Math.round(tier.nameSize * 0.85) * 0.72, size: pillSize, weight: 800, color: COLORS.onAccent, align: "center" });
     }
     y += lineH * nameLines.length + 8;
   } else {
     const label = `${exercise.record ? "★ " : ""}${exercise.name}`;
-    place({ kind: "text", text: ellipsize(label, width, tier.nameSize, 800, measure), x, y: y + tier.nameSize, size: tier.nameSize, weight: 800, color: exercise.record ? COLORS.emeraldLight : COLORS.text });
+    place({ kind: "text", text: ellipsize(label, width, tier.nameSize, 800, measure), x, y: y + tier.nameSize, size: tier.nameSize, weight: 800, color: exercise.record ? COLORS.accentText : COLORS.text });
     y += Math.round(tier.nameSize * 1.2) + 6;
   }
 

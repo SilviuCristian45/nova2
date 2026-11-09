@@ -34,9 +34,11 @@ export function iconButtonClass({ tone, plain, className }: { tone?: Tone; plain
 }
 
 // Filled input: no border until focus. `big` is the bold centred variant for weight and reps.
-export function inputClass({ big, center, className }: { big?: boolean; center?: boolean; className?: string } = {}) {
+// `compact` narrows the side padding for the small number fields of the set form.
+export function inputClass({ big, center, compact, className }: { big?: boolean; center?: boolean; compact?: boolean; className?: string } = {}) {
   return cx(
-    "min-h-[52px] w-full min-w-0 rounded-md border-[1.5px] border-transparent bg-inner px-3.5 text-foreground outline-none",
+    "min-h-[52px] w-full min-w-0 rounded-md border-[1.5px] border-transparent bg-inner text-foreground outline-none",
+    compact ? "px-1" : "px-3.5",
     "transition-colors focus:border-lime focus-visible:outline-none disabled:opacity-50",
     big ? "text-[18px] font-bold" : "text-[15px]",
     (big || center) && "text-center font-bold tabular-nums",

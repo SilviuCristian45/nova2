@@ -30,8 +30,8 @@ export function renderWorkoutSummary(summary: WorkoutSummary, labels: SummaryLab
 
   const background = ctx.createLinearGradient(0, 0, CARD_WIDTH, CARD_HEIGHT);
   background.addColorStop(0, "#09090b");
-  background.addColorStop(0.6, "#0b1f1c");
-  background.addColorStop(1, "#064e3b");
+  background.addColorStop(0.6, "#0d0f08");
+  background.addColorStop(1, "#1f2a06");
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
   const glow = ctx.createRadialGradient(CARD_WIDTH - 120, 160, 0, CARD_WIDTH - 120, 160, 520);

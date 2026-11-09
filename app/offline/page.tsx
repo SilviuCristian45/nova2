@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, CloudOff, Dumbbell, Footprints, Heart, RefreshCw, Scale, Download, Trash2, Trophy } from "lucide-react";
+import { ArrowLeft, Dumbbell, Heart, Plus, RefreshCw, Download, Trash2 } from "lucide-react";
 import { useUnits } from "@/app/components/units-provider";
 import { RestTimerBar, RestTimerSettings, useRestTimer } from "@/app/components/rest-timer";
 import { useLanguage } from "@/app/components/language-provider";
 import { cardioName, exerciseName } from "@/lib/exercise-catalog";
 import { CardioName, ExerciseName } from "@/app/components/exercise-name";
+import { CardioRows, SetRows, SetTypeBadge } from "@/app/components/workout-parts";
+import { Badge, Message, Segmented, Select, buttonClass as buttonRecipe, inputClass as inputRecipe } from "@/app/components/ui";
 import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
@@ -22,9 +24,10 @@ import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import type { OfflineCardio, OfflineMutation, OfflinePayload, OfflineSet, OfflineSnapshot } from "@/lib/offline/types";
 import { CARDIO_ACTIVITIES, EXERCISES, SET_TYPES, SPLITS } from "@/lib/workout-data";
 
-const inputClass = "h-11 w-full min-w-0 rounded-xl border bg-background px-3 text-sm";
-const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50";
-const panelClass = "min-w-0 rounded-2xl border bg-card p-4 shadow-sm sm:p-6";
+const inputClass = inputRecipe();
+const buttonClass = buttonRecipe();
+const panelClass = "flex min-w-0 flex-col gap-3.5 rounded-lg bg-card p-[18px]";
+const labelClass = "flex flex-col gap-1.5 text-[13px] font-medium text-muted";
 type LocalSet = OfflineSet & { uiId: string };
 type LocalCardio = OfflineCardio & { uiId: string };
 
@@ -71,16 +74,17 @@ export default function OfflinePage() {
   }
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-6xl space-y-6 bg-background p-4 text-foreground sm:p-8">
-      <header className="space-y-4">
-        <Link href="/" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden="true" />{t("Înapoi la panoul online", "Back to online dashboard")}
-        </Link>
-        <div className="flex items-start gap-3">
-          <CloudOff className="mt-1 size-7 shrink-0 text-primary" aria-hidden="true" />
+    <main className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5 pb-12 text-foreground">
+      <header className="mb-2 flex flex-col gap-2">
+        <div className="flex items-center gap-1.5">
+          <Link href="/" prefetch={false} className="-ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-full text-soft active:opacity-60">
+            <ArrowLeft className="size-5" aria-hidden="true" /><span className="sr-only">{t("Înapoi la panoul online", "Back to online dashboard")}</span>
+          </Link>
+          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.8px]">{t("Spațiul de lucru offline", "Offline workspace")}</h1>
+        </div>
+        <div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("Spațiul de lucru offline", "Offline workspace")}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t(
+            <p className="text-[13px] text-soft">{t(
               "Înregistrează antrenamente, pași și greutate pe acest dispozitiv. Modificările salvate se sincronizează când conexiunea revine. Nutriția necesită conexiune la internet.",
               "Log workouts, steps and weight on this device. Saved changes sync when your connection returns. Nutrition requires an internet connection.",
             )}</p>
@@ -90,14 +94,14 @@ export default function OfflinePage() {
 
       <section aria-label={t("Starea sincronizării", "Sync status")} className={panelClass}>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-2" aria-live="polite">
+          <div className="flex flex-col gap-2" aria-live="polite">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-              <span className={`rounded-full px-3 py-1 ${online ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-800 dark:text-amber-400"}`}>
+              <Badge tone={online ? "lime" : "gold"}>
                 {!ready ? t("Se încarcă…", "Loading…") : online ? t("Conectat", "Online") : t("Fără conexiune", "Offline")}
-              </span>
-              {ready && <span>{pending.toLocaleString(locale)} {t("în așteptarea sincronizării", "queued for sync")}</span>}
+              </Badge>
+              {ready && <span className="tabular-nums">{pending.toLocaleString(locale)} {t("în așteptarea sincronizării", "queued for sync")}</span>}
             </div>
-            {ready && <p className="text-sm text-muted-foreground">
+            {ready && <p className="text-[13px] text-muted">
               {syncing || retrying ? t("Sincronizare în curs…", "Syncing…") : pending > 0
                 ? t("Înregistrările în așteptare sunt doar pe acest dispozitiv.", "Queued entries are only on this device.")
                 : ownerId ? t("Nicio înregistrare în așteptare pe acest dispozitiv.", "No queued entries on this device.")
@@ -109,44 +113,44 @@ export default function OfflinePage() {
             {error || actionError ? t("Reîncearcă sincronizarea", "Retry sync") : t("Sincronizează / descarcă", "Sync / download")}
           </button>
         </div>
-        {(error || actionError) && <p role="alert" className="mt-4 break-words rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
+        {(error || actionError) && <p role="alert" className="break-words rounded-md bg-red-soft p-3.5 text-sm font-semibold text-red-text">
           {t("Sincronizarea sau stocarea locală necesită atenție:", "Sync or local storage needs attention:")} {actionError || (error && localizeOfflineMessage(error, t))}
         </p>}
-        {errorKind === "session" && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+        {errorKind === "session" && <p role="status" className="rounded-md bg-gold-soft p-3.5 text-sm font-semibold text-gold-text">
           {t("Sesiunea a expirat sau nu mai este validă. Autentifică-te din nou: toate înregistrările offline sunt păstrate pe acest dispozitiv și se vor sincroniza după autentificare.", "Your session expired or is no longer valid. Sign in again: all offline entries are kept on this device and will sync after you sign in.")}
         </p>}
-        {errorKind && errorKind !== "session" && errorKind !== "owner" && <p className="mt-2 text-xs text-muted-foreground">
+        {errorKind && errorKind !== "session" && errorKind !== "owner" && <p className="text-xs text-muted">
           {t("Nimic nu a fost șters. Sincronizarea se reia automat când conexiunea și serverul sunt disponibile.", "Nothing was deleted. Sync resumes automatically when the connection and the server are available.")}
         </p>}
-        {otherPending > 0 && <p role="status" className="mt-4 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-400">
+        {otherPending > 0 && <p role="status" className="rounded-md bg-gold-soft p-3.5 text-sm font-semibold text-gold-text">
           {t(`${otherPending} înregistrări așteaptă sincronizarea pentru un alt cont de pe acest dispozitiv. Autentifică-te în acel cont ca să le sincronizezi; ele nu se pierd la schimbarea contului.`, `${otherPending} entries on this device are waiting to sync for another account. Sign in to that account to sync them; switching accounts does not lose them.`)}
         </p>}
-        {activeSnapshot && <p className="mt-4 text-xs text-muted-foreground">
+        {activeSnapshot && <p className="text-xs text-muted">
           {t("Ultima descărcare:", "Last downloaded:")}{" "}
           <time dateTime={activeSnapshot.downloadedAt}>{new Date(activeSnapshot.downloadedAt).toLocaleString(locale)}</time>
           {" · "}{t("Datele sunt afișate numai pentru contul activ.", "Only the active account’s data is shown.")}
         </p>}
       </section>
 
-      {!ready ? <p role="status" className="py-8 text-center text-muted-foreground">{t("Se deschide spațiul local…", "Opening local workspace…")}</p>
+      {!ready ? <p role="status" className="py-8 text-center text-muted">{t("Se deschide spațiul local…", "Opening local workspace…")}</p>
         : !ownerId ? <section className={panelClass}>
-          <h2 className="text-lg font-bold">{t("Este necesară o primă conectare online", "An initial online sign-in is required")}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t(
+          <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{t("Este necesară o primă conectare online", "An initial online sign-in is required")}</h2>
+          <p className="text-[13px] text-soft">{t(
             "Nu există un cont activ pregătit pentru acces offline. Conectează-te online și descarcă datele pentru acest dispozitiv înainte de a înregistra offline. Dacă te-ai deconectat sau ai schimbat contul, revino online pentru verificare.",
             "No active account is prepared for offline access. Sign in online and download data for this device before logging offline. If you signed out or changed accounts, reconnect online to verify your account.",
           )}</p>
-          <Link href="/login" prefetch={false} className={`${buttonClass} mt-4`}>{t("Conectare online", "Sign in online")}</Link>
+          <Link href="/login" prefetch={false} className={buttonClass}>{t("Conectare online", "Sign in online")}</Link>
         </section>
           : <>
             <OwnerWorkspace key={ownerId} snapshot={activeSnapshot} disabled={forgetting} />
             {rejected.length > 0 && <RejectedEntries entries={rejected} onRetry={retryRejected} onDiscard={discardRejected} />}
-            <section className={`${panelClass} space-y-3`}>
-              <h2 className="font-bold">{t("Date pe acest dispozitiv", "Data on this device")}</h2>
-              <p className="text-sm text-muted-foreground">{t(
+            <section className={panelClass}>
+              <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{t("Date pe acest dispozitiv", "Data on this device")}</h2>
+              <p className="text-[13px] text-soft">{t(
                 "Datele offline pot fi accesibile altor persoane care folosesc acest browser. Ștergerea lor elimină și înregistrările nesincronizate; nu șterge datele deja salvate online.",
                 "Offline data may be accessible to others using this browser. Removing it also discards unsynced entries; it does not delete data already saved online.",
               )}</p>
-              <button type="button" onClick={() => void forgetData()} disabled={forgetting || syncing || retrying} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-700 disabled:opacity-50 dark:text-red-400">
+              <button type="button" onClick={() => void forgetData()} disabled={forgetting || syncing || retrying} className={buttonRecipe({ variant: "soft", tone: "red" })}>
                 <Trash2 className="size-4" aria-hidden="true" />{forgetting ? t("Se șterge…", "Removing…") : t("Șterge datele offline", "Remove offline data")}
               </button>
             </section>
@@ -173,22 +177,22 @@ function RejectedEntries({ entries, onRetry, onDiscard }: { entries: OfflineMuta
     try { await action(); } finally { setBusy(null); }
   }
 
-  return <section className={`${panelClass} space-y-3 border-red-500/30`} aria-labelledby="rejected-title">
-    <h2 id="rejected-title" className="font-bold">{t("Înregistrări respinse de server", "Entries rejected by the server")} ({entries.length})</h2>
-    <p className="text-sm text-muted-foreground">{t(
+  return <section className={`${panelClass} border border-red-border`} aria-labelledby="rejected-title">
+    <h2 id="rejected-title" className="text-[20px] font-semibold tracking-[-0.4px]">{t("Înregistrări respinse de server", "Entries rejected by the server")} ({entries.length})</h2>
+    <p className="text-[13px] text-soft">{t(
       "Serverul a refuzat aceste înregistrări ca invalide. Rămân pe dispozitiv până decizi: exportă-le ca fișier, reîncearcă sau șterge-le. Restul înregistrărilor se sincronizează normal.",
       "The server refused these entries as invalid. They stay on this device until you decide: export them as a file, retry, or discard them. Other entries sync normally.",
     )}</p>
-    <ul className="space-y-3">
-      {entries.map((entry) => <li key={entry.id} className="space-y-2 rounded-xl border p-3 text-sm">
+    <ul className="flex flex-col gap-2">
+      {entries.map((entry) => <li key={entry.id} className="flex flex-col gap-2 rounded-md bg-inner p-3 text-sm">
         <p className="font-semibold">{entry.payload.kind === "workout" ? t("Antrenament", "Workout") : entry.payload.kind === "steps" ? t("Pași", "Steps") : t("Greutate corporală", "Body weight")}{" · "}{entry.payload.date}</p>
-        <p className="break-words text-xs text-muted-foreground">{entry.rejected?.reason} {entry.rejected && <>({new Date(entry.rejected.at).toLocaleString(locale)})</>}</p>
+        <p className="break-words text-xs text-muted">{entry.rejected?.reason} {entry.rejected && <>({new Date(entry.rejected.at).toLocaleString(locale)})</>}</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => exportEntry(entry)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold"><Download className="size-4" aria-hidden="true" />{t("Exportă", "Export")}</button>
-          <button type="button" disabled={busy === entry.id} onClick={() => void run(entry.id, () => onRetry(entry.id))} className="inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold">{t("Reîncearcă", "Retry")}</button>
+          <button type="button" onClick={() => exportEntry(entry)} className={buttonRecipe({ variant: "secondary", small: true })}><Download className="size-4" aria-hidden="true" />{t("Exportă", "Export")}</button>
+          <button type="button" disabled={busy === entry.id} onClick={() => void run(entry.id, () => onRetry(entry.id))} className={buttonRecipe({ variant: "secondary", small: true })}>{t("Reîncearcă", "Retry")}</button>
           <button type="button" disabled={busy === entry.id} onClick={() => {
             if (window.confirm(t("Ștergi definitiv această înregistrare de pe dispozitiv? Dacă nu ai exportat-o, nu o mai poți recupera.", "Permanently delete this entry from the device? If you have not exported it, it cannot be recovered."))) void run(entry.id, () => onDiscard(entry.id));
-          }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" />{t("Șterge", "Discard")}</button>
+          }} className={buttonRecipe({ variant: "soft", tone: "red", small: true })}><Trash2 className="size-4" aria-hidden="true" />{t("Șterge", "Discard")}</button>
         </div>
       </li>)}
     </ul>
@@ -200,47 +204,47 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
   const { format } = useUnits();
   return (
     <>
-      <div className="grid items-start gap-5 md:grid-cols-2">
+      <div className="flex flex-col gap-4">
         <MetricForm kind="steps" snapshot={snapshot} disabled={disabled} />
         <MetricForm kind="weight" snapshot={snapshot} disabled={disabled} />
       </div>
       <WorkoutForm disabled={disabled} />
-      <section className={`${panelClass} space-y-4`}>
-        <div>
-          <h2 className="text-xl font-bold">{t("Istoric descărcat · ultimele 90 de zile", "Downloaded history · last 90 days")}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t(
+      <section className={panelClass}>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{t("Istoric descărcat · ultimele 90 de zile", "Downloaded history · last 90 days")}</h2>
+          <p className="text-[13px] text-soft">{t(
             "Include antrenamentele salvate local în așteptarea sincronizării. Editarea și ștergerea antrenamentelor nu sunt disponibile offline; folosește istoricul online după sincronizare.",
             "Includes locally saved workouts awaiting sync. Editing and deleting workouts are not supported offline; use online history after syncing.",
           )}</p>
         </div>
-        {!snapshot ? <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">{t(
+        {!snapshot ? <p className="rounded-md bg-inner p-5 text-center text-sm font-medium text-muted">{t(
           "Istoricul nu a fost descărcat încă. Revino online și folosește Sincronizează / descarcă.",
           "History has not been downloaded yet. Reconnect and use Sync / download.",
-        )}</p> : !snapshot.workouts.length ? <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">{t(
+        )}</p> : !snapshot.workouts.length ? <p className="rounded-md bg-inner p-5 text-center text-sm font-medium text-muted">{t(
           "Descărcarea este disponibilă, dar nu există antrenamente în această perioadă.",
           "Downloaded data is available, but there are no workouts in this period.",
-        )}</p> : <div className="space-y-3">
+        )}</p> : <div className="flex flex-col gap-2">
           {snapshot.workouts.map((workout) => (
-            <details key={workout.id} className="min-w-0 overflow-hidden rounded-xl border">
-              <summary className="cursor-pointer space-y-1 p-4 marker:text-primary">
+            <details key={workout.id} className="min-w-0 overflow-hidden rounded-md bg-inner">
+              <summary className="cursor-pointer p-3.5 marker:text-lime-text">
                 <span className="ml-1 font-semibold">{new Date(`${workout.performed_on}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}{" · "}
                   {workout.workout_mode === "cardio" ? t("Cardio", "Cardio") : <WorkoutLabel value={workout.split} />}
                 </span>
-                {workout.pending && <span className="ml-2 inline-block rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-800 dark:text-amber-400">{t("Nesincronizat", "Pending sync")}</span>}
-                <span className="mt-1 block text-xs text-muted-foreground">{workout.workout_sets.length} {t("seturi", "sets")}{" · "}{workout.cardio_sessions.length} {t("activități cardio", "cardio entries")}{" · "}{t("Deschide detaliile", "Expand details")}</span>
+                {workout.pending && <Badge tone="gold" className="ml-2">{t("Nesincronizat", "Pending sync")}</Badge>}
+                <span className="mt-1 block text-xs text-muted">{workout.workout_sets.length} {t("seturi", "sets")}{" · "}{workout.cardio_sessions.length} {t("activități cardio", "cardio entries")}{" · "}{t("Deschide detaliile", "Expand details")}</span>
               </summary>
-              <div className="space-y-3 border-t bg-secondary/10 p-4">
-                {workout.workout_sets.map((set, setIndex) => <div key={set.id} className="space-y-1 rounded-xl border bg-background p-3 text-sm">
-                  <p className="break-words font-semibold"><ExerciseName id={set.exercise} /></p>
-                  <p className="text-muted-foreground">{t("Set", "Set")} {displayOrdinals(workout.workout_sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]}{" · "}<WorkoutLabel value={set.set_type} /></p>
-                  <p>{format(set.weight)} × {set.reps.toLocaleString(locale)} {t("repetări", "reps")}{" · RIR "}{set.rir === null ? "–" : set.rir.toLocaleString(locale)}</p>
-                  {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
+              <div className="flex flex-col border-t border-line">
+                {workout.workout_sets.map((set, setIndex) => <div key={set.id} className="flex flex-col gap-1 border-b border-line px-3.5 py-3 text-sm last:border-0">
+                  <p className="break-words font-medium"><ExerciseName id={set.exercise} /></p>
+                  <p className="flex flex-wrap items-center gap-2"><span className="text-muted tabular-nums">{t("Set", "Set")} {displayOrdinals(workout.workout_sets.map((x) => ({ exercise: x.exercise, order: x.set_number })))[setIndex]}</span><SetTypeBadge type={set.set_type} /></p>
+                  <p className="font-semibold tabular-nums">{format(set.weight)} × {set.reps.toLocaleString(locale)} <span className="font-normal text-muted">{t("repetări", "reps")}{" · RIR "}{set.rir === null ? "–" : set.rir.toLocaleString(locale)}</span></p>
+                  {set.notes && <p className="whitespace-pre-wrap break-words text-muted">{set.notes}</p>}
                 </div>)}
-                {workout.cardio_sessions.map((entry) => <div key={entry.id} className="rounded-xl border bg-background p-3 text-sm">
-                  <p className="break-words font-semibold"><CardioName id={entry.activity} /></p>
-                  <p className="mt-1 text-muted-foreground">{entry.duration_min.toLocaleString(locale)} min</p>
+                {workout.cardio_sessions.map((entry) => <div key={entry.id} className="border-b border-line px-3.5 py-3 text-sm last:border-0">
+                  <p className="break-words font-medium"><CardioName id={entry.activity} /></p>
+                  <p className="mt-1 font-semibold text-coral-text tabular-nums">{entry.duration_min.toLocaleString(locale)} min</p>
                 </div>)}
-                {!workout.workout_sets.length && !workout.cardio_sessions.length && <p className="text-sm text-muted-foreground">{t("Nu există detalii salvate pentru acest antrenament.", "No saved details for this workout.")}</p>}
+                {!workout.workout_sets.length && !workout.cardio_sessions.length && <p className="p-3.5 text-sm text-muted">{t("Nu există detalii salvate pentru acest antrenament.", "No saved details for this workout.")}</p>}
               </div>
             </details>
           ))}
@@ -263,7 +267,6 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
   const existing = kind === "steps" ? snapshot?.steps.find((entry) => entry.date === date)?.steps : snapshot?.weights.find((entry) => entry.date === date)?.weight_kg;
   const value = draft[date] ?? (existing === undefined ? "" : String(kind === "weight" ? toUnit(existing) : existing));
   const title = kind === "steps" ? t("Pași", "Steps") : t("Greutate corporală", "Body weight");
-  const Icon = kind === "steps" ? Footprints : Scale;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -293,25 +296,25 @@ function MetricForm({ kind, snapshot, disabled }: { kind: "steps" | "weight"; sn
     }
   }
 
-  return <form onSubmit={submit} className={`${panelClass} space-y-4`}>
-    <h2 className="flex items-center gap-2 text-lg font-bold"><Icon className="size-5" aria-hidden="true" />{title}</h2>
-    <fieldset disabled={disabled || saving} className="space-y-4 disabled:opacity-60">
-      <label className="block space-y-1 text-sm"><span>{t("Data", "Date")}</span><input aria-label={`${title}: ${t("data", "date")}`} className={inputClass} type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); setError(null); }} /></label>
-      <label className="block space-y-1 text-sm"><span>{kind === "steps" ? t("Număr de pași", "Step count") : t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input className={inputClass} type="number" inputMode={kind === "steps" ? "numeric" : "decimal"} required min={kind === "steps" ? 0 : 0.01} max={kind === "steps" ? 2147483647 : 9999.99} step={kind === "steps" ? 1 : 0.01} value={value} onChange={(event) => { setDraft((current) => ({ ...current, [date]: event.target.value })); setSaved(false); }} /></label>
-      <p className="text-xs text-muted-foreground">{existing === undefined
+  return <form onSubmit={submit} className={panelClass}>
+    <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{title}</h2>
+    <fieldset disabled={disabled || saving} className="flex flex-col gap-3.5 disabled:opacity-60">
+      <label className={labelClass}><span>{t("Data", "Date")}</span><input aria-label={`${title}: ${t("data", "date")}`} className={inputClass} type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); setError(null); }} /></label>
+      <label className={labelClass}><span>{kind === "steps" ? t("Număr de pași", "Step count") : t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input className={inputClass} type="number" inputMode={kind === "steps" ? "numeric" : "decimal"} required min={kind === "steps" ? 0 : 0.01} max={kind === "steps" ? 2147483647 : 9999.99} step={kind === "steps" ? 1 : 0.01} value={value} onChange={(event) => { setDraft((current) => ({ ...current, [date]: event.target.value })); setSaved(false); }} /></label>
+      <p className="text-xs text-muted">{existing === undefined
         ? t("Nicio valoare locală pentru această dată; câmpul gol nu înseamnă zero.", "No local value for this date; a blank field does not mean zero.")
         : `${t("Valoare locală:", "Local value:")} ${kind === "weight" ? format(existing) : existing.toLocaleString(locale)}. ${t("Salvarea înlocuiește valoarea zilei.", "Saving replaces that day’s value.")}`}</p>
       <button className={buttonClass} type="submit">{saving ? t("Se salvează…", "Saving…") : t("Salvează pe dispozitiv", "Save on device")}</button>
     </fieldset>
-    {error && <p role="alert" className="break-words text-sm text-red-700 dark:text-red-400">{error}</p>}
-    {saved && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{t("Salvat pe dispozitiv și adăugat în coada de sincronizare. Starea de sus confirmă când coada este golită.", "Saved on this device and queued for sync. The status above confirms when the queue is empty.")}</p>}
+    {error && <Message>{error}</Message>}
+    {saved && <p role="status" className="text-[13px] font-semibold text-lime-text">{t("Salvat pe dispozitiv și adăugat în coada de sincronizare. Starea de sus confirmă când coada este golită.", "Saved on this device and queued for sync. The status above confirms when the queue is empty.")}</p>}
   </form>;
 }
 
 function WorkoutForm({ disabled }: { disabled: boolean }) {
   const { ownerId, snapshot } = useOffline();
-  const { t, locale, language } = useLanguage();
-  const { unit, toUnit, toKg, format } = useUnits();
+  const { t, language } = useLanguage();
+  const { unit, toUnit, toKg } = useUnits();
   const restTimer = useRestTimer();
   const [date, setDate] = useState(localDate);
   const [mode, setMode] = useState<"strength" | "cardio">("strength");
@@ -423,67 +426,85 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
     }
   }
 
-  return <section className={`${panelClass} space-y-5`}>
-    <div>
-      <h2 className="flex items-center gap-2 text-xl font-bold"><Dumbbell className="size-5" aria-hidden="true" />{t("Antrenament nou", "New workout")}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{t("1. Adaugă seturile sau activitățile în listă. 2. Salvează explicit antrenamentul complet. Lista nesalvată nu este păstrată dacă închizi pagina.", "1. Add sets or activities to the list. 2. Explicitly save the full workout. Unsaved lists are not kept if you close this page.")}</p>
-    </div>
-    <p className="rounded-xl border bg-secondary/10 p-3 text-xs text-muted-foreground">
-      {t("Recordurile personale se compară cu cele mai bune seturi din istoricul descărcat pe acest dispozitiv (ultimele 90 de zile, plus antrenamentele nesincronizate); un exercițiu fără istoric aici nu primește insignă de record. Nu există cronometru de antrenament.", "Personal records are compared with your best sets in the history downloaded to this device (last 90 days, plus unsynced workouts); an exercise with no history here gets no record badge. There is no workout timer.")}
-    </p>
-    {hasDraft && <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
-      {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
-    </p>}
-    <fieldset disabled={disabled || saving} className="min-w-0 space-y-5 disabled:opacity-60">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block space-y-1 text-sm"><span>{t("Data antrenamentului", "Workout date")}</span><input type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); }} className={inputClass} /></label>
-        <label className="block space-y-1 text-sm"><span>{t("Tip de antrenament", "Workout mode")}</span><select value={mode} onChange={(event) => { setMode(event.target.value as "strength" | "cardio"); setSaved(false); setError(null); }} className={inputClass}><option value="strength">{t("Forță", "Strength")}</option><option value="cardio">Cardio</option></select></label>
+  return <section className="flex flex-col gap-4">
+    <div className={panelClass}>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{t("Antrenament nou", "New workout")}</h2>
+        <p className="text-[13px] text-soft">{t("1. Adaugă seturile sau activitățile în listă. 2. Salvează explicit antrenamentul complet. Lista nesalvată nu este păstrată dacă închizi pagina.", "1. Add sets or activities to the list. 2. Explicitly save the full workout. Unsaved lists are not kept if you close this page.")}</p>
       </div>
-      <form onSubmit={addEntry} className="space-y-4 rounded-xl border bg-secondary/10 p-3 sm:p-4">
+      <p className="rounded-md bg-inner p-3 text-xs text-muted">
+        {t("Recordurile personale se compară cu cele mai bune seturi din istoricul descărcat pe acest dispozitiv (ultimele 90 de zile, plus antrenamentele nesincronizate); un exercițiu fără istoric aici nu primește insignă de record. Nu există cronometru de antrenament.", "Personal records are compared with your best sets in the history downloaded to this device (last 90 days, plus unsynced workouts); an exercise with no history here gets no record badge. There is no workout timer.")}
+      </p>
+      {hasDraft && <p role="status" className="rounded-md bg-gold-soft p-3.5 text-sm font-semibold text-gold-text">
+        {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
+      </p>}
+    </div>
+    <fieldset disabled={disabled || saving} className="flex min-w-0 flex-col gap-4 disabled:opacity-60">
+      <Segmented
+        label={t("Tip de antrenament", "Workout mode")}
+        value={mode}
+        onChange={(next) => { setMode(next); setSaved(false); setError(null); }}
+        options={[
+          { value: "strength", label: t("Forță", "Strength"), icon: Dumbbell },
+          { value: "cardio", label: "Cardio", icon: Heart },
+        ]}
+      />
+      <div className={panelClass}>
+        <label className={labelClass}><span>{t("Data antrenamentului", "Workout date")}</span><input type="date" required min="0001-01-01" max={localDate()} value={date} onChange={(event) => { setDate(event.target.value); setSaved(false); }} className={inputClass} /></label>
+      </div>
+      <form onSubmit={addEntry} className={panelClass}>
         {mode === "strength" ? <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1 text-sm"><span>{t("Grupă / split pentru set", "Split for this set")}</span><select className={inputClass} value={split} onChange={(event) => setSplit(event.target.value)}>{SPLITS.map((item) => <option key={item} value={item}><WorkoutLabel value={item} /></option>)}</select></label>
-            <label className="block space-y-1 text-sm"><span>{t("Tip de set", "Set type")}</span><select className={inputClass} value={setType} onChange={(event) => setSetType(event.target.value)}>{SET_TYPES.map((item) => <option key={item} value={item}><WorkoutLabel value={item} /></option>)}</select></label>
+          <div className={labelClass}><span>{t("Grupă / split pentru set", "Split for this set")}</span>
+            <Select title={t("Grupă / split pentru set", "Split for this set")} value={split} onChange={setSplit}
+              options={SPLITS.map((item) => ({ value: item, label: workoutLabelText(item, t) }))} /></div>
+          <div className={labelClass}><span>{t("Exercițiu", "Exercise")}</span>
+            <Select searchable title={t("Exercițiu", "Exercise")} value={exercise} onChange={setExercise}
+              options={EXERCISES.map((item) => ({ value: item, label: exerciseName(item, language) }))} /></div>
+          <div className="grid grid-cols-4 gap-2">
+            <label className={labelClass}><span>{t("Set", "Set")}</span><input type="number" readOnly aria-readonly="true" value={sets.filter((set) => set.exercise === exercise).length + 1} className={inputRecipe({ center: true, compact: true })} /></label>
+            <label className={labelClass}><span>{unit}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" placeholder="0" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputRecipe({ big: true, compact: true })} /></label>
+            <label className={labelClass}><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" placeholder="0" value={reps} onChange={(event) => setReps(event.target.value)} className={inputRecipe({ big: true, compact: true })} /></label>
+            <label className={labelClass}><span>RIR</span><input type="number" inputMode="numeric" min="0" max="5" step="1" placeholder="–" value={rir} onChange={(event) => setRir(event.target.value)} className={inputRecipe({ big: true, compact: true })} /></label>
           </div>
-          <label className="block space-y-1 text-sm"><span>{t("Exercițiu", "Exercise")}</span><select className={inputClass} value={exercise} onChange={(event) => setExercise(event.target.value)}>{EXERCISES.map((item) => <option key={item} value={item}>{exerciseName(item, language)}</option>)}</select></label>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block space-y-1 text-sm"><span>{t("Repetări", "Reps")}</span><input type="number" inputMode="numeric" required min="1" max="100000" step="1" value={reps} onChange={(event) => setReps(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>{t(`Greutate (${unit})`, `Weight (${unit})`)}</span><input type="number" inputMode="decimal" required min="0" max={Math.floor(toUnit(10000))} step="any" value={weight} onChange={(event) => setWeight(event.target.value)} className={inputClass} /></label>
-            <label className="block space-y-1 text-sm"><span>RIR (0–5)</span><input type="number" inputMode="numeric" min="0" max="5" step="1" value={rir} onChange={(event) => setRir(event.target.value)} className={inputClass} /></label>
-          </div>
-          <p className="text-xs text-muted-foreground">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
-          <label className="block space-y-1 text-sm"><span>{t("Notițe (opțional)", "Notes (optional)")}</span><textarea maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 w-full rounded-xl border bg-background p-3 text-sm" /></label>
+          <p className="text-xs text-muted">{t(`RIR = repetări în rezervă. Pentru exerciții fără greutate suplimentară introdu 0 ${unit}.`, `RIR = reps in reserve. For exercises without added weight, enter 0 ${unit}.`)}</p>
+          <div className={labelClass}><span>{t("Tip set", "Set type")}</span>
+            <Select title={t("Tip set", "Set type")} value={setType} onChange={setSetType}
+              options={SET_TYPES.map((item) => ({ value: item, label: workoutLabelText(item, t) }))} /></div>
+          <label className={labelClass}><span>{t("Notițe (opțional)", "Notes (optional)")}</span><input type="text" maxLength={99} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t("Ex: Scaunul la 3...", "E.g. Seat at 3...")} className={inputClass} /></label>
         </> : <>
-          <label className="block space-y-1 text-sm"><span>{t("Activitate", "Activity")}</span><select className={inputClass} value={activity} onChange={(event) => setActivity(event.target.value)}>{CARDIO_ACTIVITIES.map((item) => <option key={item} value={item}>{cardioName(item, language)}</option>)}</select></label>
-          <label className="block space-y-1 text-sm"><span>{t("Durată (minute)", "Duration (minutes)")}</span><input className={inputClass} type="number" inputMode="numeric" required min="1" max="1440" step="1" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
+          <div className={labelClass}><span>{t("Activitate", "Activity")}</span>
+            <Select title={t("Activitate", "Activity")} value={activity} onChange={setActivity}
+              options={CARDIO_ACTIVITIES.map((item) => ({ value: item, label: cardioName(item, language) }))} /></div>
+          <label className={labelClass}><span>{t("Durată (minute)", "Duration (minutes)")}</span><input className={inputRecipe({ big: true })} type="number" inputMode="numeric" required min="1" max="1440" step="1" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
         </>}
-        <button type="submit" className="min-h-11 rounded-xl border bg-secondary px-4 text-sm font-semibold">{mode === "strength" ? t("Adaugă set în listă", "Add set to list") : t("Adaugă activitate în listă", "Add activity to list")}</button>
-        <p className="text-xs text-muted-foreground">{t("Adăugarea în listă nu salvează încă pe dispozitiv. Numai lista tipului selectat va fi salvată.", "Adding to the list does not save to this device yet. Only the selected mode’s list will be saved.")}</p>
+        <button type="submit" className={buttonRecipe({ variant: "secondary" })}><Plus className="size-[18px]" aria-hidden="true" />{mode === "strength" ? t("Adaugă set în listă", "Add set to list") : t("Adaugă activitate în listă", "Add activity to list")}</button>
+        <p className="text-xs text-muted">{t("Adăugarea în listă nu salvează încă pe dispozitiv. Numai lista tipului selectat va fi salvată.", "Adding to the list does not save to this device yet. Only the selected mode’s list will be saved.")}</p>
         {mode === "strength" && <RestTimerSettings timer={restTimer} />}
       </form>
 
-      <div className="space-y-3">
-        <h3 className="font-semibold">{t("Lista de salvat", "List to save")} ({mode === "strength" ? sets.length : cardio.length})</h3>
-        {(mode === "strength" ? sets.length === 0 : cardio.length === 0) && <p className="text-sm text-muted-foreground">{t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}</p>}
-        {mode === "strength" ? sets.map((set, index) => <div key={set.uiId} className="flex items-start gap-3 rounded-xl border p-3">
-          <div className="min-w-0 flex-1 space-y-1 text-sm">
-            <p className="break-words font-semibold">{ordinals[index]}. <ExerciseName id={set.exercise} />{records.has(set.uiId) && <span className="ml-2 inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"><Trophy className="size-3" aria-hidden="true" />{t("Record", "PR")}</span>}</p>
-            <p className="text-muted-foreground"><WorkoutLabel value={set.split} />{" · "}<WorkoutLabel value={set.setType} /></p>
-            <p>{format(set.weight)} × {set.reps} {t("repetări", "reps")}{" · RIR "}{set.rir ?? "–"}</p>
-            {set.notes && <p className="whitespace-pre-wrap break-words text-muted-foreground">{set.notes}</p>}
-          </div>
-          <button type="button" onClick={() => { setSets((current) => current.filter((entry) => entry.uiId !== set.uiId)); setSaved(false); }} aria-label={`${t("Elimină setul", "Remove set")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>
-        </div>) : cardio.map((entry, index) => <div key={entry.uiId} className="flex items-start gap-3 rounded-xl border p-3">
-          <Heart className="mt-1 size-4 shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1 text-sm"><p className="break-words font-semibold"><CardioName id={entry.activity} /></p><p className="mt-1 text-muted-foreground">{entry.durationMin.toLocaleString(locale)} min</p></div>
-          <button type="button" onClick={() => { setCardio((current) => current.filter((item) => item.uiId !== entry.uiId)); setSaved(false); }} aria-label={`${t("Elimină activitatea", "Remove activity")} ${index + 1}`} className="flex size-11 shrink-0 items-center justify-center rounded-xl border text-red-700 dark:text-red-400"><Trash2 className="size-4" aria-hidden="true" /></button>
-        </div>)}
-        {((mode === "strength" && cardio.length > 0) || (mode === "cardio" && sets.length > 0)) && <p className="text-xs text-muted-foreground">{t("Există și o listă nesalvată pentru celălalt tip. Schimbă tipul pentru a o vedea și salva separat.", "There is also an unsaved list for the other mode. Switch modes to view and save it separately.")}</p>}
-      </div>
-      <button type="button" onClick={() => void save()} disabled={mode === "strength" ? !sets.length : !cardio.length} className={`${buttonClass} w-full sm:w-auto`}>{saving ? t("Se salvează…", "Saving…") : t("Salvează antrenamentul complet", "Save full workout")}</button>
+      <h3 className="mt-2 pl-0.5 text-[13px] font-medium text-muted">{t("Lista de salvat", "List to save")} ({mode === "strength" ? sets.length : cardio.length})</h3>
+      {mode === "strength" ? (
+        <SetRows
+          rows={sets.map((set, index) => ({
+            key: set.uiId, ordinal: ordinals[index], exercise: set.exercise, weightKg: set.weight, reps: set.reps,
+            rir: set.rir, setType: set.setType, notes: set.notes, record: records.has(set.uiId),
+            extra: <Badge><WorkoutLabel value={set.split} /></Badge>,
+          }))}
+          onRemove={(key) => { setSets((current) => current.filter((entry) => entry.uiId !== key)); setSaved(false); }}
+          empty={t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}
+        />
+      ) : (
+        <CardioRows
+          rows={cardio.map((entry) => ({ key: entry.uiId, activity: entry.activity, durationMin: entry.durationMin }))}
+          onRemove={(key) => { setCardio((current) => current.filter((item) => item.uiId !== key)); setSaved(false); }}
+          empty={t("Lista este goală. Adaugă prima înregistrare mai sus.", "The list is empty. Add your first entry above.")}
+        />
+      )}
+      {((mode === "strength" && cardio.length > 0) || (mode === "cardio" && sets.length > 0)) && <p className="text-xs text-muted">{t("Există și o listă nesalvată pentru celălalt tip. Schimbă tipul pentru a o vedea și salva separat.", "There is also an unsaved list for the other mode. Switch modes to view and save it separately.")}</p>}
+      <button type="button" onClick={() => void save()} disabled={mode === "strength" ? !sets.length : !cardio.length} className={buttonRecipe({ large: true, className: "mt-4" })}>{saving ? t("Se salvează…", "Saving…") : t("Salvează antrenamentul complet", "Save full workout")}</button>
     </fieldset>
-    {error && <p role="alert" className="break-words text-sm text-red-700 dark:text-red-400">{error}</p>}
-    {saved && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{t("Antrenament salvat pe dispozitiv și pus în coada de sincronizare. Îl găsești în istoric, marcat nesincronizat până la confirmarea serverului.", "Workout saved on this device and queued for sync. Find it in history, marked pending until the server confirms it.")}</p>}
+    {error && <Message>{error}</Message>}
+    {saved && <p role="status" className="text-[13px] font-semibold text-lime-text">{t("Antrenament salvat pe dispozitiv și pus în coada de sincronizare. Îl găsești în istoric, marcat nesincronizat până la confirmarea serverului.", "Workout saved on this device and queued for sync. Find it in history, marked pending until the server confirms it.")}</p>}
     <RestTimerBar timer={restTimer} />
     {finished && <WorkoutSummaryDialog input={finished} onClose={() => setFinished(null)} />}
   </section>;

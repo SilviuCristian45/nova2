@@ -1,39 +1,24 @@
 "use client"
 
 import { Text, useLanguage } from "@/app/components/language-provider"
-import { WorkoutLabel } from "@/app/components/workout-label"
+import { workoutLabelText } from "@/app/components/workout-label"
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Loader2, Save, Trash2, Dumbbell, Heart } from "lucide-react"
+import { Plus, Save } from "lucide-react"
 
-import { EXERCISES, SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
+import { SPLITS, SET_TYPES, CARDIO_ACTIVITIES, type Split, type SetType, getExercisesForSplit } from "@/lib/workout-data"
 import { updateWorkout } from "./actions"
 import { ExerciseCombobox } from "@/app/components/exercise-combobox"
 import { displayOrdinals } from "@/lib/set-numbering"
 import { editSetsFromRows } from "@/lib/workout-edit"
 import { cardioName } from "@/lib/exercise-catalog"
-import { CardioName, ExerciseName } from "@/app/components/exercise-name"
+import { CardioRows, SetRows } from "@/app/components/workout-parts"
+import { Button, Card, Field, Input, Message, Screen, Select } from "@/app/components/ui"
 import { useUnits } from "@/app/components/units-provider"
-
-// --- FUNCȚIE PENTRU ETICHETE COLORATE (Din Insert) ---
-const getSetTypeBadge = (type: string) => {
-  const t = type?.toLowerCase() || ""
-  const baseClasses = "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border"
-  
-  if (t.includes("warm") || t.includes("încălzire")) return <span className={`${baseClasses} bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20`}><Text ro="Încălzire" en="Warmup" /></span>
-  if (t.includes("feeder")) return <span className={`${baseClasses} bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20`}><Text ro="Pregătire" en="Feeder" /></span>
-  if (t.includes("work")) return <span className={`${baseClasses} bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20`}><Text ro="Lucru" en="Working" /></span>
-  if (t.includes("top")) return <span className={`${baseClasses} bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20`}><Text ro="Set maxim" en="Top Set" /></span>
-  if (t.includes("back") || t.includes("backoff")) return <span className={`${baseClasses} bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20`}><Text ro="Set redus" en="Backoff" /></span>
-  if (t.includes("drop") || t.includes("fail")) return <span className={`${baseClasses} bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20`}><WorkoutLabel value={type} /></span>
-  
-  return <span className={`${baseClasses} bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300/50 dark:border-zinc-700/50`}><WorkoutLabel value={type} /></span>
-}
 
 export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: any }) {
   const { t, language } = useLanguage()
-  const { unit, toUnit, toKg, format } = useUnits()
+  const { unit, toUnit, toKg } = useUnits()
 
   const router = useRouter()
   const [isSaving, startSaving] = useTransition()
@@ -121,140 +106,99 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col p-5 lg:px-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      
-      {/* HEADER */}
-      <header className="flex flex-col gap-6 mb-6 mt-2">
-        <Link href="/history" className="p-2.5 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 w-fit">
-          <ArrowLeft className="size-5" />
-        <span className="sr-only"><Text ro="Înapoi" en="Back" /></span></Link>
-        <div className="flex items-center gap-3">
-          <div className={`flex size-12 items-center justify-center rounded-2xl border shadow-inner ${mode === "cardio" ? "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-500" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-500"}`}>
-            {mode === "cardio" ? <Heart className="size-6 fill-rose-500/20" /> : <Dumbbell className="size-6" />}
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight"><Text ro="Editare Sesiune" en="Edit session" /></h1>
-        </div>
-      </header>
+    <Screen title={<Text ro="Editare sesiune" en="Edit session" />} back="/history">
+      <Card>
+        <Field label={<Text ro="Data antrenamentului" en="Workout date" />} htmlFor="performed-on">
+          <Input id="performed-on" type="date" value={performedOn} onChange={(e) => setPerformedOn(e.target.value)} />
+        </Field>
+      </Card>
 
-      {/* CÂMPUL PENTRU DATA ANTRENAMENTULUI */}
-      <div className="flex flex-col gap-1.5 mb-6 p-4 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-sm backdrop-blur-sm">
-        <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Data Antrenamentului" en="Workout date" /></label>
-        <input 
-          type="date" 
-          value={performedOn} 
-          onChange={(e) => setPerformedOn(e.target.value)}
-          className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 outline-none transition-all shadow-inner"
-        />
-      </div>
-      
-      {/* FORMULAR ADAUGARE (în funcție de mod) */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       {mode === "strength" ? (
-        <form onSubmit={handleAddSet} className="flex flex-col gap-4 p-5 border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl bg-zinc-100 dark:bg-zinc-900/40 shadow-xl backdrop-blur-sm mb-6">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Split General" en="Workout split" /></label>
-            <select value={split} onChange={(e) => setSplit(e.target.value as Split)} className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 outline-none transition-all">
-              {SPLITS.map((s) => <option key={s} value={s}><WorkoutLabel value={s} /></option>)}
-            </select>
-          </div>
-       
-          <div className="mt-1">
+        <form onSubmit={handleAddSet}>
+          <Card>
+            <Field label={<Text ro="Split general" en="Workout split" />}>
+              <Select
+                title={t("Split general", "Workout split")}
+                value={split}
+                onChange={(value) => setSplit(value as Split)}
+                options={SPLITS.map((s) => ({ value: s, label: workoutLabelText(s, t) }))}
+              />
+            </Field>
             <ExerciseCombobox key={split} exercises={availableExercises} value={exercise} onChange={setExercise} />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mt-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-bold text-zinc-500 text-center">{unit}</label>
-              <input type="number" step="0.5" min={0} max={Math.floor(toUnit(10000))} value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-emerald-700 dark:text-emerald-400 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
+            <div className="grid grid-cols-3 gap-2">
+              <Field label={unit} htmlFor="edit-weight">
+                <Input id="edit-weight" big compact type="number" inputMode="decimal" step="0.5" min={0} max={Math.floor(toUnit(10000))}
+                  value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" />
+              </Field>
+              <Field label={<Text ro="Repetări" en="Reps" />} htmlFor="edit-reps">
+                <Input id="edit-reps" big compact type="number" inputMode="numeric" min={0} required
+                  value={reps} onChange={(e) => setReps(e.target.value)} placeholder="0" />
+              </Field>
+              <Field label="RIR" htmlFor="edit-rir">
+                <Input id="edit-rir" big compact type="number" inputMode="numeric" min={0} max={5}
+                  value={rir} onChange={(e) => setRir(e.target.value)} placeholder="–" />
+              </Field>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-bold text-zinc-500 text-center"><Text ro="Repetări" en="Reps" /></label>
-              <input type="number" min={0} required value={reps} onChange={(e) => setReps(e.target.value)} placeholder="0" className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-bold text-zinc-500 text-center">RIR</label>
-              <input type="number" min={0} max={5} value={rir} onChange={(e) => setRir(e.target.value)} placeholder="0" className="h-12 px-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 text-center font-bold text-base focus:border-emerald-500 outline-none transition-colors placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 mt-1">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Tip Set" en="Set type" /></label>
-            <select value={setType} onChange={(e) => setSetType(e.target.value as SetType)} className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-emerald-500 outline-none transition-all">
-              {SET_TYPES.map((type) => <option key={type} value={type}><WorkoutLabel value={type} /></option>)}
-            </select>
-          </div>
-          <button type="submit" className="h-12 mt-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-300/50 dark:border-zinc-700/50 active:scale-[0.98] transition-all shadow-sm">
-            <Text ro="+ Adaugă Setul Nou" en="+ Add new set" />
-          </button>
+            <Field label={<Text ro="Tip set" en="Set type" />}>
+              <Select
+                title={t("Tip set", "Set type")}
+                value={setType}
+                onChange={(value) => setSetType(value as SetType)}
+                options={SET_TYPES.map((type) => ({ value: type, label: workoutLabelText(type, t) }))}
+              />
+            </Field>
+            <Button type="submit" variant="secondary" icon={Plus}>
+              <Text ro="Adaugă setul nou" en="Add new set" />
+            </Button>
+          </Card>
         </form>
       ) : (
-        <form onSubmit={handleAddCardio} className="flex flex-col gap-4 p-5 border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl bg-zinc-100 dark:bg-zinc-900/40 shadow-xl backdrop-blur-sm mb-6">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Activitate (LISS / HIIT)" en="Activity (LISS / HIIT)" /></label>
-            <select value={cardioActivity} onChange={(e) => setCardioActivity(e.target.value)} className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 text-sm focus:border-rose-500 outline-none transition-all">
-              {CARDIO_ACTIVITIES.map((act) => <option key={act} value={act}>{cardioName(act, language)}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] uppercase tracking-wider font-bold text-zinc-500 pl-1"><Text ro="Durată (Minute)" en="Duration (minutes)" /></label>
-            <input type="number" min={1} required value={cardioDuration} onChange={(e) => setCardioDuration(e.target.value)} placeholder={t("ex: 30", "e.g. 30")} className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-rose-700 dark:text-rose-400 font-bold text-lg focus:border-rose-500 outline-none transition-all placeholder:text-zinc-600 dark:placeholder:text-zinc-700" />
-          </div>
-          <button type="submit" className="h-12 mt-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-300/50 dark:border-zinc-700/50 active:scale-[0.98] transition-all shadow-sm">
-            <Text ro="+ Adaugă Activitate" en="+ Add activity" />
-          </button>
+        <form onSubmit={handleAddCardio}>
+          <Card>
+            <Field label={<Text ro="Activitate (LISS / HIIT)" en="Activity (LISS / HIIT)" />}>
+              <Select
+                title={t("Activitate", "Activity")}
+                value={cardioActivity}
+                onChange={setCardioActivity}
+                options={CARDIO_ACTIVITIES.map((act) => ({ value: act, label: cardioName(act, language) }))}
+              />
+            </Field>
+            <Field label={<Text ro="Durată (minute)" en="Duration (minutes)" />} htmlFor="edit-duration">
+              <Input id="edit-duration" big type="number" inputMode="numeric" min={1} required
+                value={cardioDuration} onChange={(e) => setCardioDuration(e.target.value)} placeholder={t("ex: 30", "e.g. 30")} />
+            </Field>
+            <Button type="submit" variant="secondary" icon={Plus}>
+              <Text ro="Adaugă activitatea" en="Add activity" />
+            </Button>
+          </Card>
         </form>
       )}
 
-      {/* --- LISTA DE SETURI (MODIFICABILĂ) --- */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-1">
-          <Text ro="Seturi Existente" en="Existing sets" />
-        </h3>
-        {mode === "strength" && sessionSets.map((s, idx) => (
-          <div key={s.id} className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-zinc-500 font-bold">#{ordinals[idx]}</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200"><ExerciseName id={s.exercise} /></span>
-                {getSetTypeBadge(s.setType || s.set_type)}
-              </div>
-              
-              <div className="text-zinc-600 dark:text-zinc-400 text-xs flex items-center flex-wrap gap-x-2.5 gap-y-1.5 font-mono">
-                <span>
-                  {s.weight > 0 ? <span className="font-bold text-emerald-700 dark:text-emerald-400">{format(Number(s.weight))}</span> : ""}
-                  {s.weight > 0 ? " × " : ""}
-                  <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{s.reps}</span> <Text ro="repetări" en="reps" />
-                </span>
-                <span className="opacity-30">•</span> 
-                <span>{s.rir === null ? "–" : `${s.rir} RIR`}</span>
-              </div>
-            </div>
-            <button onClick={() => setSessionSets(prev => prev.filter(x => x.id !== s.id))} className="p-2.5 text-red-700 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 hover:border-red-500/30 hover:bg-red-500/10 rounded-xl active:scale-95">
-              <Trash2 className="size-4" />
-            <span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
-          </div>
-        ))}
-        
-        {mode === "cardio" && cardioEntries.map((c) => (
-          <div key={c.id} className="flex items-center justify-between p-4 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl bg-zinc-100 dark:bg-zinc-900/40 shadow-md backdrop-blur-sm">
-            <div className="font-bold text-zinc-800 dark:text-zinc-200"><CardioName id={c.activity} /> <span className="font-mono text-rose-700 dark:text-rose-400 font-normal ml-2">({c.durationMin} min)</span></div>
-            <button onClick={() => setCardioEntries(prev => prev.filter(x => x.id !== c.id))} className="p-2.5 text-red-700 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 hover:border-red-500/30 hover:bg-red-500/10 rounded-xl active:scale-95">
-              <Trash2 className="size-4" />
-            <span className="sr-only"><Text ro="Elimină" en="Remove" /></span></button>
-          </div>
-        ))}
-      </div>
-      </div>
+      <h2 className="mt-2 pl-0.5 text-[13px] font-medium text-muted">
+        <Text ro="Seturi existente" en="Existing sets" />
+      </h2>
+      {mode === "strength" ? (
+        <SetRows
+          rows={sessionSets.map((s, idx) => ({
+            key: s.id, ordinal: ordinals[idx], exercise: s.exercise, weightKg: Number(s.weight), reps: s.reps,
+            rir: s.rir, setType: s.setType || s.set_type, notes: s.notes,
+          }))}
+          onRemove={(key) => setSessionSets((prev) => prev.filter((x) => x.id !== key))}
+          empty={t("Niciun set.", "No sets.")}
+        />
+      ) : (
+        <CardioRows
+          rows={cardioEntries.map((c) => ({ key: c.id, activity: c.activity, durationMin: c.durationMin }))}
+          onRemove={(key) => setCardioEntries((prev) => prev.filter((x) => x.id !== key))}
+          empty={t("Nicio activitate.", "No activities.")}
+        />
+      )}
 
-      {error && <p className="text-sm text-red-700 dark:text-red-500 mt-4 font-bold text-center bg-red-500/10 p-3 rounded-xl border border-red-500/20">{error}</p>}
+      {error && <Message>{error}</Message>}
 
-      <button
-        onClick={handleFinish}
-        disabled={isSaving}
-        className={`h-14 w-full mt-8 mb-4 ${mode === 'cardio' ? 'bg-rose-500 hover:bg-rose-400 shadow-rose-500/20' : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20'} text-zinc-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg`}
-      >
-        {isSaving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-        <Text ro="Salvează Modificările" en="Save changes" />
-      </button>
-    </main>
+      <Button large icon={Save} onClick={handleFinish} busy={isSaving} className="mt-4">
+        <Text ro="Salvează modificările" en="Save changes" />
+      </Button>
+    </Screen>
   )
 }

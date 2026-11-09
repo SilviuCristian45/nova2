@@ -51,9 +51,9 @@ export function IconButton({ icon: Icon, label, tone, plain, className, type = "
   );
 }
 
-export const Input = forwardRef<HTMLInputElement, ComponentProps<"input"> & { big?: boolean; center?: boolean }>(
-  function Input({ big, center, className, ...rest }, ref) {
-    return <input ref={ref} {...rest} className={inputClass({ big, center, className })} />;
+export const Input = forwardRef<HTMLInputElement, ComponentProps<"input"> & { big?: boolean; center?: boolean; compact?: boolean }>(
+  function Input({ big, center, compact, className, ...rest }, ref) {
+    return <input ref={ref} {...rest} className={inputClass({ big, center, compact, className })} />;
   },
 );
 

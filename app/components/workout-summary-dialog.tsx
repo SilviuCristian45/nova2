@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Loader2, Share2, X } from "lucide-react";
 import { useLanguage } from "@/app/components/language-provider";
+import { buttonClass } from "@/app/components/ui";
 import { buildWorkoutSummary, type SummaryInput } from "@/lib/workout-summary";
 import { renderWorkoutSummary } from "@/lib/workout-summary-canvas";
 import { useUnits } from "@/app/components/units-provider";
@@ -139,10 +140,10 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
 
   return (
     <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("Rezumatul antrenamentului", "Workout summary")}
-      className="fixed inset-0 z-[1000] flex flex-col items-center gap-4 overflow-y-auto bg-black/85 p-5 outline-none backdrop-blur-sm">
-      <div className="flex w-full max-w-sm items-center justify-between pt-2 text-zinc-100">
-        <h2 className="text-lg font-extrabold"><span aria-hidden="true">🏆 </span>{t("Antrenament salvat", "Workout saved")}</h2>
-        <button type="button" onClick={onClose} className="flex size-11 items-center justify-center rounded-xl border border-zinc-700 hover:bg-zinc-800">
+      className="fixed inset-0 z-[1000] flex flex-col items-center gap-4 overflow-y-auto bg-[#000000d9] p-5 text-foreground outline-none backdrop-blur-sm dark">
+      <div className="flex w-full max-w-sm items-center justify-between pt-2">
+        <h2 className="text-[20px] font-semibold tracking-[-0.4px]">{t("Antrenament salvat", "Workout saved")}</h2>
+        <button type="button" onClick={onClose} className="flex size-11 items-center justify-center rounded-full bg-control text-soft">
           <X className="size-5" aria-hidden="true" /><span className="sr-only">{t("Închide", "Close")}</span>
         </button>
       </div>
@@ -150,19 +151,19 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
       <div className="flex w-full max-w-sm flex-1 items-center justify-center">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={alt || t("Previzualizare imagine antrenament", "Workout image preview")} className="max-h-[62dvh] w-auto rounded-2xl border border-zinc-800 shadow-2xl" />
+          <img src={url} alt={alt || t("Previzualizare imagine antrenament", "Workout image preview")} className="max-h-[62dvh] w-auto rounded-lg shadow-2xl" />
         ) : failed ? (
-          <p role="alert" className="rounded-xl border border-zinc-700 p-4 text-center text-sm text-zinc-300">
+          <p role="alert" className="rounded-md bg-red-soft p-3.5 text-center text-sm font-semibold text-red-text">
             {t("Imaginea nu a putut fi generată, dar antrenamentul este salvat.", "The image could not be created, but your workout is saved.")}
           </p>
         ) : (
-          <p role="status" className="flex items-center gap-2 text-sm text-zinc-300"><Loader2 className="size-4 animate-spin" aria-hidden="true" />{t("Se generează imaginea...", "Creating image...")}</p>
+          <p role="status" className="flex items-center gap-2 text-sm text-soft"><Loader2 className="size-4 animate-spin" aria-hidden="true" />{t("Se generează imaginea...", "Creating image...")}</p>
         )}
       </div>
 
-      {notice && <p role="status" className="max-w-sm text-center text-sm text-amber-400">{notice}</p>}
+      {notice && <p role="status" className="max-w-sm text-center text-sm font-semibold text-gold-text">{notice}</p>}
       {url && ios && (
-        <p className="max-w-sm text-center text-xs text-zinc-400">
+        <p className="max-w-sm text-center text-xs text-muted">
           {t("Pe iPhone, dacă imaginea se deschide într-o filă, ține apăsat pe ea și alege „Adaugă în Poze”.", "On iPhone, if the image opens in a tab, press and hold it and choose “Add to Photos”.")}
         </p>
       )}
@@ -171,16 +172,16 @@ export function WorkoutSummaryDialog({ input, onClose }: { input: SummaryInput; 
         {url && (
           <div className="grid grid-cols-2 gap-3">
             {canShare ? (
-              <button type="button" onClick={share} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-500 font-bold text-zinc-950 hover:bg-emerald-400">
+              <button type="button" onClick={share} className={buttonClass()}>
                 <Share2 className="size-4" aria-hidden="true" />{t("Distribuie", "Share")}
               </button>
             ) : null}
-            <a href={url} download={fileName} className={`flex h-12 items-center justify-center gap-2 rounded-xl border border-zinc-600 font-bold text-zinc-100 hover:bg-zinc-800 ${canShare ? "" : "col-span-2"}`}>
+            <a href={url} download={fileName} className={buttonClass({ variant: "outline", className: canShare ? "" : "col-span-2" })}>
               <Download className="size-4" aria-hidden="true" />{t("Salvează imaginea", "Save image")}
             </a>
           </div>
         )}
-        <button type="button" onClick={onClose} className="h-12 rounded-xl border border-zinc-700 font-bold text-zinc-200 hover:bg-zinc-800">
+        <button type="button" onClick={onClose} className={buttonClass({ variant: "secondary" })}>
           {t("Continuă", "Continue")}
         </button>
       </div>
