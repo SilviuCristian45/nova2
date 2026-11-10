@@ -2,7 +2,8 @@
 // A set is a PR when it is heavier than the best known set, or equally heavy with more reps.
 // Exercises without a known baseline (nothing logged before) never report a PR.
 
-export type BestSet = { weight: number; reps: number };
+// `performedOn` is only known for sets loaded from the database (shown in the record hint).
+export type BestSet = { weight: number; reps: number; performedOn?: string };
 
 export function beatsBest(set: BestSet, best: BestSet): boolean {
   return set.weight > best.weight || (set.weight === best.weight && set.reps > best.reps);

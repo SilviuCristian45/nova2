@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Dumbbell,
   Heart,
+  Hourglass,
   Plus,
   Save,
   Trophy,
@@ -47,7 +48,9 @@ import { displayOrdinals, positionSetNumbers } from "@/lib/set-numbering";
 import { workoutSplit } from "@/lib/workout-save";
 import { ExerciseCombobox } from "@/app/components/exercise-combobox";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
-import { fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
+import { fetchPlateauSets, fetchRecentSets, fetchRecordBaseline } from "@/lib/exercise-history";
+import { detectPlateau, type PlateauStatus } from "@/lib/plateau";
+import { estimateOneRepMax } from "@/lib/personal-record";
 import {
   cardioName,
 } from "@/lib/exercise-catalog";
@@ -57,7 +60,7 @@ import { Button, Card, Field, IconButton, Input, Message, Screen, Segmented, Sel
 const DRAFT_KEY = "workout_draft_v1";
 
 export default function InsertWorkoutPage() {
-  const { t, language } = useLanguage();
+  const { t, language, locale } = useLanguage();
   const { ownerId, ready, sync } = useOffline();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
@@ -146,12 +149,14 @@ export default function InsertWorkoutPage() {
 
   const [recommendedPerformance, setRecommendedPerformance] = useState("");
   const [recommendedIsNew, setRecommendedIsNew] = useState(false);
+  const [plateau, setPlateau] = useState<PlateauStatus | null>(null);
 
   // Fetch ultima performanță
   useEffect(() => {
     if (mode !== "strength" || !exercise) return;
 
     async function fetchLastPerformance() {
+      setPlateau(null);
       setLastPerformance(t("Se caută istoricul...", "Loading history..."));
       setRecommendedIsNew(false);
       setRecommendedPerformance(
@@ -171,10 +176,13 @@ export default function InsertWorkoutPage() {
       let recordBaseline: BestSet | null = null;
       let error = false;
       try {
-        [data, recordBaseline] = await Promise.all([
+        let plateauSets: Awaited<ReturnType<typeof fetchPlateauSets>> = [];
+        [data, recordBaseline, plateauSets] = await Promise.all([
           fetchRecentSets(supabase, user.id, exercise),
           fetchRecordBaseline(supabase, user.id, exercise),
+          fetchPlateauSets(supabase, user.id, exercise),
         ]);
+        setPlateau(detectPlateau(plateauSets));
       } catch (e) {
         console.error("Exercise history could not be loaded:", e);
         error = true;
@@ -526,6 +534,19 @@ export default function InsertWorkoutPage() {
   const exerciseHint = latestRecord
     ? `${t("Nou record", "New record")}: ${latestRecord.weight > 0 ? `${format(latestRecord.weight)} × ` : ""}${latestRecord.reps} ${t("repetări", "reps")} ${latestRecord.rir === null ? "" : ` (RIR ${latestRecord.rir})`}${latestRecord.notes ? ` (${latestRecord.notes})` : ""}`
     : lastPerformance;
+  // All-time best set of the exercise (warmups excluded), shown under the last-session hint.
+  const record = baselines[exercise];
+  const recordHint = record && !latestRecord
+    ? `${t("Record", "Record")}: ${record.weight > 0 ? `${format(record.weight)} × ` : ""}${record.reps} ${t("repetări", "reps")}`
+      + (record.weight > 0 ? ` · ${t("1RM estimat", "est. 1RM")} ${format(estimateOneRepMax(record.weight, record.reps))}` : "")
+      + (record.performedOn ? ` · ${new Date(`${record.performedOn}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}` : "")
+    : null;
+  const plateauHint = plateau?.plateau
+    ? t(
+      `Plateau: ${plateau.sessionsSinceBest} sesiuni fără un nou maxim la acest exercițiu. Încearcă un deload (-10%) sau schimbă intervalul de repetări.`,
+      `Plateau: ${plateau.sessionsSinceBest} sessions without a new best on this exercise. Try a deload (-10%) or change the rep range.`,
+    )
+    : null;
 
   if (!ready || (ownerId && loadedDraftKey !== draftKey && !error)) {
     return (
@@ -590,6 +611,18 @@ export default function InsertWorkoutPage() {
                   exerciseHint.includes(t("Exercițiu nou", "New exercise")) ? "bg-inner text-muted" : "bg-lime-soft text-lime-text"}`}>
                   {latestRecord && <Trophy className="size-3.5 shrink-0" />}
                   {exerciseHint}
+                </p>
+              )}
+              {recordHint && (
+                <p className="flex w-fit items-center gap-1.5 rounded-sm bg-inner px-3 py-1.5 text-[13px] font-semibold text-soft">
+                  <Trophy className="size-3.5 shrink-0" />
+                  {recordHint}
+                </p>
+              )}
+              {plateauHint && (
+                <p role="status" className="flex w-fit items-start gap-1.5 rounded-sm bg-gold-soft px-3 py-1.5 text-[13px] font-semibold text-gold-text">
+                  <Hourglass className="mt-0.5 size-3.5 shrink-0" />
+                  {plateauHint}
                 </p>
               )}
               {recommendedPerformance && (
