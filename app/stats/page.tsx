@@ -238,6 +238,7 @@ function StatsContent() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-5">
       <Card aria-label={t("Filtre grafic", "Chart filters")}>
         {!measurementMode && (
           <Field label={mode === "strength" ? t("Exercițiu urmărit", "Tracked exercise") : t("Activitate cardio", "Cardio activity")}>
@@ -286,7 +287,7 @@ function StatsContent() {
             {measurementMode && !error && <TextLink href="/">{t("Adaugă o înregistrare", "Add an entry")}</TextLink>}
           </div>
         ) : (
-          <div className="h-[300px] w-full min-w-0 sm:h-[380px]">
+          <div className="h-[300px] w-full min-w-0 sm:h-[380px] lg:h-[460px]">
             <ResponsiveContainer width="100%" height="100%">
               {measurementMode ? (
                 <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
@@ -358,6 +359,7 @@ function StatsContent() {
           </div>
         )}
       </Card>
+      </div>
     </Screen>
   );
 }

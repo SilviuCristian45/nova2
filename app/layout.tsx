@@ -11,6 +11,7 @@ import { OfflineProvider } from "@/lib/offline/client";
 import { OfflineStatus } from "./components/offline-status";
 import { DriveAutoSync } from "./components/drive-auto-sync";
 import { driveConfigured } from "@/lib/google-drive";
+import { pageWidth } from "./components/ui";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -69,7 +70,7 @@ export default async function RootLayout({
           <LanguageProvider initialLanguage={language}>
             <UnitsProvider initialUnit={weightUnit}>
             <OfflineProvider>
-            <div className="mx-auto flex w-full max-w-xl justify-end gap-2 px-5 pt-3">
+            <div className={`${pageWidth} flex justify-end gap-2 px-5 pt-3 lg:px-8`}>
               <LanguageSelector />
               <ThemeToggle />
             </div>

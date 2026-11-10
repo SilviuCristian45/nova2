@@ -4,7 +4,7 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Save, Loader2 } from "lucide-react"
-import { Button, Card, Field, Input, Screen } from "@/app/components/ui"
+import { Button, Card, Columns, Field, Input, Screen } from "@/app/components/ui"
 import { getUserTargets, saveUserTargets } from "@/app/meals/action"
 import { EnergyRecommendation } from "./energy-recommendation"
 
@@ -47,6 +47,7 @@ export default function EditTargetsPage() {
 
   return (
     <Screen title={<Text ro="Obiectivele tale" en="Your goals" />} back="/meals/progress">
+      <Columns>
       <EnergyRecommendation onApply={(recommended) => setTargets(recommended)} />
 
       <Card>
@@ -62,6 +63,7 @@ export default function EditTargetsPage() {
           {macroField("fiber", <Text ro="Fibre (g)" en="Fibre (g)" />, "text-lilac-text")}
         </div>
       </Card>
+      </Columns>
 
       <Button large icon={Save} onClick={handleSave} busy={isSaving}>
         <Text ro="Salvează obiectivele" en="Save goals" />

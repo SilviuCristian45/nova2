@@ -2,13 +2,14 @@
 
 import { useOffline } from "@/lib/offline/client";
 import { useLanguage } from "./language-provider";
+import { pageWidth } from "./ui";
 
 export function OfflineStatus() {
   const { t } = useLanguage();
   const { ready, ownerId, online, syncing, pending, error, sync } = useOffline();
   if (!ready) return null;
   return (
-    <aside aria-label={t("Stare offline", "Offline status")} className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-2 px-5 py-2 text-xs text-muted">
+    <aside aria-label={t("Stare offline", "Offline status")} className={`${pageWidth} flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-xs text-muted lg:px-8`}>
       <div className="flex flex-wrap items-center gap-2">
         <a href="/offline" className="font-semibold text-lime-text underline">{t("Jurnal offline", "Offline log")}</a>
         <span role="status">{!online

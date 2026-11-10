@@ -551,6 +551,8 @@ export default function InsertWorkoutPage() {
         ]}
       />
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
       {/* Workout timer */}
       <section className="flex items-center justify-between gap-3 rounded-lg bg-card px-[18px] py-3.5">
         <div className="flex flex-col">
@@ -660,8 +662,10 @@ export default function InsertWorkoutPage() {
           </Card>
         </form>
       )}
+      </div>
 
-      <h2 className="mt-2 pl-0.5 text-[13px] font-medium text-muted">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
+      <h2 className="mt-2 pl-0.5 text-[13px] font-medium text-muted lg:mt-0">
         <Text ro="Sesiunea curentă" en="Current session" />
       </h2>
       {mode === "strength" ? (
@@ -688,6 +692,8 @@ export default function InsertWorkoutPage() {
           <Text ro="Finalizează antrenamentul" en="Finish workout" />
         </Button>
       )}
+      </div>
+      </div>
       <RestTimerBar timer={restTimer} />
       {finished && (
         <WorkoutSummaryDialog

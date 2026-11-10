@@ -4,7 +4,7 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { FoodLabel } from "@/app/components/food-label"
 import { useEffect, useState } from "react"
 import { ArrowLeft, ChevronRight, Loader2, Utensils, Search, ChevronLeft } from "lucide-react"
-import { Badge, BigNumber, Button, Card, Empty, Field, IconButton, Input, Label, Screen } from "@/app/components/ui"
+import { Badge, BigNumber, Button, Card, Columns, Empty, Field, IconButton, Input, Label, Screen, pageWidth } from "@/app/components/ui"
 import { createClient } from "@/utils/supabase/client"
 
 const MEAL_LABELS: Record<string, string> = {
@@ -170,7 +170,7 @@ export default function MealsHistoryPage() {
   if (selectedDate) {
     const day = allHistoryData[selectedDate]
     return (
-      <main className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5 pb-12 text-foreground">
+      <main className={`${pageWidth} flex flex-col gap-4 p-5 pb-12 text-foreground lg:gap-5 lg:px-8`}>
         <header className="mb-2 flex items-center gap-1.5">
           <IconButton plain icon={ArrowLeft} label={t("Înapoi", "Back")} onClick={() => setSelectedDate(null)} className="-ml-2.5" />
           <h1 className="min-w-0 flex-1 text-[28px] font-bold capitalize leading-tight tracking-[-0.8px]">{formatDate(selectedDate)}</h1>
@@ -183,6 +183,7 @@ export default function MealsHistoryPage() {
           <p className="text-[13px] text-muted">{day.mealsList.length} <Text ro="mese" en="meals" /></p>
         </Card>
 
+        <Columns three>
         {day.mealsList.map((meal: any, index: number) => (
           <Card key={meal.id} padded={false}>
             <div className="flex items-center justify-between gap-3 px-[18px] pt-4 pb-3">
@@ -216,12 +217,14 @@ export default function MealsHistoryPage() {
             ))}
           </Card>
         ))}
+        </Columns>
       </main>
     )
   }
 
   return (
     <Screen title={<Text ro="Istoric mese" en="Meal history" />} back="/meals">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-5">
       <Card>
         <div className="grid grid-cols-2 gap-2.5">
           <Field label={<Text ro="De la" en="From" />} htmlFor="meals-from">
@@ -236,6 +239,7 @@ export default function MealsHistoryPage() {
         </Button>
       </Card>
 
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
       {isLoading ? (
         <div role="status" className="flex justify-center py-20 text-lime-text">
           <Loader2 className="size-8 animate-spin" />
@@ -268,6 +272,8 @@ export default function MealsHistoryPage() {
           <IconButton icon={ChevronRight} label={t("Înainte", "Next")} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} />
         </nav>
       )}
+      </div>
+      </div>
     </Screen>
   )
 }

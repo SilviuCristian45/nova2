@@ -3,7 +3,7 @@ import { getLanguage } from "@/app/language"
 import { localDate } from "@/lib/daily-metrics"
 import { createClient } from "@/lib/supabase/server"
 import { getUserTargets } from "./action"
-import { BigNumber, Card, CtaCard, Label, LinkList, ProgressBar, Screen, TextLink } from "@/app/components/ui"
+import { BigNumber, Card, Columns, CtaCard, Label, LinkList, ProgressBar, Screen, TextLink } from "@/app/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -46,13 +46,14 @@ export default async function MealsHubPage() {
         </p>
       </Card>
 
-      <CtaCard href="/meals/insert" label={t("Masă nouă", "New meal")} title={t("Adaugă masă", "Add meal")} />
-
-      <LinkList items={[
-        { href: "/meals/history", title: t("Istoric mese", "Meal history"), subtitle: t("Jurnalul tău alimentar", "Your food diary") },
-        { href: "/meals/progress", title: t("Statistici și macro", "Statistics and macros"), subtitle: t("Calorii, proteine, carbohidrați, grăsimi", "Calories, protein, carbs and fat") },
-        { href: "/meals/progress/targets", title: t("Obiective", "Goals"), subtitle: t("Calorii și macronutrienți zilnici", "Daily calories and macros") },
-      ]} />
+      <Columns>
+        <CtaCard href="/meals/insert" label={t("Masă nouă", "New meal")} title={t("Adaugă masă", "Add meal")} />
+        <LinkList items={[
+          { href: "/meals/history", title: t("Istoric mese", "Meal history"), subtitle: t("Jurnalul tău alimentar", "Your food diary") },
+          { href: "/meals/progress", title: t("Statistici și macro", "Statistics and macros"), subtitle: t("Calorii, proteine, carbohidrați, grăsimi", "Calories, protein, carbs and fat") },
+          { href: "/meals/progress/targets", title: t("Obiective", "Goals"), subtitle: t("Calorii și macronutrienți zilnici", "Daily calories and macros") },
+        ]} />
+      </Columns>
     </Screen>
   )
 }

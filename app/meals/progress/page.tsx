@@ -4,7 +4,7 @@ import { Text, useLanguage } from "@/app/components/language-provider"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { Card, IconButton, Label, ProgressBar, Screen, TextLink, type Tone } from "@/app/components/ui"
+import { Card, Columns, IconButton, Label, ProgressBar, Screen, TextLink, type Tone } from "@/app/components/ui"
 import { createClient } from "@/utils/supabase/client"
 import { getUserTargets } from "@/app/meals/action"
 
@@ -119,6 +119,7 @@ export default function ProgressDashboardPage() {
         <IconButton plain icon={ChevronRight} label={t("Ziua următoare", "Next day")} onClick={() => changeDate(1)} disabled={isToday} />
       </div>
 
+      <Columns top={false}>
       <Card className="items-center py-6">
         <div className="relative flex items-center justify-center">
           <svg className="size-56 -rotate-90" viewBox="0 0 200 200" aria-hidden="true">
@@ -153,6 +154,7 @@ export default function ProgressDashboardPage() {
         {macro(t("Grăsimi", "Fat"), totals.f, goals.fat, "gold", "text-gold-text")}
         {macro(t("Fibre", "Fibre"), totals.fiber, goals.fiber, "lilac", "text-lilac-text")}
       </Card>
+      </Columns>
 
       <Link
         href="/meals/insert"

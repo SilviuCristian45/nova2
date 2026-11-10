@@ -9,7 +9,7 @@ import { useLanguage } from "@/app/components/language-provider";
 import { cardioName, exerciseName } from "@/lib/exercise-catalog";
 import { CardioName, ExerciseName } from "@/app/components/exercise-name";
 import { CardioRows, SetRows, SetTypeBadge } from "@/app/components/workout-parts";
-import { Badge, Message, Segmented, Select, buttonClass as buttonRecipe, inputClass as inputRecipe } from "@/app/components/ui";
+import { Badge, Message, Segmented, Select, pageWidth, buttonClass as buttonRecipe, inputClass as inputRecipe } from "@/app/components/ui";
 import { WorkoutLabel, workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
@@ -74,7 +74,7 @@ export default function OfflinePage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5 pb-12 text-foreground">
+    <main className={`${pageWidth} flex flex-col gap-4 p-5 pb-12 text-foreground lg:gap-5 lg:px-8`}>
       <header className="mb-2 flex flex-col gap-2">
         <div className="flex items-center gap-1.5">
           <Link href="/" prefetch={false} className="-ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-full text-soft active:opacity-60">
@@ -439,7 +439,8 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         {t("Ai o ciornă nesalvată în pagina principală de înregistrare. Nu poate fi continuată aici și nu este inclusă în acest antrenament; o regăsești acolo când revii online.", "You have an unsaved draft on the main log page. It cannot be continued here and is not part of this workout; you will find it there when you are back online.")}
       </p>}
     </div>
-    <fieldset disabled={disabled || saving} className="flex min-w-0 flex-col gap-4 disabled:opacity-60">
+    <fieldset disabled={disabled || saving} className="grid min-w-0 grid-cols-1 gap-4 disabled:opacity-60 lg:grid-cols-2 lg:items-start lg:gap-5">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
       <Segmented
         label={t("Tip de antrenament", "Workout mode")}
         value={mode}
@@ -481,8 +482,10 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
         <p className="text-xs text-muted">{t("Adăugarea în listă nu salvează încă pe dispozitiv. Numai lista tipului selectat va fi salvată.", "Adding to the list does not save to this device yet. Only the selected mode’s list will be saved.")}</p>
         {mode === "strength" && <RestTimerSettings timer={restTimer} />}
       </form>
+      </div>
 
-      <h3 className="mt-2 pl-0.5 text-[13px] font-medium text-muted">{t("Lista de salvat", "List to save")} ({mode === "strength" ? sets.length : cardio.length})</h3>
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
+      <h3 className="mt-2 pl-0.5 text-[13px] font-medium text-muted lg:mt-0">{t("Lista de salvat", "List to save")} ({mode === "strength" ? sets.length : cardio.length})</h3>
       {mode === "strength" ? (
         <SetRows
           rows={sets.map((set, index) => ({
@@ -502,6 +505,7 @@ function WorkoutForm({ disabled }: { disabled: boolean }) {
       )}
       {((mode === "strength" && cardio.length > 0) || (mode === "cardio" && sets.length > 0)) && <p className="text-xs text-muted">{t("Există și o listă nesalvată pentru celălalt tip. Schimbă tipul pentru a o vedea și salva separat.", "There is also an unsaved list for the other mode. Switch modes to view and save it separately.")}</p>}
       <button type="button" onClick={() => void save()} disabled={mode === "strength" ? !sets.length : !cardio.length} className={buttonRecipe({ large: true, className: "mt-4" })}>{saving ? t("Se salvează…", "Saving…") : t("Salvează antrenamentul complet", "Save full workout")}</button>
+      </div>
     </fieldset>
     {error && <Message>{error}</Message>}
     {saved && <p role="status" className="text-[13px] font-semibold text-lime-text">{t("Antrenament salvat pe dispozitiv și pus în coada de sincronizare. Îl găsești în istoric, marcat nesincronizat până la confirmarea serverului.", "Workout saved on this device and queued for sync. Find it in history, marked pending until the server confirms it.")}</p>}

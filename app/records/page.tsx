@@ -7,7 +7,7 @@ import { recordsByExercise, type RecordRow } from "@/lib/personal-record"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Trophy } from "lucide-react"
-import { Card, Empty, Message, Screen } from "@/app/components/ui"
+import { Card, Columns, Empty, Message, Screen } from "@/app/components/ui"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -59,7 +59,8 @@ export default async function RecordsPage() {
       {sortedRecords.length === 0 ? (
         <Empty icon={Trophy}><Text ro="Nu ai setat încă niciun record. Înregistrează primul tău antrenament!" en="You have no records yet. Log your first workout!" /></Empty>
       ) : (
-        sortedRecords.map((record, index) => (
+        <Columns three>
+        {sortedRecords.map((record, index) => (
           <Card key={record.exercise}>
             <div className="flex items-start justify-between gap-2.5">
               <h2 className="min-w-0 flex-1 break-words text-[17px] font-medium"><ExerciseName id={record.exercise} /></h2>
@@ -85,7 +86,8 @@ export default async function RecordsPage() {
               </div>
             </div>
           </Card>
-        ))
+        ))}
+        </Columns>
       )}
       {sortedRecords.length > 0 && (
         <p className="px-1 text-xs leading-[17px] text-muted">

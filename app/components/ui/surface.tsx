@@ -6,12 +6,16 @@ import { ArrowLeft, ArrowUpRight, ChevronRight, type LucideIcon } from "lucide-r
 import { Text } from "@/app/components/language-provider";
 import { cx, toneBorder, toneSoft, toneText, type Tone } from "./tone";
 
+// Shared page width: one column on phones, widening with the viewport. The layout's top bar and the offline strip
+// use it too, so everything lines up. Wide content is arranged with `Columns` below.
+export const pageWidth = "mx-auto w-full max-w-xl md:max-w-3xl lg:max-w-6xl";
+
 // Page frame: optional back arrow + 28px title, then the content column. The dashboard passes `back={false}`.
 export function Screen({ title, back = "/", right, children, className }: {
   title?: ReactNode; back?: string | false; right?: ReactNode; children: ReactNode; className?: string;
 }) {
   return (
-    <main className={cx("mx-auto flex w-full max-w-xl flex-col gap-4 p-5 pb-12 text-foreground", className)}>
+    <main className={cx(pageWidth, "flex flex-col gap-4 p-5 pb-12 text-foreground lg:gap-5 lg:px-8", className)}>
       {(title || back) && (
         <header className="mb-2 flex items-center gap-1.5">
           {back && (
@@ -27,6 +31,21 @@ export function Screen({ title, back = "/", right, children, className }: {
       {children}
     </main>
   );
+}
+
+// Responsive grid for cards: one column on phones, `two` from md, `three` from lg (default: same as `two`).
+// `top` aligns items to the top so cards of different heights don't stretch.
+export function Columns({ children, className, three, top = true }: { children: ReactNode; className?: string; three?: boolean; top?: boolean }) {
+  return (
+    <div className={cx("grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5", three && "lg:grid-cols-3", top && "items-start", className)}>
+      {children}
+    </div>
+  );
+}
+
+// A vertical stack of cards: one column of a `Columns` grid.
+export function Stack({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx("flex min-w-0 flex-col gap-4 lg:gap-5", className)}>{children}</div>;
 }
 
 export function Card({ children, tone, padded = true, className, ...rest }: ComponentProps<"section"> & { tone?: Tone; padded?: boolean }) {

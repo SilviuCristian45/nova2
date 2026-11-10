@@ -11,7 +11,7 @@ import StepsInput from "./components/steps-input"
 import WeightInput from "./components/weight-input"
 import { getDailyGoal } from "./profiles/profile"
 import GoalSetting from "./components/goal-setting"
-import { CtaCard, LinkList, Screen, buttonClass, iconButtonClass } from "./components/ui"
+import { Columns, CtaCard, LinkList, Screen, Stack, buttonClass, iconButtonClass } from "./components/ui"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -90,19 +90,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </p>
       </div>
 
-      <CtaCard href="/insert" label={t("Antrenament nou", "New workout")} title={t("Începe antrenamentul", "Start workout")} />
-
-      <StepsInput initialSteps={todaySteps} date={localDate()} goal={todayGoal} />
-      <WeightInput />
-
-      <LinkList items={[
-        { href: "/history", title: t("Antrenamente", "Workouts"), subtitle: t("Istoricul tău complet", "Your full history") },
-        { href: "/stats", title: t("Progres", "Progress"), subtitle: t("Grafice și evoluție în timp", "Charts and trends over time") },
-        { href: "/records", title: t("Recorduri personale", "Personal records"), subtitle: t("Cele mai bune performanțe", "Your all-time bests") },
-        { href: "/meals", title: t("Nutriție", "Nutrition"), subtitle: t("Jurnal alimentar și calorii", "Food diary and calories") },
-      ]} />
-
-      <GoalSetting currentGoal={todayGoal} />
+      <Columns>
+        <Stack>
+          <CtaCard href="/insert" label={t("Antrenament nou", "New workout")} title={t("Începe antrenamentul", "Start workout")} />
+          <StepsInput initialSteps={todaySteps} date={localDate()} goal={todayGoal} />
+          <WeightInput />
+        </Stack>
+        <Stack>
+          <LinkList items={[
+            { href: "/history", title: t("Antrenamente", "Workouts"), subtitle: t("Istoricul tău complet", "Your full history") },
+            { href: "/stats", title: t("Progres", "Progress"), subtitle: t("Grafice și evoluție în timp", "Charts and trends over time") },
+            { href: "/records", title: t("Recorduri personale", "Personal records"), subtitle: t("Cele mai bune performanțe", "Your all-time bests") },
+            { href: "/meals", title: t("Nutriție", "Nutrition"), subtitle: t("Jurnal alimentar și calorii", "Food diary and calories") },
+          ]} />
+          <GoalSetting currentGoal={todayGoal} />
+        </Stack>
+      </Columns>
     </Screen>
   )
 }

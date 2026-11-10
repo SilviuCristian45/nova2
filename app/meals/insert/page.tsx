@@ -263,6 +263,8 @@ export default function InsertMealPage() {
 
   return (
     <Screen title={<Text ro="Adaugă masă" en="Add meal" />} back="/meals">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
       <Segmented
         label={t("Tipul mesei", "Meal type")}
         value={mealType}
@@ -395,10 +397,11 @@ export default function InsertMealPage() {
           )}
         </>
       )}
+      </div>
 
       {/* Current draft of the meal */}
       {draftItems.length > 0 && (
-        <>
+        <div className="flex min-w-0 flex-col gap-4 lg:gap-5 lg:sticky lg:top-4">
           <Card>
             <Label><Text ro="Total masă" en="Meal total" /></Label>
             <BigNumber value={Math.round(draftTotals.kcal).toLocaleString(locale)} unit="kcal" />
@@ -454,8 +457,9 @@ export default function InsertMealPage() {
               </div>
             </Card>
           )}
-        </>
+        </div>
       )}
+      </div>
 
       {isScanning && <BarcodeScanner onResult={handleBarcodeScan} onClose={() => setIsScanning(false)} />}
     </Screen>

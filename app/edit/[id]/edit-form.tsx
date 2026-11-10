@@ -107,6 +107,8 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
 
   return (
     <Screen title={<Text ro="Editare sesiune" en="Edit session" />} back="/history">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
       <Card>
         <Field label={<Text ro="Data antrenamentului" en="Workout date" />} htmlFor="performed-on">
           <Input id="performed-on" type="date" value={performedOn} onChange={(e) => setPerformedOn(e.target.value)} />
@@ -173,8 +175,10 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
           </Card>
         </form>
       )}
+      </div>
 
-      <h2 className="mt-2 pl-0.5 text-[13px] font-medium text-muted">
+      <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
+      <h2 className="mt-2 pl-0.5 text-[13px] font-medium text-muted lg:mt-0">
         <Text ro="Seturi existente" en="Existing sets" />
       </h2>
       {mode === "strength" ? (
@@ -199,6 +203,8 @@ export default function EditWorkoutForm({ initialWorkout }: { initialWorkout: an
       <Button large icon={Save} onClick={handleFinish} busy={isSaving} className="mt-4">
         <Text ro="Salvează modificările" en="Save changes" />
       </Button>
+      </div>
+      </div>
     </Screen>
   )
 }

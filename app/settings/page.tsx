@@ -1,7 +1,7 @@
 import { Text } from "@/app/components/language-provider"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { Screen } from "@/app/components/ui"
+import { Columns, Screen, Stack } from "@/app/components/ui"
 import { AccountForms, DangerZone, DataPortability, ProfileForm } from "./settings-forms"
 import { DriveBackupSection } from "./drive-backup"
 import { driveConfigured } from "@/lib/google-drive"
@@ -32,18 +32,24 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return (
     <Screen title={<Text ro="Setări" en="Settings" />}>
-      <ProfileForm profile={{
-        displayName: profile?.display_name ?? "",
-        heightCm: profile?.height_cm?.toString() ?? "",
-        birthDate: profile?.birth_date ?? "",
-        sex: profile?.sex ?? "",
-        weightUnit: profile?.weight_unit ?? "kg",
-        dailyStepsGoal: profile?.daily_steps_goal ?? 10000,
-      }} />
-      <AccountForms email={user.email ?? ""} />
-      <DataPortability />
-      {drive && <DriveBackupSection initial={drive} connectResult={connectResult ?? null} />}
-      <DangerZone email={user.email ?? ""} />
+      <Columns>
+        <Stack>
+          <ProfileForm profile={{
+            displayName: profile?.display_name ?? "",
+            heightCm: profile?.height_cm?.toString() ?? "",
+            birthDate: profile?.birth_date ?? "",
+            sex: profile?.sex ?? "",
+            weightUnit: profile?.weight_unit ?? "kg",
+            dailyStepsGoal: profile?.daily_steps_goal ?? 10000,
+          }} />
+          <AccountForms email={user.email ?? ""} />
+        </Stack>
+        <Stack>
+          <DataPortability />
+          {drive && <DriveBackupSection initial={drive} connectResult={connectResult ?? null} />}
+          <DangerZone email={user.email ?? ""} />
+        </Stack>
+      </Columns>
     </Screen>
   )
 }

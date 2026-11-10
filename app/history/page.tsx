@@ -9,7 +9,7 @@ import { Dumbbell, ChevronDown, Flame, ChevronLeft, ChevronRight, Pencil } from 
 import { createClient } from "@/lib/supabase/server";
 import { DeleteWorkoutButton } from "./delete-button";
 import { SetTypeBadge } from "@/app/components/workout-parts";
-import { Badge, Card, Empty, Field, Message, Screen, buttonClass, iconButtonClass, inputClass } from "@/app/components/ui";
+import { Badge, Card, Columns, Empty, Field, Message, Screen, buttonClass, iconButtonClass, inputClass } from "@/app/components/ui";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -104,7 +104,8 @@ export default async function HistoryPage({
       {!workouts?.length ? (
         <Empty icon={Dumbbell}><Text ro="Nu am găsit antrenamente în această perioadă." en="No workouts found for this period." /></Empty>
       ) : (
-        workouts.map((workout) => {
+        <Columns>
+        {workouts.map((workout) => {
           const isCardio = workout.workout_mode === "cardio";
           const date = new Date(`${workout.performed_on}T00:00:00`).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
           const groupedSets: Record<string, WorkoutSet[]> = {};
@@ -154,7 +155,8 @@ export default async function HistoryPage({
               ))}
             </Card>
           );
-        })
+        })}
+        </Columns>
       )}
       {totalPages > 1 && (
         <nav aria-label={t("Paginare", "Pagination")} className="mt-2 flex items-center justify-between gap-2">
