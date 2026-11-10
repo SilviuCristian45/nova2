@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { getDailyCheckin, saveDailyCheckin } from "@/app/checkin/actions";
 import { CHECKIN_NOTE_MAX, emptyCheckin, hasCheckinContent, parseCheckin, type CheckinValues } from "@/lib/checkin";
 import { isMeasurementDate, localDate } from "@/lib/daily-metrics";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import { readOfflineDatabase } from "@/lib/offline/store";
 import { useLanguage } from "./language-provider";
-import { Card, Label, TextLink, buttonClass, cx, inputClass } from "./ui";
+import { Card, TextLink, buttonClass, cx, inputClass } from "./ui";
 
 const subscribeToDate = () => () => {};
 const serverDate = () => "";
@@ -45,23 +45,23 @@ function ScorePicker({ label, low, high, value, disabled, onChange }: {
 
 // "How do you feel today": energy, satiety, sleep quality (1-10) and a short note, one entry per day.
 // Online it goes through the server action; with an offline account it uses the local queue.
+// Collapsed by default to a single summary line, so it does not push the workouts down the dashboard.
 export default function CheckinCard({ chartLink = true }: { chartLink?: boolean }) {
   const { t } = useLanguage();
   const today = useSyncExternalStore(subscribeToDate, localDate, serverDate);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const date = selectedDate ?? today;
+  const [open, setOpen] = useState(false);
   return (
     <Card aria-labelledby="checkin-title">
-      <div className="flex items-center justify-between gap-3">
-        <Label id="checkin-title">{t("Cum te simți azi?", "How do you feel today?")}</Label>
-        {chartLink && <TextLink href="/stats?mode=checkin">{t("Grafic", "Chart")}</TextLink>}
-      </div>
-      {date && <CheckinBody key={date} date={date} today={today} onDateChange={setSelectedDate} />}
+      {date && <CheckinBody key={date} date={date} today={today} onDateChange={setSelectedDate} open={open} setOpen={setOpen} chartLink={chartLink} />}
     </Card>
   );
 }
 
-function CheckinBody({ date, today, onDateChange }: { date: string; today: string; onDateChange: (date: string) => void }) {
+function CheckinBody({ date, today, onDateChange, open, setOpen, chartLink }: {
+  date: string; today: string; onDateChange: (date: string) => void; open: boolean; setOpen: (open: boolean) => void; chartLink: boolean;
+}) {
   const { t } = useLanguage();
   const { ownerId } = useOffline();
   const [values, setValues] = useState<CheckinValues>(emptyCheckin);
@@ -136,6 +136,7 @@ function CheckinBody({ date, today, onDateChange }: { date: string; today: strin
         setSaved(parsed);
         setValues(parsed);
         setJustSaved(true);
+        setOpen(false);
       } catch {
         setError("storage");
       }
@@ -143,8 +144,27 @@ function CheckinBody({ date, today, onDateChange }: { date: string; today: strin
   }
 
   const disabled = pending || loading || loadFailed;
+  const answers = saved ? [
+    saved.energy !== null && `${t("Energie", "Energy")} ${saved.energy}`,
+    saved.satiety !== null && `${t("Sațietate", "Satiety")} ${saved.satiety}`,
+    saved.sleep !== null && `${t("Somn", "Sleep")} ${saved.sleep}`,
+  ].filter(Boolean).join(" · ") || t("Doar o notiță", "Note only") : null;
+  const summary = loadFailed ? t("Nu am putut încărca", "Could not load") : loading ? t("Se încarcă...", "Loading...")
+    : answers ?? t("Atinge ca să completezi", "Tap to fill in");
+  const isToday = date === today;
   return (
     <>
+      <button type="button" aria-expanded={open} aria-controls="checkin-panel" onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-3 text-left">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span id="checkin-title" className="text-[13px] font-medium text-muted">
+            {isToday ? t("Cum te simți azi?", "How do you feel today?") : t(`Check-in · ${date}`, `Check-in · ${date}`)}
+          </span>
+          <span className={cx("truncate text-[15px] font-semibold tabular-nums", saved ? "text-foreground" : "text-muted")}>{summary}</span>
+        </span>
+        <ChevronDown className={cx("size-5 shrink-0 text-muted transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div id="checkin-panel" className="flex flex-col gap-3.5">
       <ScorePicker label={t("Energie", "Energy")} low={t("epuizat", "drained")} high={t("plin de energie", "full of energy")}
         value={values.energy} disabled={disabled} onChange={(value) => set("energy", value)} />
       <ScorePicker label={t("Sațietate", "Satiety")} low={t("flămând", "hungry")} high={t("sătul", "stuffed")}
@@ -174,6 +194,8 @@ function CheckinBody({ date, today, onDateChange }: { date: string; today: strin
       {error && <div role="alert" className="text-[13px] font-semibold text-red-text">
         <p>{errorText(error)}</p>
         {loadFailed && <button type="button" onClick={() => { setLoading(true); setLoadFailed(false); setError(null); setRetry((value) => value + 1); }} className="mt-2 font-bold underline">{t("Reîncearcă", "Retry")}</button>}
+      </div>}
+      {chartLink && <TextLink href="/stats?mode=checkin" className="self-start">{t("Vezi graficul", "View chart")}</TextLink>}
       </div>}
     </>
   );
