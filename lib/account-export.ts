@@ -24,7 +24,11 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     }
   }
 
-  const [profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights] = await Promise.all([
+  // The check-in table arrives with its own migration: an account without it still exports everything else.
+  const checkins = () => all("daily_checkin", "date").catch((error: Error) =>
+    /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
+
+  const [profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights, dailyCheckin] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_targets").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("workout_drafts").select("draft, client_updated_at, updated_at").eq("user_id", userId).maybeSingle(),
@@ -38,6 +42,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     all("meal_templates", "id"),
     all("daily_steps", "date"),
     all("daily_weight", "date"),
+    checkins(),
   ])
   for (const single of [profile, targets, draft]) if (single.error) throw new Error(single.error.message)
 
@@ -68,6 +73,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     meal_templates: templates,
     daily_steps: steps,
     daily_weight: weights,
+    daily_checkin: dailyCheckin,
     google_drive_backup: driveBackup
       ? { email: driveBackup.email, frequency: driveBackup.frequency, last_backup_at: driveBackup.last_backup_at }
       : null,

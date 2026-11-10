@@ -45,6 +45,12 @@ Run the progression/export checks with Node.js 22.18+:
 node --test lib/strength-progression.test.mjs lib/daily-metrics.test.mjs lib/weight-actions.test.mjs lib/language.test.mjs
 ```
 
+## Daily check-in, record and plateau hints
+
+- The dashboard has a **How do you feel today?** card: energy, satiety and sleep quality from 1 to 10 (tap the chosen score again to clear it) plus a short note. Every field is optional, but not all of them at once; saving a date again replaces that day. **Progress & Charts → Mood** plots the three scores (days without an answer stay empty). It also works offline.
+- Before using it, run `supabase/migrations/202611100001_daily_checkin.sql` in the Supabase SQL Editor. It creates `daily_checkin` and updates `sync_offline_entry`, `import_my_data` and `delete_my_data`. Until then the export, import and offline download keep working without check-ins.
+- In **New workout**, selecting an exercise also shows its all-time record (best non-warmup set, estimated 1RM and date). If the exercise has gone 4 sessions without a new best estimated 1RM (`PLATEAU_SESSIONS` in `lib/plateau.ts`), a plateau note suggests a deload or a different rep range.
+
 ## Offline logging
 
 ### Setup

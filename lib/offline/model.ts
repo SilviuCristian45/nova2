@@ -11,6 +11,11 @@ export function validOfflinePayload(value: unknown, today: string): value is Off
   const text = (v: unknown, max: number) => typeof v === "string" && v.trim().length > 0 && v.length <= max;
   if (p.kind === "steps") return number(p.steps, 0, 2147483647, true);
   if (p.kind === "weight") return number(p.weightKg, 0.01, 9999.99) && Math.abs(p.weightKg * 100 - Math.round(p.weightKg * 100)) < 0.000001;
+  if (p.kind === "checkin") {
+    const score = (v: unknown) => v === null || number(v, 1, 10, true);
+    return score(p.energy) && score(p.satiety) && score(p.sleep) && typeof p.note === "string" && p.note.length <= 280 &&
+      (p.energy !== null || p.satiety !== null || p.sleep !== null || p.note.length > 0);
+  }
   if (p.kind !== "workout" || !["strength", "cardio"].includes(String(p.mode)) || !text(p.split, 100)) return false;
   if (!Array.isArray(p.sets) || !Array.isArray(p.cardio) || p.sets.length > 1000 || p.cardio.length > 1000) return false;
   if (p.mode === "strength" && (!p.sets.length || p.cardio.length)) return false;
@@ -37,6 +42,11 @@ export function applyMutation(snapshot: OfflineSnapshot, mutation: OfflineMutati
   };
   if (p.kind === "weight") return {
     ...snapshot, weights: [...snapshot.weights.filter((r) => r.date !== p.date), { date: p.date, weight_kg: p.weightKg }].sort((a, b) => a.date.localeCompare(b.date)),
+  };
+  if (p.kind === "checkin") return {
+    ...snapshot,
+    checkins: [...(snapshot.checkins ?? []).filter((r) => r.date !== p.date),
+      { date: p.date, energy: p.energy, satiety: p.satiety, sleep: p.sleep, note: p.note }].sort((a, b) => a.date.localeCompare(b.date)),
   };
   return {
     ...snapshot,

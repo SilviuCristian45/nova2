@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getDailySteps } from "./steps/steps"
 import StepsInput from "./components/steps-input"
 import WeightInput from "./components/weight-input"
+import CheckinCard from "./components/checkin-card"
 import { getDailyGoal } from "./profiles/profile"
 import GoalSetting from "./components/goal-setting"
 import { Columns, CtaCard, LinkList, Screen, Stack, buttonClass, iconButtonClass } from "./components/ui"
@@ -95,6 +96,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <CtaCard href="/insert" label={t("Antrenament nou", "New workout")} title={t("Începe antrenamentul", "Start workout")} />
           <StepsInput initialSteps={todaySteps} date={localDate()} goal={todayGoal} />
           <WeightInput />
+          <CheckinCard />
         </Stack>
         <Stack>
           <LinkList items={[

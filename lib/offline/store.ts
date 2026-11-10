@@ -43,9 +43,10 @@ export function activateSnapshot(snapshot: OfflineSnapshot, revision: number, pr
   return transact((state) => {
     if (!state.enabled || state.revision !== revision) throw new Error("Offline download cancelled. Download again to resume.");
     const queue = state.accounts[snapshot.ownerId]?.queue ?? [];
-    const downloaded = preserveWeights
-      ? { ...snapshot, weights: state.accounts[snapshot.ownerId]?.snapshot.weights ?? [] }
-      : snapshot;
+    const previous = state.accounts[snapshot.ownerId]?.snapshot;
+    const base = preserveWeights ? { ...snapshot, weights: previous?.weights ?? [] } : snapshot;
+    // A download without check-ins (older server, table not migrated yet) must not wipe the ones already on the device.
+    const downloaded = snapshot.checkins ? base : { ...base, checkins: previous?.checkins ?? [] };
     return { ...state, activeOwner: snapshot.ownerId, accounts: {
       ...state.accounts, [snapshot.ownerId]: { snapshot: mergeSnapshot(downloaded, queue), queue },
     } };

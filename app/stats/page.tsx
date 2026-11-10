@@ -13,6 +13,7 @@ import {
   getStrengthProgression, strengthProgressionCsv, withBodyWeights, type StrengthWorkout,
 } from "@/lib/strength-progression";
 import { chartMode, localDate, measurementPoints } from "@/lib/daily-metrics";
+import { checkinSeries, type CheckinValues } from "@/lib/checkin";
 import { useUnits } from "@/app/components/units-provider";
 import { useLanguage } from "@/app/components/language-provider";
 import { cardioName, exerciseName as localizedExercise } from "@/lib/exercise-catalog";
@@ -30,6 +31,9 @@ type ChartPoint = {
   duration?: number;
   value?: number;
   target?: number;
+  energy?: number | null;
+  satiety?: number | null;
+  sleep?: number | null;
 };
 const PAGE_SIZE = 1000;
 // Tooltips look like an inner surface: filled, no border.
@@ -60,6 +64,7 @@ function StatsContent() {
   const [bodyWeights, setBodyWeights] = useState<{ date: string; weight_kg: number }[]>([]);
   const [bodyWeightError, setBodyWeightError] = useState<string | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [checkins, setCheckins] = useState<({ date: string } & CheckinValues)[]>([]);
   const [stepsGoal, setStepsGoal] = useState(10000);
   const [selectedExercise, setSelectedExercise] = useState<string>(EXERCISES[0]);
   const [selectedCardio, setSelectedCardio] = useState<string>(CARDIO_ACTIVITIES[0]);
@@ -76,6 +81,7 @@ function StatsContent() {
       setBodyWeights([]);
       setBodyWeightError(null);
       setMeasurements([]);
+      setCheckins([]);
       try {
         const supabase = createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -119,6 +125,22 @@ function StatsContent() {
               if (!cancelled) setBodyWeightError(error instanceof Error ? error.message : "load-failed");
             }
           }
+        } else if (mode === "checkin") {
+          const rows: ({ date: string } & CheckinValues)[] = [];
+          for (let from = 0; ; from += PAGE_SIZE) {
+            const { data, error } = await supabase.from("daily_checkin")
+              .select("date, energy, satiety, sleep, note").eq("user_id", user.id)
+              .gte("date", cutoffStr).lte("date", endDate).order("date")
+              .range(from, from + PAGE_SIZE - 1);
+            if (error) {
+              if (error.code === "PGRST205" || error.code === "42P01") throw new Error("checkin-setup");
+              throw new Error(error.message);
+            }
+            rows.push(...(data ?? []).map((row) => ({ ...row, note: row.note ?? "" })));
+            if (cancelled) return;
+            if (!data || data.length < PAGE_SIZE) break;
+          }
+          setCheckins(rows);
         } else {
           const rows: Measurement[] = [];
           for (let from = 0; ; from += PAGE_SIZE) {
@@ -178,6 +200,11 @@ function StatsContent() {
         duration: sessions.reduce((sum, session) => sum + Number(session.duration_min || 0), 0),
       }] : [];
     })
+    : mode === "checkin"
+    ? checkinSeries(checkins).map((row) => ({
+      date: new Date(`${row.date}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" }),
+      energy: row.energy, satiety: row.satiety, sleep: row.sleep,
+    }))
     : measurementPoints(measurements, locale).map((day) => ({
       date: day.label,
       value: mode === "weight" ? toUnit(day.value) : day.value,
@@ -210,11 +237,15 @@ function StatsContent() {
     ? t("Sesiune expirată. Autentifică-te din nou.", "Session expired. Please sign in again.")
     : error === "weight-setup"
       ? t("Urmărirea greutății necesită migrarea bazei de date. Consultă README.", "Weight tracking requires the database migration. See README.")
-      : error === "export-failed"
+      : error === "checkin-setup"
+        ? t("Check-in-ul necesită migrarea bazei de date. Consultă README.", "Check-ins require the database migration. See README.")
+        : error === "export-failed"
         ? t("Exportul CSV a eșuat. Încearcă din nou.", "CSV export failed. Please retry.")
         : t("Nu am putut încărca datele graficului.", "Unable to load chart data.") + (error && error !== "load-failed" ? ` (${error})` : "");
   const measurementMode = mode === "steps" || mode === "weight";
+  const checkinMode = mode === "checkin";
   const chartTitle = mode === "strength" ? localizedExercise(selectedExercise, language) : mode === "cardio" ? cardioName(selectedCardio, language)
+    : mode === "checkin" ? t("Cum te-ai simțit", "How you felt")
     : mode === "steps" ? t("Pași zilnici", "Daily steps") : t(`Greutate corporală (${unit})`, `Body weight (${unit})`);
 
   return (
@@ -228,6 +259,7 @@ function StatsContent() {
           { value: "cardio", label: t("Cardio", "Cardio") },
           { value: "steps", label: t("Pași", "Steps") },
           { value: "weight", label: t("Greutate", "Weight") },
+          { value: "checkin", label: t("Stare", "Mood") },
         ]}
       />
 
@@ -240,7 +272,7 @@ function StatsContent() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-5">
       <Card aria-label={t("Filtre grafic", "Chart filters")}>
-        {!measurementMode && (
+        {!measurementMode && !checkinMode && (
           <Field label={mode === "strength" ? t("Exercițiu urmărit", "Tracked exercise") : t("Activitate cardio", "Cardio activity")}>
             {mode === "strength" ? (
               <Select searchable title={t("Exercițiu urmărit", "Tracked exercise")} value={selectedExercise} onChange={setSelectedExercise}
@@ -259,6 +291,11 @@ function StatsContent() {
               { label: t("1A", "1Y"), days: 365 }, { label: t("2A", "2Y"), days: 730 }, { label: t("TOT", "ALL"), days: 7300 },
             ].map((range) => ({ value: String(range.days), label: range.label }))} />
         </div>
+        {checkinMode && (
+          <p className="text-[13px] text-soft">
+            {t("Energie, sațietate și somn (1–10) din check-in-urile zilnice. Zilele fără răspuns nu sunt considerate zero.", "Energy, satiety and sleep (1–10) from your daily check-ins. Days without an answer are not counted as zero.")}
+          </p>
+        )}
         {measurementMode && (
           <p className="text-[13px] text-soft">
             {mode === "steps"
@@ -284,12 +321,24 @@ function StatsContent() {
             <p className="font-medium">{error
               ? t("Graficul nu este disponibil. Reîncearcă încărcarea datelor.", "Chart unavailable. Please retry loading.")
               : t("Nu există înregistrări în această perioadă.", "No entries in this period.")}</p>
-            {measurementMode && !error && <TextLink href="/">{t("Adaugă o înregistrare", "Add an entry")}</TextLink>}
+            {(measurementMode || checkinMode) && !error && <TextLink href="/">{t("Adaugă o înregistrare", "Add an entry")}</TextLink>}
           </div>
         ) : (
           <div className="h-[300px] w-full min-w-0 sm:h-[380px] lg:h-[460px]">
             <ResponsiveContainer width="100%" height="100%">
-              {measurementMode ? (
+              {checkinMode ? (
+                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+                  <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
+                  <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
+                  <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} domain={[1, 10]} ticks={[1, 3, 5, 7, 10]} allowDecimals={false} />
+                  <Tooltip cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "4 4" }}
+                    contentStyle={tooltipStyle} labelStyle={{ color: "var(--muted)", fontSize: 12 }} itemStyle={{ fontWeight: 600 }} />
+                  <Legend wrapperStyle={{ paddingTop: 25, fontSize: 12 }} iconType="circle" />
+                  <Line dataKey="energy" name={t("Energie", "Energy")} stroke="var(--lime-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                  <Line dataKey="satiety" name={t("Sațietate", "Satiety")} stroke="var(--coral-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                  <Line dataKey="sleep" name={t("Somn", "Sleep")} stroke="var(--ice-text)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                </ComposedChart>
+              ) : measurementMode ? (
                 <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                   <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
                   <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />

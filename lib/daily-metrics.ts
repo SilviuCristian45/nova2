@@ -18,8 +18,8 @@ export function parseBodyWeight(value: unknown): number | null {
   return Number.isFinite(weight) && weight >= 0.01 && weight <= 9999.99 ? weight : null;
 }
 
-export function chartMode(value: string | null): "strength" | "cardio" | "steps" | "weight" {
-  return value === "cardio" || value === "steps" || value === "weight" ? value : "strength";
+export function chartMode(value: string | null): "strength" | "cardio" | "steps" | "weight" | "checkin" {
+  return value === "cardio" || value === "steps" || value === "weight" || value === "checkin" ? value : "strength";
 }
 
 export function measurementPoints(

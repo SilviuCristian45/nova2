@@ -6,7 +6,7 @@ import { driveUser, failure, noStore } from "../session"
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
-const SECTIONS = ["workouts", "workout_sets", "cardio_sessions", "meals", "meal_items", "foods", "meal_templates", "daily_steps", "daily_weight"] as const
+const SECTIONS = ["workouts", "workout_sets", "cardio_sessions", "meals", "meal_items", "foods", "meal_templates", "daily_steps", "daily_weight", "daily_checkin"] as const
 
 // Restores a Drive backup in merge mode, like /api/account/import. Without `confirm` it only returns a preview
 // (what the file holds); with `confirm: true` the file is imported by import_my_data with the user's own

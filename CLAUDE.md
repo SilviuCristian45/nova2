@@ -62,6 +62,9 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 - `/meals/progress/targets`: recomandare calorii (`lib/energy.ts`): Mifflin-St Jeor × activitate, sau TDEE adaptiv din
   media caloriilor (≥10 zile cu mese) și trendul greutății (regresie, ≥3 cântăriri pe ≥10 zile — pragul rămâne așa,
   decizia utilizatorului).
+- Check-in zilnic (`daily_checkin`: energie, sațietate, somn 1–10 + notiță; `lib/checkin.ts`, `app/components/checkin-card.tsx`),
+  grafic în `/stats?mode=checkin`, funcționează și offline (payload `checkin`). La selectarea unui exercițiu în `/insert`
+  apar recordul all-time și plateau-ul (`lib/plateau.ts`, 4 sesiuni fără nou 1RM estimat); în `/offline` nu există hint-uri.
 - Cronometru de pauză între seturi (`app/components/rest-timer.tsx`) în `/insert` și `/offline`.
 
 ## Idei amânate

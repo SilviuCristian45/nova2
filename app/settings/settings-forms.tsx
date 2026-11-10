@@ -153,7 +153,7 @@ export function DataPortability() {
         <div>
           <p className="font-semibold"><Text ro="Exportă datele" en="Export data" /></p>
           <p className="text-[13px] text-soft">
-            <Text ro="Un fișier JSON cu profilul, antrenamentele, seturile, mesele, pașii și greutatea." en="A JSON file with your profile, workouts, sets, meals, steps and weight." />
+            <Text ro="Un fișier JSON cu profilul, antrenamentele, seturile, mesele, pașii, greutatea și check-in-urile." en="A JSON file with your profile, workouts, sets, meals, steps, weight and check-ins." />
           </p>
         </div>
         <a href="/api/account/export" download className={buttonRecipe({ variant: "secondary", className: "shrink-0" })}>
@@ -230,7 +230,7 @@ export function DangerZone({ email }: { email: string }) {
         <div>
           <p className="font-semibold"><Text ro="Șterge toate datele" en="Delete all data" /></p>
           <p className="text-[13px] text-soft">
-            <Text ro="Antrenamente, mese, pași, greutate și alimente proprii. Contul și profilul rămân." en="Workouts, meals, steps, weight and your own foods. Your account and profile stay." />
+            <Text ro="Antrenamente, mese, pași, greutate, check-in-uri și alimente proprii. Contul și profilul rămân." en="Workouts, meals, steps, weight, check-ins and your own foods. Your account and profile stay." />
           </p>
         </div>
         <Button variant="soft" tone="red" onClick={() => choose("data")} disabled={pending} className="shrink-0">

@@ -64,7 +64,23 @@ export async function GET() {
       if (!data || data.length < PAGE_SIZE) return rows;
     }
   }
+  // Check-ins are optional: before the migration is applied the table does not exist, which must not break the download.
+  async function checkins() {
+    const rows = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase.from("daily_checkin").select("date, energy, satiety, sleep, note")
+        .eq("user_id", user!.id).gte("date", start).lte("date", end).order("date")
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []).map((row) => ({ date: row.date, energy: row.energy, satiety: row.satiety, sleep: row.sleep, note: row.note ?? "" })));
+      if (!data || data.length < PAGE_SIZE) return rows;
+    }
+  }
   try {
+    const checkinRows = await checkins().catch((error: unknown) => {
+      console.error("Check-in download skipped:", error instanceof Error ? error.message : error);
+      return undefined;
+    });
     const [workoutRows, stepRows, weightResult] = await Promise.all([
       workouts(), steps(), weights().then((rows) => ({ rows, warning: null as string | null }))
         .catch((error: unknown) => ({
@@ -72,7 +88,7 @@ export async function GET() {
         })),
     ]);
     return NextResponse.json({
-      snapshot: { ownerId: user.id, downloadedAt: new Date().toISOString(), workouts: workoutRows, steps: stepRows, weights: weightResult.rows },
+      snapshot: { ownerId: user.id, downloadedAt: new Date().toISOString(), workouts: workoutRows, steps: stepRows, weights: weightResult.rows, ...(checkinRows ? { checkins: checkinRows } : {}) },
       warning: weightResult.warning,
     }, { headers });
   } catch (error) {

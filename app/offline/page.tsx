@@ -17,6 +17,7 @@ import { isMeasurementDate, localDate, parseBodyWeight } from "@/lib/daily-metri
 import { randomId } from "@/lib/random-id";
 import { localizeOfflineMessage } from "@/lib/offline/messages";
 import { displayOrdinals } from "@/lib/set-numbering";
+import CheckinCard from "@/app/components/checkin-card";
 import { baselinesFromWorkouts, draftPersonalRecords } from "@/lib/personal-record";
 import { rejectedEntryExport } from "@/lib/offline/rejected";
 import { draftHasEntries } from "@/lib/workout-draft";
@@ -207,6 +208,7 @@ function OwnerWorkspace({ snapshot, disabled }: { snapshot: OfflineSnapshot | nu
       <div className="flex flex-col gap-4">
         <MetricForm kind="steps" snapshot={snapshot} disabled={disabled} />
         <MetricForm kind="weight" snapshot={snapshot} disabled={disabled} />
+        <CheckinCard chartLink={false} />
       </div>
       <WorkoutForm disabled={disabled} />
       <section className={panelClass}>
