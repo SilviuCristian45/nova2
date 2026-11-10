@@ -47,7 +47,6 @@ function ScorePicker({ label, low, high, value, disabled, onChange }: {
 // Online it goes through the server action; with an offline account it uses the local queue.
 // Collapsed by default to a single summary line, so it does not push the workouts down the dashboard.
 export default function CheckinCard({ chartLink = true }: { chartLink?: boolean }) {
-  const { t } = useLanguage();
   const today = useSyncExternalStore(subscribeToDate, localDate, serverDate);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const date = selectedDate ?? today;
