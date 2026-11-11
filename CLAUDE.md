@@ -65,6 +65,11 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 - Check-in zilnic (`daily_checkin`: energie, sațietate, somn 1–10 + notiță; `lib/checkin.ts`, `app/components/checkin-card.tsx`),
   grafic în `/stats?mode=checkin`, funcționează și offline (payload `checkin`). La selectarea unui exercițiu în `/insert`
   apar recordul all-time și plateau-ul (`lib/plateau.ts`, 4 sesiuni fără nou 1RM estimat); în `/offline` nu există hint-uri.
+- Poze de progres (`/photos`, `lib/photos.ts`): imaginile stau în bucket-ul Supabase Storage privat `progress-photos`
+  (`<user_id>/<id>.jpg`), metadatele în `progress_photos`. Fișierele din Storage NU se șterg prin cascade și nici cu SQL:
+  `deleteAllData`/`deleteAccount` apelează `removeAllPhotoFiles` înainte. Backup-ul Drive urcă pozele ca fișiere separate
+  `replog-photo-<id>.jpg` (JSON-ul conține doar metadatele), iar restaurarea le aduce înapoi (`lib/photos-restore.ts`);
+  `import_my_data` nu creează rânduri de poze. Nu funcționează offline.
 - Cronometru de pauză între seturi (`app/components/rest-timer.tsx`) în `/insert` și `/offline`.
 
 ## Idei amânate

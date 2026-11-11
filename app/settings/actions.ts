@@ -3,7 +3,8 @@
 import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { removeDriveLink } from "@/lib/drive-service"
+import { purgeDrivePhotos, removeDriveLink } from "@/lib/drive-service"
+import { removeAllPhotoFiles } from "@/lib/photos"
 import { revalidatePath } from "next/cache"
 import { rememberWeightUnit } from "@/app/units"
 
@@ -108,7 +109,15 @@ export async function deleteAllData(confirmation: string): Promise<ActionResult>
   if (!user) return { error: t("Neautorizat", "Not signed in") }
   if (!confirmed) return { error: t("Emailul introdus nu se potrivește.", "The email you typed does not match.") }
 
+  // Photo files go first (the rows are dropped by delete_my_data); a failure stops here so nothing is left behind.
+  try {
+    await removeAllPhotoFiles(supabase, user.id)
+  } catch (error) {
+    console.error("Photos not deleted:", error)
+    return { error: t("Pozele nu au putut fi șterse. Încearcă din nou.", "The photos could not be deleted. Please try again.") }
+  }
   // The Google token is revoked first; delete_my_data then drops the Drive link with everything else.
+  await purgeDrivePhotos(user.id).catch((error) => console.error("Drive photos not deleted:", error))
   await removeDriveLink(user.id).catch((error) => console.error("Drive token not revoked:", error))
   const { error } = await supabase.rpc("delete_my_data")
   if (error) return { error: error.message }
@@ -123,8 +132,16 @@ export async function deleteAccount(confirmation: string): Promise<ActionResult>
   if (!user) return { error: t("Neautorizat", "Not signed in") }
   if (!confirmed) return { error: t("Emailul introdus nu se potrivește.", "The email you typed does not match.") }
 
-  // Hard delete: every table cascades from auth.users, so this erases all of the user's rows.
+  // Hard delete: every table cascades from auth.users, so this erases all of the user's rows. Storage files do not
+  // cascade, so the photos are removed first; if that fails the account is kept and the user can retry.
   // The Google Drive token is revoked before its row disappears with the account.
+  try {
+    await removeAllPhotoFiles(supabase, user.id)
+  } catch (error) {
+    console.error("Photos not deleted:", error)
+    return { error: t("Pozele nu au putut fi șterse. Încearcă din nou.", "The photos could not be deleted. Please try again.") }
+  }
+  await purgeDrivePhotos(user.id).catch((error) => console.error("Drive photos not deleted:", error))
   await removeDriveLink(user.id).catch((error) => console.error("Drive token not revoked:", error))
   try {
     const { error } = await createAdminClient().auth.admin.deleteUser(user.id)

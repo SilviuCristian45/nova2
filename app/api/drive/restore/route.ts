@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
 import { driveClientFor } from "@/lib/drive-service"
+import { restorePhotos, type PhotoRestoreResult } from "@/lib/photos-restore"
 import { driveUser, failure, noStore } from "../session"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
-const SECTIONS = ["workouts", "workout_sets", "cardio_sessions", "meals", "meal_items", "foods", "meal_templates", "daily_steps", "daily_weight", "daily_checkin"] as const
+const SECTIONS = ["workouts", "workout_sets", "cardio_sessions", "meals", "meal_items", "foods", "meal_templates", "daily_steps", "daily_weight", "daily_checkin", "progress_photos"] as const
 
 // Restores a Drive backup in merge mode, like /api/account/import. Without `confirm` it only returns a preview
 // (what the file holds); with `confirm: true` the file is imported by import_my_data with the user's own
 // session (the function uses auth.uid()), all or nothing. Existing entries are never overwritten.
 export async function POST(request: Request) {
+  const started = Date.now()
   const session = await driveUser()
   if ("response" in session) return session.response
   const { id, confirm } = await request.json().catch(() => ({})) as { id?: unknown; confirm?: unknown }
@@ -38,6 +40,17 @@ export async function POST(request: Request) {
     console.error("Drive restore failed:", error)
     return NextResponse.json({ error: error.message }, { status: 400, headers: noStore })
   }
+  // import_my_data covers the rows; the photo images come from their own Drive files. A failure here does not undo
+  // the import: the user can restore again and only the missing photos are fetched.
+  let photos: PhotoRestoreResult | { error: string } | null = null
+  if (Array.isArray(data.progress_photos) && data.progress_photos.length > 0) {
+    try {
+      photos = await restorePhotos(session.supabase, await driveClientFor(session.user.id), session.user.id, data.progress_photos, started + 50_000)
+    } catch (error) {
+      console.error("Drive photo restore failed:", error)
+      photos = { error: error instanceof Error ? error.message : String(error) }
+    }
+  }
   revalidatePath("/", "layout")
-  return NextResponse.json({ success: true, counts }, { headers: noStore })
+  return NextResponse.json({ success: true, counts, photos }, { headers: noStore })
 }

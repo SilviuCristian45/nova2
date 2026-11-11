@@ -3,6 +3,7 @@ import { createAdminClient } from "./supabase/admin"
 import { buildExport } from "./account-export"
 import { isAutoBackupFrequency, runAutoBackup, type AutoBackupFrequency, type AutoBackupResult } from "./drive-backup"
 import { decryptToken, encryptToken } from "./drive-token"
+import { drivePhotoName, PHOTO_BUCKET } from "./photos"
 import { DriveClient, driveConfigured, revokeToken } from "./google-drive"
 
 // The google_drive_backups table is service-role only, so everything that touches it lives here. The browser only
@@ -102,7 +103,11 @@ export async function backupRow(row: Row, force = false, now = new Date()): Prom
       const { data: { user }, error } = await admin.auth.admin.getUserById(row.user_id)
       if (error || !user) throw new Error("Account not found")
       const body = await buildExport(admin, user, { email: row.email, frequency, last_backup_at: row.last_backup_at })
-      await new DriveClient(decryptToken(row.refresh_token)).uploadAndPrune(name, JSON.stringify(body, null, 2))
+      const drive = new DriveClient(decryptToken(row.refresh_token))
+      await drive.uploadAndPrune(name, JSON.stringify(body, null, 2))
+      // The JSON backup is already safe; a photo that fails here is retried by the next backup.
+      await backupPhotos(drive, admin, (body.progress_photos ?? []) as { id: string; path: string }[])
+        .catch((caught) => console.warn("Photos not fully backed up", caught))
     },
     now,
     force,
@@ -113,6 +118,33 @@ export async function backupRow(row: Row, force = false, now = new Date()): Prom
     if (error) console.error("Drive backup state not saved:", error)
   }
   return result
+}
+
+// At most this many new photos are uploaded per backup, so one run stays within the route's time limit.
+const PHOTOS_PER_BACKUP = 40
+
+// Photos are not part of the JSON: each one is a separate file, uploaded once (the file name holds the photo id).
+async function backupPhotos(drive: DriveClient, admin: ReturnType<typeof createAdminClient>, photos: { id: string; path: string }[]) {
+  if (photos.length === 0) return
+  const stored = new Set((await drive.listPhotos()).map((file) => file.name))
+  let uploaded = 0
+  for (const photo of photos) {
+    if (stored.has(drivePhotoName(photo.id))) continue
+    if (uploaded++ >= PHOTOS_PER_BACKUP) return
+    const { data, error } = await admin.storage.from(PHOTO_BUCKET).download(photo.path)
+    if (error || !data) throw new Error(`photo ${photo.id}: ${error?.message ?? "missing"}`)
+    await drive.uploadPhoto(drivePhotoName(photo.id), Buffer.from(await data.arrayBuffer()))
+  }
+}
+
+// Deleting the data or the account also removes the photo copies from the user's Drive (best effort, before the token
+// is revoked). The JSON backups are left alone, like on disconnect.
+export async function purgeDrivePhotos(userId: string): Promise<void> {
+  if (!driveConfigured()) return
+  const row = await readRow(userId).catch(() => null)
+  if (!row) return
+  const drive = new DriveClient(decryptToken(row.refresh_token))
+  for (const file of await drive.listPhotos()) await drive.deleteBackup(file.id)
 }
 
 export async function backupUser(userId: string, force: boolean): Promise<AutoBackupResult> {

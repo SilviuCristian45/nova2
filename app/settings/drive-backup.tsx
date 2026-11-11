@@ -80,8 +80,8 @@ export function DriveBackupSection({ initial, connectResult }: { initial: DriveS
       `${file.name}`,
       new Date(file.createdTime).toLocaleString(locale),
       "",
-      t(`Conține: ${c.workouts} antrenamente, ${c.workout_sets} seturi, ${c.cardio_sessions} activități cardio, ${c.meals} mese, ${c.daily_steps} zile cu pași, ${c.daily_weight} cântăriri, ${c.daily_checkin ?? 0} check-in-uri.`,
-        `Contains: ${c.workouts} workouts, ${c.workout_sets} sets, ${c.cardio_sessions} cardio entries, ${c.meals} meals, ${c.daily_steps} days of steps, ${c.daily_weight} weigh-ins, ${c.daily_checkin ?? 0} check-ins.`),
+      t(`Conține: ${c.workouts} antrenamente, ${c.workout_sets} seturi, ${c.cardio_sessions} activități cardio, ${c.meals} mese, ${c.daily_steps} zile cu pași, ${c.daily_weight} cântăriri, ${c.daily_checkin ?? 0} check-in-uri, ${c.progress_photos ?? 0} poze de progres.`,
+        `Contains: ${c.workouts} workouts, ${c.workout_sets} sets, ${c.cardio_sessions} cardio entries, ${c.meals} meals, ${c.daily_steps} days of steps, ${c.daily_weight} weigh-ins, ${c.daily_checkin ?? 0} check-ins, ${c.progress_photos ?? 0} progress photos.`),
       "",
       t("Datele se combină cu cele din cont: nimic existent nu se suprascrie, iar ce există deja nu se dublează. Continui?",
         "The data is merged into your account: nothing existing is overwritten and what is already there is not duplicated. Continue?"),
@@ -90,9 +90,17 @@ export function DriveBackupSection({ initial, connectResult }: { initial: DriveS
       setStatus({ ok: true, text: t("Anulat. Nu s-a modificat nimic.", "Cancelled. Nothing changed.") })
       return
     }
-    const { counts } = await call<{ counts: Record<string, number> }>("/api/drive/restore", { id: file.id, confirm: true })
+    const { counts, photos } = await call<{ counts: Record<string, number>; photos: { restored: number; missing: number; error?: string } | null }>("/api/drive/restore", { id: file.id, confirm: true })
     const total = Object.values(counts ?? {}).reduce((sum, n) => sum + n, 0)
-    setStatus({ ok: true, text: t(`Datele din Drive au fost combinate cu cele din cont: ${total} înregistrări noi.`, `The Drive data was merged into your account: ${total} new records.`) })
+    const base = t(`Datele din Drive au fost combinate cu cele din cont: ${total} înregistrări noi.`, `The Drive data was merged into your account: ${total} new records.`)
+    if (photos?.error) {
+      setStatus({ ok: false, text: `${base} ${t("Pozele nu au putut fi restaurate complet: ", "The photos could not be fully restored: ")}${photos.error}` })
+    } else if (photos) {
+      const left = photos.missing > 0 ? t(` ${photos.missing} nu au fost găsite în Drive.`, ` ${photos.missing} were not found in Drive.`) : ""
+      setStatus({ ok: true, text: `${base} ${t(`Poze restaurate: ${photos.restored}.`, `Photos restored: ${photos.restored}.`)}${left}` })
+    } else {
+      setStatus({ ok: true, text: base })
+    }
   })
 
   const disconnect = () => run("disconnect", async () => {

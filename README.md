@@ -51,6 +51,15 @@ node --test lib/strength-progression.test.mjs lib/daily-metrics.test.mjs lib/wei
 - Before using it, run `supabase/migrations/202611100001_daily_checkin.sql` in the Supabase SQL Editor. It creates `daily_checkin` and updates `sync_offline_entry`, `import_my_data` and `delete_my_data`. Until then the export, import and offline download keep working without check-ins.
 - In **New workout**, selecting an exercise also shows its all-time record (best non-warmup set, estimated 1RM and date). If the exercise has gone 4 sessions without a new best estimated 1RM (`PLATEAU_SESSIONS` in `lib/plateau.ts`), a plateau note suggests a deload or a different rep range.
 
+## Progress photos
+
+- `/photos` (linked from the dashboard): upload a photo with a date, a pose (front/side/back/other) and an optional note, browse them by day, filter by pose, open one full screen, delete it, or pick two to compare side by side. Photos are shrunk in the browser (long edge 1600 px, JPEG) before upload; at most 200 per account.
+- Before using it, run `supabase/migrations/202611110001_progress_photos.sql` in the Supabase SQL Editor. It creates the `progress_photos` table (RLS, 200-photo cap), the **private** Storage bucket `progress-photos` (JPEG only, 5 MB per file, owner-only policies on `<user_id>/…`) and updates `delete_my_data`.
+- **Where they live:** the images are in Supabase Storage (so on a self-hosted Supabase they move with it); only the metadata is in Postgres. The page reads them through signed links that expire after an hour.
+- **Account / data deletion:** Storage files do not cascade from `auth.users` and cannot be deleted with SQL, so `deleteAllData` and `deleteAccount` (`app/settings/actions.ts`) first remove the user's folder through the Storage API (`removeAllPhotoFiles`). If that fails, nothing else is deleted and the user can retry. The user's Drive photo copies are deleted too (best effort).
+- **Export:** the JSON export (`progress_photos`) carries the metadata only, not the images; each photo can be opened/saved from the viewer. The JSON import (`import_my_data`) does not create photo rows, because it could not bring the files back.
+- **Google Drive backup:** each backup also uploads the photos that are not in Drive yet, as separate `replog-photo-<id>.jpg` files in the app folder (at most 40 new ones per run; the rest follow on the next backup). The JSON backup lists them, and pruning of old backups ignores images. **Restoring** a Drive backup re-creates the rows and downloads the images from Drive for photos the account does not have.
+
 ## Offline logging
 
 ### Setup

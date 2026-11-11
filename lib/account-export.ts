@@ -28,7 +28,11 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
   const checkins = () => all("daily_checkin", "date").catch((error: Error) =>
     /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
 
-  const [profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights, dailyCheckin] = await Promise.all([
+  // Same for the photo metadata (the image files are not part of the JSON: the Drive backup stores them separately).
+  const photos = () => all("progress_photos", "taken_on").catch((error: Error) =>
+    /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
+
+  const [profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights, dailyCheckin, progressPhotos] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_targets").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("workout_drafts").select("draft, client_updated_at, updated_at").eq("user_id", userId).maybeSingle(),
@@ -43,6 +47,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     all("daily_steps", "date"),
     all("daily_weight", "date"),
     checkins(),
+    photos(),
   ])
   for (const single of [profile, targets, draft]) if (single.error) throw new Error(single.error.message)
 
@@ -74,6 +79,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     daily_steps: steps,
     daily_weight: weights,
     daily_checkin: dailyCheckin,
+    progress_photos: progressPhotos,
     google_drive_backup: driveBackup
       ? { email: driveBackup.email, frequency: driveBackup.frequency, last_backup_at: driveBackup.last_backup_at }
       : null,

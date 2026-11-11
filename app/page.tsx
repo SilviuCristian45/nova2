@@ -103,6 +103,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             { href: "/history", title: t("Antrenamente", "Workouts"), subtitle: t("Istoricul tău complet", "Your full history") },
             { href: "/stats", title: t("Progres", "Progress"), subtitle: t("Grafice și evoluție în timp", "Charts and trends over time") },
             { href: "/records", title: t("Recorduri personale", "Personal records"), subtitle: t("Cele mai bune performanțe", "Your all-time bests") },
+            { href: "/photos", title: t("Poze de progres", "Progress photos"), subtitle: t("Înainte și după, în timp", "Before and after, over time") },
             { href: "/meals", title: t("Nutriție", "Nutrition"), subtitle: t("Jurnal alimentar și calorii", "Food diary and calories") },
           ]} />
           <GoalSetting currentGoal={todayGoal} />

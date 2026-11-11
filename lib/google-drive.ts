@@ -129,25 +129,59 @@ export class DriveClient {
     }
   }
 
-  async uploadBackup(name: string, text: string): Promise<void> {
+  private async upload(name: string, mimeType: string, content: Buffer): Promise<void> {
     const boundary = `replog${randomBytes(12).toString("hex")}`
-    const metadata = JSON.stringify({ name, parents: ["appDataFolder"], mimeType: "application/json" })
-    const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`
-      + `--${boundary}\r\nContent-Type: application/json\r\n\r\n${text}\r\n--${boundary}--`
+    const metadata = JSON.stringify({ name, parents: ["appDataFolder"], mimeType })
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
+      content,
+      Buffer.from(`\r\n--${boundary}--`),
+    ])
     await this.request(`${UPLOAD_API}/files?uploadType=multipart`, {
-      method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body,
+      method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: new Uint8Array(body),
     })
   }
 
-  // Newest first.
+  async uploadBackup(name: string, text: string): Promise<void> {
+    await this.upload(name, "application/json", Buffer.from(text, "utf8"))
+  }
+
+  async uploadPhoto(name: string, bytes: Buffer): Promise<void> {
+    await this.upload(name, "image/jpeg", bytes)
+  }
+
+  // Newest first. Photos live in the same folder, so they are excluded: pruning must never touch them.
   async listBackups(): Promise<DriveFile[]> {
-    const params = new URLSearchParams({ spaces: "appDataFolder", orderBy: "createdTime desc", pageSize: "100", fields: "files(id,name,createdTime)" })
+    const params = new URLSearchParams({
+      spaces: "appDataFolder", orderBy: "createdTime desc", pageSize: "100", fields: "files(id,name,createdTime)",
+      q: "not mimeType contains 'image/'",
+    })
     const response = await this.request(`${API}/files?${params}`)
     return ((await response.json()) as { files?: DriveFile[] }).files ?? []
   }
 
   async downloadBackup(id: string): Promise<string> {
     return (await this.request(`${API}/files/${encodeURIComponent(id)}?alt=media`)).text()
+  }
+
+  // The photo files (image/jpeg) of the folder.
+  async listPhotos(): Promise<{ id: string; name: string }[]> {
+    const files: { id: string; name: string }[] = []
+    let pageToken: string | undefined
+    do {
+      const params = new URLSearchParams({
+        spaces: "appDataFolder", pageSize: "1000", fields: "nextPageToken,files(id,name)", q: "mimeType = 'image/jpeg'",
+      })
+      if (pageToken) params.set("pageToken", pageToken)
+      const page = (await (await this.request(`${API}/files?${params}`)).json()) as { files?: { id: string; name: string }[]; nextPageToken?: string }
+      files.push(...(page.files ?? []))
+      pageToken = page.nextPageToken
+    } while (pageToken)
+    return files
+  }
+
+  async downloadBytes(id: string): Promise<Uint8Array> {
+    return Buffer.from(await (await this.request(`${API}/files/${encodeURIComponent(id)}?alt=media`)).arrayBuffer())
   }
 
   async deleteBackup(id: string): Promise<void> {
