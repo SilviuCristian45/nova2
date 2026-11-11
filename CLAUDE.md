@@ -73,6 +73,7 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 - Cronometru de pauză între seturi (`app/components/rest-timer.tsx`) în `/insert` și `/offline`.
 
 ## Idei amânate
+- Poze de progres criptate end-to-end (ascunse și de administratori): analiza în `docs/idei/poze-criptate-e2ee.md`.
 - Migrație de bază + reparare istoric migrații; Docker/standalone pentru VPS.
 - Măsurători corporale (talie, piept etc.), rutine de antrenament, link direct spre recomandarea de calorii.
 - Aplicație mobilă separată, complet offline (Expo + SQLite) — amânată de utilizator.
