@@ -22,13 +22,28 @@ drop policy if exists "progress_photos_select_own" on public.progress_photos;
 create policy "progress_photos_select_own" on public.progress_photos
   for select to authenticated using (user_id = (select auth.uid()));
 
--- At most 200 photos per account.
 drop policy if exists "progress_photos_insert_own" on public.progress_photos;
 create policy "progress_photos_insert_own" on public.progress_photos
-  for insert to authenticated with check (
-    user_id = (select auth.uid())
-    and (select count(*) from public.progress_photos p where p.user_id = (select auth.uid())) < 200
-  );
+  for insert to authenticated with check (user_id = (select auth.uid()));
+
+-- At most 200 photos per account. A trigger, not a policy: a policy that counts the table it protects
+-- fails with "infinite recursion detected in policy".
+create or replace function public.progress_photos_limit()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if (select count(*) from public.progress_photos where user_id = new.user_id) >= 200 then
+    raise exception 'Photo limit reached' using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists progress_photos_limit on public.progress_photos;
+create trigger progress_photos_limit before insert on public.progress_photos
+  for each row execute function public.progress_photos_limit();
 
 drop policy if exists "progress_photos_delete_own" on public.progress_photos;
 create policy "progress_photos_delete_own" on public.progress_photos

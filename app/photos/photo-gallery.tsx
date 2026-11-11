@@ -87,7 +87,7 @@ export default function PhotoGallery({ userId, photos }: { userId: string; photo
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       setError(message === "too-large" ? t("Poza este prea mare.", "The photo is too large.")
-        : /row-level security|violates/i.test(message) ? t(`Limita este de ${PHOTO_MAX_PER_USER} de poze.`, `The limit is ${PHOTO_MAX_PER_USER} photos.`)
+        : /row-level security|violates|Photo limit/i.test(message) ? t(`Limita este de ${PHOTO_MAX_PER_USER} de poze.`, `The limit is ${PHOTO_MAX_PER_USER} photos.`)
         : /bucket not found|schema cache|does not exist/i.test(message) ? t("Rulează migrația progress_photos în Supabase.", "Run the progress_photos migration in Supabase.")
         : message);
     } finally {
