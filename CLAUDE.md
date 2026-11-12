@@ -10,7 +10,7 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 - Supabase: Postgres + Auth + RLS. Clienți: `lib/supabase/server.ts` (anon, cu sesiune), `utils/supabase/client.ts` (browser),
   `lib/supabase/admin.ts` (service_role, `server-only`: ștergerea contului, catalogul de coduri de bare și tabelul
   `google_drive_backups`, accesat doar prin `lib/drive-service.ts`).
-- Țintă: self-hosted pe VPS prin docker-compose (încă nefăcut: lipsesc `output: "standalone"`, Dockerfile, compose).
+- Țintă: self-hosted pe VPS prin docker-compose (pregătit pe `feature-docker-selfhost`: `output: "standalone"`, Dockerfile, compose cu Caddy + cron; ghid în `docs/self-hosting.md`; neîncercat încă cu Supabase self-hosted).
 - Modulul ML (Python/FastAPI) e în pauză.
 
 ## Comenzi
@@ -22,8 +22,8 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 ## Baza de date și migrații
 - Migrațiile sunt în `supabase/migrations/`. **Utilizatorul le rulează manual din Supabase SQL Editor**, nu cu `db push`.
 - Istoricul de migrații din Supabase nu se potrivește cu folderul local (remote are 4 versiuni din iulie 2026 fără fișiere
-  locale; cele locale nu sunt înregistrate remote). `db push` eșuează până la `migration repair`. Nu există încă
-  o migrație de bază pentru tabelele inițiale — necesară pentru VPS.
+  locale; cele locale nu sunt înregistrate remote). `db push` eșuează până la `migration repair`. Migrația de bază `202610010000_base_schema.sql` e doar pentru o bază nouă (VPS), nu pentru proiectul hosted;
+  `bash scripts/verify-migrations.sh` aplică tot folderul pe un Postgres în Docker.
 - `backup_complet.sql` (în .gitignore) = dump de schemă din 2026-10-24, de dinaintea migrațiilor din acea zi.
 - Fiecare migrație: `begin; … commit;`. Funcțiile `security definer` au `set search_path = ''`, nume calificate
   complet și `revoke … from public, anon`.
@@ -74,6 +74,6 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 
 ## Idei amânate
 - Poze de progres criptate end-to-end (ascunse și de administratori): analiza în `docs/idei/poze-criptate-e2ee.md`.
-- Migrație de bază + reparare istoric migrații; Docker/standalone pentru VPS.
+- Reparare istoric migrații (`migration repair`, inclusiv `--status applied 202610010000`); test end-to-end pe Supabase self-hosted.
 - Măsurători corporale (talie, piept etc.), rutine de antrenament, link direct spre recomandarea de calorii.
 - Aplicație mobilă separată, complet offline (Expo + SQLite) — amânată de utilizator.

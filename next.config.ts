@@ -30,6 +30,8 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  // Self-contained server for the Docker image (see Dockerfile); ignored by Vercel.
+  output: "standalone",
   turbopack: {},
   /* config options here */
   allowedDevOrigins: ['192.168.88.158', 'unburned-unbargained-marsha.ngrok-free.dev']
