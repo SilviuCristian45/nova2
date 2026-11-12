@@ -1,4 +1,18 @@
-{$DOMAIN} {
+# One public address for everything: the app, plus the three Supabase APIs the browser talks to
+# (same paths as hosted Supabase, so supabase-js works unchanged with NEXT_PUBLIC_SUPABASE_URL = the site URL).
+{$SITE_ADDRESS} {
 	encode zstd gzip
-	reverse_proxy app:3000
+
+	handle_path /auth/v1/* {
+		reverse_proxy auth:9999
+	}
+	handle_path /rest/v1/* {
+		reverse_proxy rest:3000
+	}
+	handle_path /storage/v1/* {
+		reverse_proxy storage:5000
+	}
+	handle {
+		reverse_proxy app:3000
+	}
 }

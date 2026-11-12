@@ -10,7 +10,7 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 - Supabase: Postgres + Auth + RLS. Clienți: `lib/supabase/server.ts` (anon, cu sesiune), `utils/supabase/client.ts` (browser),
   `lib/supabase/admin.ts` (service_role, `server-only`: ștergerea contului, catalogul de coduri de bare și tabelul
   `google_drive_backups`, accesat doar prin `lib/drive-service.ts`).
-- Țintă: self-hosted pe VPS prin docker-compose (pregătit pe `feature-docker-selfhost`: `output: "standalone"`, Dockerfile, compose cu Caddy + cron; ghid în `docs/self-hosting.md`; neîncercat încă cu Supabase self-hosted).
+- Țintă: self-hosted pe VPS: un singur `docker-compose.yml` cu Supabase minimal (db, auth, rest, storage; fără realtime/studio/imgproxy), job `migrate`, app, cron și Caddy (un singur domeniu: `/auth/v1`, `/rest/v1`, `/storage/v1` către Supabase). Ghid și ce s-a testat: `docs/self-hosting.md`. Neîncercat: HTTPS real, SMTP, browser end-to-end.
 - Modulul ML (Python/FastAPI) e în pauză.
 
 ## Comenzi
@@ -74,6 +74,6 @@ Utilizatorul comunică în română; codul și comentariile sunt în engleză, t
 
 ## Idei amânate
 - Poze de progres criptate end-to-end (ascunse și de administratori): analiza în `docs/idei/poze-criptate-e2ee.md`.
-- Reparare istoric migrații (`migration repair`, inclusiv `--status applied 202610010000`); test end-to-end pe Supabase self-hosted.
+- Reparare istoric migrații (`migration repair`, inclusiv `--status applied 202610010000`).
 - Măsurători corporale (talie, piept etc.), rutine de antrenament, link direct spre recomandarea de calorii.
 - Aplicație mobilă separată, complet offline (Expo + SQLite) — amânată de utilizator.
