@@ -7,10 +7,11 @@ import { CheckCircle2, ClipboardCheck, Send } from "lucide-react";
 import { Text, useLanguage } from "@/app/components/language-provider";
 import { useUnits } from "@/app/components/units-provider";
 import { Badge, Button, Input, Message } from "@/app/components/ui";
-import type { WeeklyCheckin } from "@/lib/coach/types";
+import { CheckinPhotoStrip } from "@/app/components/checkin-photos";
+import type { WeeklyCheckinWithPhotos } from "@/lib/coach/types";
 import { reviewWeeklyCheckinAction } from "@/app/checkin/weekly/actions";
 
-export type CoachCheckinItem = WeeklyCheckin & {
+export type CoachCheckinItem = WeeklyCheckinWithPhotos & {
   clientName?: string;
 };
 
@@ -97,6 +98,8 @@ export function CoachCheckinReviewList({
             {item.client_notes && (
               <p className="whitespace-pre-wrap text-xs text-foreground">{item.client_notes}</p>
             )}
+
+            <CheckinPhotoStrip photoUrls={item.photoUrls} />
 
             {reviewed && item.coach_reply ? (
               <div className="flex flex-col gap-0.5 rounded-sm bg-card px-3 py-2 text-xs">

@@ -23,6 +23,7 @@ import {
   cutoffDateYmd,
 } from "@/lib/coach/analytics";
 import { localDate } from "@/lib/daily-metrics";
+import { attachCheckinPhotoUrls } from "@/lib/checkin-photos";
 import { exerciseName } from "@/lib/exercise-catalog";
 import { WorkoutLabel } from "@/app/components/workout-label";
 import { CoachCheckinReviewList, type CoachCheckinItem } from "@/app/components/coach-checkin-review";
@@ -202,7 +203,11 @@ export default async function CoachHomePage() {
     }
   }
 
-  const unreviewedCheckins: CoachCheckinItem[] = ((unreviewedCheckinsData ?? []) as WeeklyCheckin[]).map((item) => ({
+  const signedUnreviewedCheckins = await attachCheckinPhotoUrls(
+    coach.supabase,
+    (unreviewedCheckinsData ?? []) as WeeklyCheckin[],
+  );
+  const unreviewedCheckins: CoachCheckinItem[] = signedUnreviewedCheckins.map((item) => ({
     ...item,
     clientName: labelClient(item.client_id),
   }));

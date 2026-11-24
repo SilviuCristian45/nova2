@@ -45,7 +45,7 @@ import {
   type NutritionPeriodSummary,
 } from "@/lib/coach/analytics";
 import { enrollmentStatusLabel } from "@/lib/coach/programs";
-import type { EnrollmentStatus, WeeklyCheckin } from "@/lib/coach/types";
+import type { EnrollmentStatus, WeeklyCheckinWithPhotos } from "@/lib/coach/types";
 import type { DailyWeight } from "@/lib/daily-metrics";
 import { ClientCharts } from "./client-charts";
 import {
@@ -149,7 +149,7 @@ export function ClientDetail({
   nutritionSummary: NutritionPeriodSummary;
   targets: ClientTargets | null;
   dailyCheckins: ClientDailyCheckin[];
-  weeklyCheckins: WeeklyCheckin[];
+  weeklyCheckins: WeeklyCheckinWithPhotos[];
   coachPrograms: CoachProgramOption[];
   initialNote: string;
   initialNoteUpdatedAt: string | null;

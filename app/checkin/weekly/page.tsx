@@ -5,6 +5,7 @@ import { Text } from "@/app/components/language-provider";
 import { getLanguage } from "@/app/language";
 import { createClient } from "@/lib/supabase/server";
 import { mondayOfWeek } from "@/lib/coach/interactions";
+import { attachCheckinPhotoUrls } from "@/lib/checkin-photos";
 import { localDate } from "@/lib/daily-metrics";
 import type { WeeklyCheckin } from "@/lib/coach/types";
 import { Empty, Screen, buttonClass } from "@/app/components/ui";
@@ -95,13 +96,16 @@ export default async function WeeklyCheckinPage() {
     ? Number(latestWeightRow.weight_kg)
     : null;
 
+  const history = await attachCheckinPhotoUrls(supabase, (historyRows ?? []) as WeeklyCheckin[]);
+
   return (
     <Screen title={<Text ro="Check-in săptămânal" en="Weekly check-in" />}>
       <WeeklyCheckinClient
+        userId={user.id}
         weekStart={weekStart}
         coaches={coaches}
         latestWeightKg={latestWeightKg}
-        history={(historyRows ?? []) as WeeklyCheckin[]}
+        history={history}
       />
     </Screen>
   );

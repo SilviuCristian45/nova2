@@ -5,6 +5,12 @@ import { getLanguage } from "@/app/language";
 import { createClient } from "@/lib/supabase/server";
 import { requireCoach } from "@/lib/coach/auth";
 import { mondayOfWeek, validateWeeklyCheckinInput } from "@/lib/coach/interactions";
+import {
+  CHECKIN_PHOTO_BUCKET,
+  checkinPhotoPathsFromRow,
+  diffRemovedCheckinPhotoPaths,
+  validateCheckinPhotoPaths,
+} from "@/lib/checkin-photos";
 import { localDate } from "@/lib/daily-metrics";
 
 export async function submitWeeklyCheckinAction(input: {
@@ -16,6 +22,9 @@ export async function submitWeeklyCheckinAction(input: {
   sleep: number;
   stress: number;
   clientNotes: string;
+  photoFrontPath?: string | null;
+  photoBackPath?: string | null;
+  photoSidePath?: string | null;
 }): Promise<{ error?: string; success?: boolean; message?: string }> {
   const { t } = await getLanguage();
   const checked = validateWeeklyCheckinInput(input, t);
@@ -25,15 +34,38 @@ export async function submitWeeklyCheckinAction(input: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: t("Neautorizat.", "Not signed in.") };
 
+  const photoCheck = validateCheckinPhotoPaths(
+    {
+      front: input.photoFrontPath,
+      back: input.photoBackPath,
+      side: input.photoSidePath,
+    },
+    user.id,
+    t,
+  );
+  if (!photoCheck.ok) return { error: photoCheck.error };
+
   const weekStart = mondayOfWeek(input.weekStart || localDate());
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("weekly_checkins")
-    .select("id, reviewed_at")
+    .select("id, reviewed_at, photo_front_path, photo_back_path, photo_side_path")
     .eq("client_id", user.id)
     .eq("coach_id", input.coachId)
     .eq("week_start", weekStart)
     .maybeSingle();
+
+  if (existingError) {
+    if (/photo_front_path|photo_back_path|photo_side_path|schema cache|does not exist/i.test(existingError.message)) {
+      return {
+        error: t(
+          "Rulează migrația 202611240003_weekly_checkin_photos.sql în Supabase.",
+          "Run the 202611240003_weekly_checkin_photos.sql migration in Supabase.",
+        ),
+      };
+    }
+    return { error: existingError.message };
+  }
 
   if (existing) {
     if (existing.reviewed_at) {
@@ -45,6 +77,12 @@ export async function submitWeeklyCheckinAction(input: {
       };
     }
 
+    const prevPaths = checkinPhotoPathsFromRow({
+      photo_front_path: (existing.photo_front_path as string | null) ?? null,
+      photo_back_path: (existing.photo_back_path as string | null) ?? null,
+      photo_side_path: (existing.photo_side_path as string | null) ?? null,
+    });
+
     const { error: updateError } = await supabase
       .from("weekly_checkins")
       .update({
@@ -53,12 +91,20 @@ export async function submitWeeklyCheckinAction(input: {
         sleep: checked.data.sleep,
         stress: checked.data.stress,
         client_notes: checked.data.clientNotes,
+        photo_front_path: photoCheck.paths.front,
+        photo_back_path: photoCheck.paths.back,
+        photo_side_path: photoCheck.paths.side,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id as string)
       .eq("client_id", user.id);
 
     if (updateError) return { error: updateError.message };
+
+    const removedPaths = diffRemovedCheckinPhotoPaths(prevPaths, photoCheck.paths);
+    if (removedPaths.length > 0) {
+      await supabase.storage.from(CHECKIN_PHOTO_BUCKET).remove(removedPaths);
+    }
 
     revalidatePath("/checkin/weekly");
     revalidatePath("/");
@@ -80,6 +126,9 @@ export async function submitWeeklyCheckinAction(input: {
     sleep: checked.data.sleep,
     stress: checked.data.stress,
     client_notes: checked.data.clientNotes,
+    photo_front_path: photoCheck.paths.front,
+    photo_back_path: photoCheck.paths.back,
+    photo_side_path: photoCheck.paths.side,
   });
 
   if (insertError) return { error: insertError.message };

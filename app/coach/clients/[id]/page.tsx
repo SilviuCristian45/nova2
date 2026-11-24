@@ -11,6 +11,7 @@ import {
   summarizeNutritionByDay,
 } from "@/lib/coach/analytics";
 import { localDate, type DailyWeight } from "@/lib/daily-metrics";
+import { attachCheckinPhotoUrls } from "@/lib/checkin-photos";
 import type { EnrollmentStatus, FeedbackReaction, WeeklyCheckin } from "@/lib/coach/types";
 import type { FeedbackThreadItem } from "@/app/feedback/actions";
 import { Card, CardTitle, Screen } from "@/app/components/ui";
@@ -379,6 +380,11 @@ export default async function CoachClientDetailPage({
       isCustomForClient: p.assigned_client_id === clientId,
     }));
 
+  const weeklyCheckins = await attachCheckinPhotoUrls(
+    coach.supabase,
+    (weeklyCheckinsData ?? []) as WeeklyCheckin[],
+  );
+
   return (
     <Screen back="/coach/clients" title={clientName}>
       <ClientDetail
@@ -395,7 +401,7 @@ export default async function CoachClientDetailPage({
         nutritionSummary={summarizeNutritionByDay(rawMeals)}
         targets={(targetsData as ClientTargets | null) ?? null}
         dailyCheckins={(dailyCheckinsData ?? []) as ClientDailyCheckin[]}
-        weeklyCheckins={(weeklyCheckinsData ?? []) as WeeklyCheckin[]}
+        weeklyCheckins={weeklyCheckins}
         coachPrograms={coachPrograms}
         initialNote={(coachNoteData?.note as string | undefined) ?? ""}
         initialNoteUpdatedAt={(coachNoteData?.updated_at as string | undefined) ?? null}

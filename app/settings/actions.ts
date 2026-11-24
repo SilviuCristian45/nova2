@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isCoachSelfServeEnabled } from "@/lib/coach/auth"
 import { parseSpecialties } from "@/lib/coach/types"
 import { purgeDrivePhotos, removeDriveLink } from "@/lib/drive-service"
+import { removeAllCheckinPhotoFiles } from "@/lib/checkin-photos"
 import { removeAllPhotoFiles } from "@/lib/photos"
 import { revalidatePath } from "next/cache"
 import { rememberWeightUnit } from "@/app/units"
@@ -197,6 +198,7 @@ export async function deleteAllData(confirmation: string): Promise<ActionResult>
   // Photo files go first (the rows are dropped by delete_my_data); a failure stops here so nothing is left behind.
   try {
     await removeAllPhotoFiles(supabase, user.id)
+    await removeAllCheckinPhotoFiles(supabase, user.id)
   } catch (error) {
     console.error("Photos not deleted:", error)
     return { error: t("Pozele nu au putut fi șterse. Încearcă din nou.", "The photos could not be deleted. Please try again.") }
@@ -222,6 +224,7 @@ export async function deleteAccount(confirmation: string): Promise<ActionResult>
   // The Google Drive token is revoked before its row disappears with the account.
   try {
     await removeAllPhotoFiles(supabase, user.id)
+    await removeAllCheckinPhotoFiles(supabase, user.id)
   } catch (error) {
     console.error("Photos not deleted:", error)
     return { error: t("Pozele nu au putut fi șterse. Încearcă din nou.", "The photos could not be deleted. Please try again.") }

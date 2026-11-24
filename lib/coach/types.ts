@@ -128,6 +128,11 @@ export type WorkoutFeedback = {
   updated_at: string;
 };
 
+export const CHECKIN_PHOTO_SLOTS = ["front", "back", "side"] as const;
+export type CheckinPhotoSlot = (typeof CHECKIN_PHOTO_SLOTS)[number];
+
+export type CheckinPhotoUrls = Partial<Record<CheckinPhotoSlot, string>>;
+
 export type WeeklyCheckin = {
   id: string;
   client_id: string;
@@ -139,10 +144,17 @@ export type WeeklyCheckin = {
   sleep: number;
   stress: number;
   client_notes: string | null;
+  photo_front_path?: string | null;
+  photo_back_path?: string | null;
+  photo_side_path?: string | null;
   coach_reply: string | null;
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type WeeklyCheckinWithPhotos = WeeklyCheckin & {
+  photoUrls?: CheckinPhotoUrls;
 };
 
 export type AppNotification = {
