@@ -24,15 +24,15 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     }
   }
 
-  // The check-in table arrives with its own migration: an account without it still exports everything else.
-  const checkins = () => all("daily_checkin", "date").catch((error: Error) =>
-    /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
+  // Optional tables introduced in later migrations: accounts before those migrations still export cleanly.
+  const optional = (table: string, order: string, column = "user_id") =>
+    all(table, order, column).catch((error: Error) =>
+      /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
 
-  // Same for the photo metadata (the image files are not part of the JSON: the Drive backup stores them separately).
-  const photos = () => all("progress_photos", "taken_on").catch((error: Error) =>
-    /schema cache|does not exist/.test(error.message) ? [] : Promise.reject(error))
-
-  const [profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights, dailyCheckin, progressPhotos] = await Promise.all([
+  const [
+    profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights,
+    dailyCheckin, progressPhotos, enrollments, weeklyCheckins, workoutFeedback, notifications,
+  ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_targets").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("workout_drafts").select("draft, client_updated_at, updated_at").eq("user_id", userId).maybeSingle(),
@@ -46,8 +46,13 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     all("meal_templates", "id"),
     all("daily_steps", "date"),
     all("daily_weight", "date"),
-    checkins(),
-    photos(),
+    optional("daily_checkin", "date"),
+    optional("progress_photos", "taken_on"),
+    // Never export coach_client_notes (private to the coach); only export the user's own coaching records.
+    optional("enrollments", "created_at", "client_id"),
+    optional("weekly_checkins", "week_start", "client_id"),
+    optional("workout_feedback", "created_at", "author_id"),
+    optional("notifications", "created_at", "user_id"),
   ])
   for (const single of [profile, targets, draft]) if (single.error) throw new Error(single.error.message)
 
@@ -80,6 +85,10 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     daily_weight: weights,
     daily_checkin: dailyCheckin,
     progress_photos: progressPhotos,
+    enrollments,
+    weekly_checkins: weeklyCheckins,
+    workout_feedback: workoutFeedback,
+    notifications,
     google_drive_backup: driveBackup
       ? { email: driveBackup.email, frequency: driveBackup.frequency, last_backup_at: driveBackup.last_backup_at }
       : null,

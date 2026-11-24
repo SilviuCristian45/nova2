@@ -4,14 +4,18 @@ import { Text, useLanguage } from "@/app/components/language-provider";
 import { workoutLabelText } from "@/app/components/workout-label";
 import { WorkoutSummaryDialog } from "@/app/components/workout-summary-dialog";
 import type { SummaryInput } from "@/lib/workout-summary";
-import { useEffect, useMemo, useState, useTransition, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, useTransition, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
+  Check,
+  ClipboardList,
   Dumbbell,
   Heart,
   Hourglass,
   Plus,
   Save,
+  Target,
   Trophy,
   Play,
   Pause,
@@ -29,6 +33,9 @@ import {
   type SetType,
   getExercisesForSplit,
 } from "@/lib/workout-data";
+import { formatExerciseTarget } from "@/lib/coach/programs";
+import type { ProgramWorkoutCardio, ProgramWorkoutExercise } from "@/lib/coach/types";
+import { ExerciseName } from "@/app/components/exercise-name";
 import type { OfflineCardio, OfflineSet } from "@/lib/offline/types";
 import { saveOfflineMutation, useOffline } from "@/lib/offline/client";
 import { useUnits } from "@/app/components/units-provider";
@@ -42,7 +49,7 @@ import {
 } from "@/utils/fitness";
 import { createSubmitGuard, runGuarded } from "@/lib/submit-guard";
 import { draftPersonalRecords, type BestSet } from "@/lib/personal-record";
-import { restoreDraft, type DraftState } from "@/lib/workout-draft";
+import { draftHasEntries, restoreDraft, type DraftState } from "@/lib/workout-draft";
 import { idleTimer, pauseTimer as pauseTimerState, startTimer as startTimerState, timerSeconds, type TimerState } from "@/lib/workout-timer";
 import { displayOrdinals, positionSetNumbers } from "@/lib/set-numbering";
 import { workoutSplit } from "@/lib/workout-save";
@@ -55,12 +62,44 @@ import {
   cardioName,
 } from "@/lib/exercise-catalog";
 import { CardioRows, SetRows } from "@/app/components/workout-parts";
-import { Button, Card, Field, IconButton, Input, Message, Screen, Segmented, Select } from "@/app/components/ui";
+import { Badge, Button, Card, Field, IconButton, Input, Message, Screen, Segmented, Select } from "@/app/components/ui";
 
 const DRAFT_KEY = "workout_draft_v1";
 
+type AssignedWorkoutPlan = {
+  id: string;
+  programTitle: string;
+  title: string;
+  weekNumber: number;
+  dayNumber: number;
+  workoutMode: "strength" | "cardio";
+  split: string;
+  notes: string | null;
+  exercises: ProgramWorkoutExercise[];
+  cardio: ProgramWorkoutCardio[];
+};
+
 export default function InsertWorkoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <Screen title={<Text ro="Antrenament nou" en="New workout" />}>
+          <p role="status" className="text-muted">
+            <Text ro="Se încarcă..." en="Loading..." />
+          </p>
+        </Screen>
+      }
+    >
+      <InsertWorkoutContent />
+    </Suspense>
+  );
+}
+
+function InsertWorkoutContent() {
   const { t, language, locale } = useLanguage();
+  const searchParams = useSearchParams();
+  const programWorkoutIdParam = searchParams.get("programWorkoutId");
+  const enrollmentIdParam = searchParams.get("enrollmentId");
   const { ownerId, ready, sync } = useOffline();
   const { unit, toUnit, toKg, format } = useUnits();
   const restTimer = useRestTimer();
@@ -76,6 +115,11 @@ export default function InsertWorkoutPage() {
   const [saveLocked, setSaveLocked] = useState(false);
   const [finished, setFinished] = useState<{ input: SummaryInput; next: string } | null>(null);
 
+  // Assigned program workout state
+  const [assignedPlan, setAssignedPlan] = useState<AssignedWorkoutPlan | null>(null);
+  const [draftConflict, setDraftConflict] = useState(false);
+  const initializedPlanId = useRef<string | null>(null);
+
   // State general
   const [mode, setMode] = useState<"strength" | "cardio">("strength");
   const [sessionSets, setSessionSets] = useState<
@@ -87,10 +131,12 @@ export default function InsertWorkoutPage() {
 
   // Formular Strength
   const [split, setSplit] = useState<Split>("Push");
-  const [availableExercises, setAvailableExercises] = useState<string[]>(
-    getExercisesForSplit("Push"),
-  );
-  const [exercise, setExercise] = useState(availableExercises[0]);
+  const availableExercises = useMemo(() => {
+    const base = getExercisesForSplit(split);
+    if (!assignedPlan) return base;
+    return [...new Set([...assignedPlan.exercises.map((ex) => ex.exercise), ...base])];
+  }, [split, assignedPlan]);
+  const [exercise, setExercise] = useState(() => getExercisesForSplit("Push")[0]);
   const [reps, setReps] = useState("");
   const [weight, setWeight] = useState("");
   const [rir, setRir] = useState("");
@@ -136,12 +182,114 @@ export default function InsertWorkoutPage() {
   };
   // --------------------------
 
-  // Reset exerciții la schimbarea split-ului
+  function applyExerciseTarget(ex: ProgramWorkoutExercise) {
+    setExercise(ex.exercise);
+    if (SET_TYPES.includes(ex.set_type as SetType)) {
+      setSetType(ex.set_type as SetType);
+    }
+    if (ex.target_weight_kg !== null && Number(ex.target_weight_kg) > 0) {
+      setWeight(String(Number(toUnit(Number(ex.target_weight_kg)).toFixed(1))));
+    }
+  }
+
+  function applyAssignedPlanToForm(plan: AssignedWorkoutPlan, clearExisting: boolean) {
+    if (clearExisting) {
+      setSessionSets([]);
+      setCardioEntries([]);
+      setTimer(idleTimer);
+      if (draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // ignore storage errors
+        }
+      }
+    }
+    setMode(plan.workoutMode);
+    if (plan.workoutMode === "strength") {
+      const validSplit: Split = SPLITS.includes(plan.split as Split) ? (plan.split as Split) : "Full Body";
+      setSplit(validSplit);
+      if (plan.exercises.length > 0) {
+        applyExerciseTarget(plan.exercises[0]);
+      }
+    } else if (plan.cardio.length > 0) {
+      setCardioActivity(plan.cardio[0].activity);
+      setCardioDuration(String(plan.cardio[0].target_duration_min));
+    }
+    setDraftConflict(false);
+  }
+
+  // Load assigned program workout once local draft readiness is known; warn instead of overwriting an active draft.
+  const draftReady = ready && (!ownerId || loadedDraftKey === draftKey);
   useEffect(() => {
-    const newExercises = getExercisesForSplit(split);
-    setAvailableExercises(newExercises);
-    setExercise(newExercises[0]);
-  }, [split]);
+    if (!programWorkoutIdParam || !draftReady) return;
+    if (initializedPlanId.current === programWorkoutIdParam) return;
+    let cancelled = false;
+    async function loadAssigned() {
+      const supabase = createClient();
+      const { data, error: loadError } = await supabase
+        .from("program_workouts")
+        .select("id, week_number, day_number, title, workout_mode, split, notes, programs(title), program_workout_exercises(*), program_workout_cardio(*)")
+        .eq("id", programWorkoutIdParam)
+        .maybeSingle();
+
+      if (cancelled || loadError || !data) return;
+      initializedPlanId.current = programWorkoutIdParam;
+      const progRel = data.programs as { title?: string } | { title?: string }[] | null;
+      const programTitle = Array.isArray(progRel) ? (progRel[0]?.title ?? "") : (progRel?.title ?? "");
+      const exercises = ([...(data.program_workout_exercises ?? [])] as ProgramWorkoutExercise[]).sort(
+        (a, b) => a.position - b.position,
+      );
+      const cardio = ([...(data.program_workout_cardio ?? [])] as ProgramWorkoutCardio[]).sort(
+        (a, b) => a.position - b.position,
+      );
+      const plan: AssignedWorkoutPlan = {
+        id: data.id as string,
+        programTitle,
+        title: data.title as string,
+        weekNumber: data.week_number as number,
+        dayNumber: data.day_number as number,
+        workoutMode: data.workout_mode === "cardio" ? "cardio" : "strength",
+        split: data.split as string,
+        notes: (data.notes as string | null) ?? null,
+        exercises,
+        cardio,
+      };
+      setAssignedPlan(plan);
+
+      let hasExistingDraft = false;
+      try {
+        hasExistingDraft = Boolean(draftKey && draftHasEntries(localStorage.getItem(draftKey)));
+      } catch {
+        hasExistingDraft = false;
+      }
+
+      if (hasExistingDraft) {
+        setDraftConflict(true);
+      } else {
+        setMode(plan.workoutMode);
+        if (plan.workoutMode === "strength") {
+          const validSplit: Split = SPLITS.includes(plan.split as Split) ? (plan.split as Split) : "Full Body";
+          setSplit(validSplit);
+          if (plan.exercises.length > 0) {
+            const first = plan.exercises[0];
+            setExercise(first.exercise);
+            if (SET_TYPES.includes(first.set_type as SetType)) setSetType(first.set_type as SetType);
+            if (first.target_weight_kg !== null && Number(first.target_weight_kg) > 0) {
+              setWeight(String(Number(toUnit(Number(first.target_weight_kg)).toFixed(1))));
+            }
+          }
+        } else if (plan.cardio.length > 0) {
+          setCardioActivity(plan.cardio[0].activity);
+          setCardioDuration(String(plan.cardio[0].target_duration_min));
+        }
+      }
+    }
+    void loadAssigned();
+    return () => {
+      cancelled = true;
+    };
+  }, [programWorkoutIdParam, draftReady, draftKey, toUnit]);
 
   // Best set of the last session per exercise, from before this workout: the PR baseline.
   const [baselines, setBaselines] = useState<Record<string, BestSet | null>>({});
@@ -453,7 +601,8 @@ export default function InsertWorkoutPage() {
       const outcome = await runGuarded(submitGuard.current, async () => {
         setSaveLocked(true);
         try {
-          if (ownerId) {
+          const useLinkedOnlineSave = Boolean(assignedPlan && navigator.onLine);
+          if (ownerId && !useLinkedOnlineSave) {
             let mutationId: string | null = null;
             try {
               mutationId = await saveOfflineMutation(
@@ -504,6 +653,12 @@ export default function InsertWorkoutPage() {
             localDate(),
             positionSetNumbers(sessionSets),
             cardioEntries,
+            assignedPlan
+              ? {
+                  programWorkoutId: assignedPlan.id,
+                  enrollmentId: enrollmentIdParam,
+                }
+              : undefined,
           );
 
           if (result.error) {
@@ -512,6 +667,7 @@ export default function InsertWorkoutPage() {
           }
 
           if (draftKey) localStorage.removeItem(draftKey);
+          if (ownerId) void sync();
           celebrate();
           return true;
         } catch (error) {
@@ -559,9 +715,128 @@ export default function InsertWorkoutPage() {
   }
 
   const hasEntries = (mode === "strength" && sessionSets.length > 0) || (mode === "cardio" && cardioEntries.length > 0);
+  const activePlannedExercise = assignedPlan?.exercises.find((ex) => ex.exercise === exercise) ?? null;
 
   return (
     <Screen title={t("Antrenament nou", "New workout")} className={restTimer.running || restTimer.finished ? "pb-32" : ""}>
+      {draftConflict && assignedPlan && (
+        <Card tone="gold">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-gold-text" />
+            <div className="flex flex-col gap-1">
+              <p className="font-semibold text-foreground">
+                <Text ro="Ai deja o ciornă nefinalizată" en="You already have an unfinished draft" />
+              </p>
+              <p className="text-sm text-soft">
+                <Text
+                  ro={`Nu ți-am șters seturile existente. Poți porni curat antrenamentul „${assignedPlan.title}” sau poți păstra ciorna curentă folosind țintele din program ca ghid.`}
+                  en={`We kept your existing sets. Start "${assignedPlan.title}" fresh, or keep your current draft with the program targets as a guide.`}
+                />
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button small onClick={() => applyAssignedPlanToForm(assignedPlan, true)}>
+              <Text ro="Pornește curat din program" en="Start fresh from program" />
+            </Button>
+            <Button variant="secondary" small onClick={() => setDraftConflict(false)}>
+              <Text ro="Păstrează ciorna și folosește ghidul" en="Keep draft & use guide" />
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {assignedPlan && (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-lime-text">
+                <ClipboardList className="size-3.5" />
+                {assignedPlan.programTitle || t("Program asignat", "Assigned program")}
+              </span>
+              <h2 className="text-lg font-bold">{assignedPlan.title}</h2>
+            </div>
+            <Badge tone="lime">
+              {t("S", "W")}{assignedPlan.weekNumber}·{t("Z", "D")}{assignedPlan.dayNumber}
+            </Badge>
+          </div>
+          {assignedPlan.notes && (
+            <p className="rounded-md bg-inner px-3 py-2 text-xs text-soft">{assignedPlan.notes}</p>
+          )}
+          {assignedPlan.workoutMode === "strength" && assignedPlan.exercises.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {assignedPlan.exercises.map((planned) => {
+                const loggedCount = sessionSets.filter((s) => s.exercise === planned.exercise).length;
+                const done = loggedCount >= planned.target_sets;
+                const selected = mode === "strength" && exercise === planned.exercise;
+                const targetText = formatExerciseTarget(planned, format, t);
+
+                return (
+                  <button
+                    key={planned.id}
+                    type="button"
+                    onClick={() => {
+                      setMode("strength");
+                      applyExerciseTarget(planned);
+                    }}
+                    className={`flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left transition-colors ${
+                      selected
+                        ? "border border-lime-border bg-lime-soft"
+                        : "bg-inner active:bg-control"
+                    }`}
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                        {done && <Check className="size-3.5 shrink-0 text-lime-text" />}
+                        <span className="truncate"><ExerciseName id={planned.exercise} /></span>
+                      </span>
+                      <span className="text-xs font-medium text-soft">
+                        {t("Țintă", "Target")}: {targetText}
+                      </span>
+                      {planned.notes && (
+                        <span className="text-xs text-muted">{planned.notes}</span>
+                      )}
+                    </span>
+                    <Badge tone={done ? "lime" : undefined}>
+                      {loggedCount}/{planned.target_sets}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {assignedPlan.workoutMode === "cardio" && assignedPlan.cardio.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {assignedPlan.cardio.map((planned) => {
+                const selected = mode === "cardio" && cardioActivity === planned.activity;
+                return (
+                  <button
+                    key={planned.id}
+                    type="button"
+                    onClick={() => {
+                      setMode("cardio");
+                      setCardioActivity(planned.activity);
+                      setCardioDuration(String(planned.target_duration_min));
+                    }}
+                    className={`flex items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left transition-colors ${
+                      selected
+                        ? "border border-lime-border bg-lime-soft"
+                        : "bg-inner active:bg-control"
+                    }`}
+                  >
+                    <span className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-foreground">{cardioName(planned.activity, language)}</span>
+                      {planned.notes && <span className="text-xs text-muted">{planned.notes}</span>}
+                    </span>
+                    <Badge tone="coral">{planned.target_duration_min} min</Badge>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
       <Segmented
         label={t("Tip de antrenament", "Workout mode")}
         value={mode}
@@ -599,13 +874,24 @@ export default function InsertWorkoutPage() {
               <Select
                 title={t("Împărțire", "Split")}
                 value={split}
-                onChange={(value) => setSplit(value as Split)}
+                onChange={(value) => {
+                  const nextSplit = value as Split;
+                  setSplit(nextSplit);
+                  const nextList = getExercisesForSplit(nextSplit);
+                  if (nextList[0]) setExercise(nextList[0]);
+                }}
                 options={SPLITS.map((s) => ({ value: s, label: workoutLabelText(s, t) }))}
               />
             </Field>
 
             <div className="flex flex-col gap-2">
               <ExerciseCombobox key={split} exercises={availableExercises} value={exercise} onChange={setExercise} />
+              {activePlannedExercise && (
+                <p className="flex w-fit items-center gap-1.5 rounded-sm bg-ice-soft px-3 py-1.5 text-[13px] font-semibold text-ice-text">
+                  <Target className="size-3.5 shrink-0" />
+                  {t("Țintă antrenor", "Coach target")}: {formatExerciseTarget(activePlannedExercise, format, t)}
+                </p>
+              )}
               {exerciseHint && (
                 <p className={`flex w-fit items-center gap-1.5 rounded-sm px-3 py-1.5 text-[13px] font-semibold ${
                   exerciseHint.includes(t("Exercițiu nou", "New exercise")) ? "bg-inner text-muted" : "bg-lime-soft text-lime-text"}`}>

@@ -5,10 +5,13 @@ import { getLanguage } from "@/app/language"
 import { CardioName, ExerciseName } from "@/app/components/exercise-name"
 import { getWeightFormatter } from "@/app/units"
 import Link from "next/link";
-import { Dumbbell, ChevronDown, Flame, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Dumbbell, ChevronDown, Flame, ChevronLeft, ChevronRight, MessageSquare, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteWorkoutButton } from "./delete-button";
 import { SetTypeBadge } from "@/app/components/workout-parts";
+import { WorkoutFeedbackThread } from "@/app/components/workout-feedback";
+import type { FeedbackThreadItem } from "@/app/feedback/actions";
+import type { FeedbackReaction } from "@/lib/coach/types";
 import { Badge, Card, Columns, Empty, Field, Message, Screen, buttonClass, iconButtonClass, inputClass } from "@/app/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +87,63 @@ export default async function HistoryPage({
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
   const pageHref = (page: number) => `?${new URLSearchParams({ page: String(page), startDate, endDate })}`;
 
+  // Load workout feedback threads for the displayed page (and check if the user has an active coach).
+  const workoutIds = (workouts ?? []).map((w) => w.id as string);
+  const feedbackByWorkout = new Map<string, FeedbackThreadItem[]>();
+  let hasActiveCoach = false;
+
+  if (workoutIds.length > 0) {
+    const [{ data: fbRows }, { count: coachCount }] = await Promise.all([
+      supabase
+        .from("workout_feedback")
+        .select("id, workout_id, author_id, body, reaction, created_at")
+        .in("workout_id", workoutIds)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("enrollments")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", user.id)
+        .eq("status", "active"),
+    ]);
+    hasActiveCoach = (coachCount ?? 0) > 0;
+
+    const otherAuthorIds = [
+      ...new Set(
+        (fbRows ?? [])
+          .map((r) => r.author_id as string)
+          .filter((id) => id !== user.id),
+      ),
+    ];
+    const coachNameMap = new Map<string, string>();
+    if (otherAuthorIds.length > 0) {
+      const { data: coachProfs } = await supabase
+        .from("coach_profiles")
+        .select("user_id, display_name")
+        .in("user_id", otherAuthorIds);
+      for (const cp of coachProfs ?? []) {
+        coachNameMap.set(cp.user_id as string, cp.display_name as string);
+      }
+    }
+
+    for (const row of fbRows ?? []) {
+      const wid = row.workout_id as string;
+      const authorId = row.author_id as string;
+      const isCoachAuthor = authorId !== user.id;
+      const list = feedbackByWorkout.get(wid) ?? [];
+      list.push({
+        id: row.id as string,
+        workoutId: wid,
+        authorId,
+        authorName: isCoachAuthor ? (coachNameMap.get(authorId) ?? t("Antrenor", "Coach")) : t("Tu", "You"),
+        isCoachAuthor,
+        body: row.body as string,
+        reaction: (row.reaction as FeedbackReaction | null) ?? null,
+        createdAt: row.created_at as string,
+      });
+      feedbackByWorkout.set(wid, list);
+    }
+  }
+
   return (
     <Screen title={<Text ro="Istoric" en="History" />}
       right={streak > 0 ? <Badge tone="coral" className="gap-1 text-[13px]"><Flame className="size-3.5" />{streak} <Text ro="săpt." en="wk" /></Badge> : undefined}>
@@ -114,11 +174,20 @@ export default async function HistoryPage({
               (groupedSets[set.exercise] ??= []).push(set);
             }
           }
+          const feedbackItems = feedbackByWorkout.get(workout.id as string) ?? [];
           return (
             <Card key={workout.id} padded={false}>
               <div className="flex items-center gap-2 py-3 pl-[18px] pr-2">
                 <div className="min-w-0 flex-1">
-                  <h2 className="break-words text-[17px] font-semibold">{isCardio ? t("Sesiune cardio", "Cardio session") : <WorkoutLabel value={workout.split} />}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="break-words text-[17px] font-semibold">{isCardio ? t("Sesiune cardio", "Cardio session") : <WorkoutLabel value={workout.split} />}</h2>
+                    {feedbackItems.length > 0 && (
+                      <Badge tone="ice" className="gap-1">
+                        <MessageSquare className="size-3" />
+                        <Text ro="Feedback" en="Feedback" /> ({feedbackItems.length})
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-[13px] text-muted">
                     {date}
                     {!isCardio && <> · <span className="tabular-nums">{workout.workout_sets?.length ?? 0}</span> <Text ro="seturi" en="sets" /></>}
@@ -153,6 +222,19 @@ export default async function HistoryPage({
                   </div>
                 </details>
               ))}
+              {(feedbackItems.length > 0 || hasActiveCoach) && (
+                <div className="border-t border-line px-[18px] py-3">
+                  <WorkoutFeedbackThread
+                    workoutId={workout.id as string}
+                    currentUserId={user.id}
+                    initialItems={feedbackItems}
+                    showReactions={false}
+                    collapsible={feedbackItems.length === 0}
+                    placeholderRo="Răspunde antrenorului..."
+                    placeholderEn="Reply to your coach..."
+                  />
+                </div>
+              )}
             </Card>
           );
         })}

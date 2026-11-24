@@ -3,6 +3,8 @@
 import { getLanguage } from "@/app/language"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isCoachSelfServeEnabled } from "@/lib/coach/auth"
+import { parseSpecialties } from "@/lib/coach/types"
 import { purgeDrivePhotos, removeDriveLink } from "@/lib/drive-service"
 import { removeAllPhotoFiles } from "@/lib/photos"
 import { revalidatePath } from "next/cache"
@@ -56,6 +58,89 @@ export async function updateProfile(_prev: ActionResult, formData: FormData): Pr
   await rememberWeightUnit(weightUnit)
   revalidatePath("/", "layout")
   return { success: true, message: t("Profil salvat.", "Profile saved.") }
+}
+
+export async function activateCoachRole(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const { t } = await getLanguage()
+  if (!isCoachSelfServeEnabled()) {
+    return {
+      error: t(
+        "Activarea rolului de antrenor este dezactivată pe acest server.",
+        "Self-serve coach activation is disabled on this server.",
+      ),
+    }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
+
+  const displayName = String(formData.get("coachDisplayName") ?? "").trim()
+  if (displayName.length > 80) {
+    return { error: t("Numele poate avea maxim 80 de caractere.", "The name can have at most 80 characters.") }
+  }
+
+  const { error } = await supabase.rpc("activate_coach_role", {
+    p_display_name: displayName || null,
+  })
+  if (error) {
+    if (/function.*activate_coach_role|schema cache|does not exist/i.test(error.message)) {
+      return {
+        error: t(
+          "Migrația SQL pentru platforma de antrenor nu a fost aplicată încă în baza de date.",
+          "The Coach platform SQL migration has not been applied to the database yet.",
+        ),
+      }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath("/", "layout")
+  revalidatePath("/settings")
+  revalidatePath("/coach")
+  return {
+    success: true,
+    message: t("Rolul de antrenor a fost activat.", "Coach mode has been activated."),
+  }
+}
+
+export async function updateCoachProfile(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const { t } = await getLanguage()
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: t("Neautorizat", "Not signed in") }
+
+  const displayName = String(formData.get("coachDisplayName") ?? "").trim()
+  const bio = String(formData.get("coachBio") ?? "").trim()
+  const specialties = parseSpecialties(String(formData.get("coachSpecialties") ?? ""))
+  const isPublic = formData.get("isPublic") === "on"
+  const acceptingClients = formData.get("acceptingClients") === "on"
+
+  if (displayName.length < 1 || displayName.length > 80) {
+    return { error: t("Numele de antrenor trebuie să aibă între 1 și 80 de caractere.", "Coach name must be between 1 and 80 characters.") }
+  }
+  if (bio.length > 1000) {
+    return { error: t("Descrierea poate avea maxim 1000 de caractere.", "Bio can have at most 1000 characters.") }
+  }
+
+  const { error } = await supabase
+    .from("coach_profiles")
+    .upsert({
+      user_id: user.id,
+      display_name: displayName,
+      bio: bio || null,
+      specialties,
+      is_public: isPublic,
+      accepting_clients: acceptingClients,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" })
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/settings")
+  revalidatePath("/coach")
+  return { success: true, message: t("Profilul de antrenor a fost salvat.", "Coach profile saved.") }
 }
 
 export async function updateEmail(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

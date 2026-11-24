@@ -21,8 +21,18 @@ export function isValidWorkoutDate(value: unknown, today: string): boolean {
   return value <= limit.toISOString().slice(0, 10);
 }
 
+export type SaveProgramLink = {
+  programWorkoutId?: string | null;
+  enrollmentId?: string | null;
+};
+
 export function saveWorkoutArgs(
-  mode: "strength" | "cardio", split: string, date: string, sets: readonly SaveSet[], cardio: readonly SaveCardio[],
+  mode: "strength" | "cardio",
+  split: string,
+  date: string,
+  sets: readonly SaveSet[],
+  cardio: readonly SaveCardio[],
+  program?: SaveProgramLink,
 ) {
   return {
     p_mode: mode,
@@ -35,5 +45,7 @@ export function saveWorkoutArgs(
         }))
       : [],
     p_cardio: mode === "cardio" ? cardio.map((c) => ({ activity: c.activity, durationMin: c.durationMin })) : [],
+    ...(program?.programWorkoutId ? { p_program_workout_id: program.programWorkoutId } : {}),
+    ...(program?.enrollmentId ? { p_enrollment_id: program.enrollmentId } : {}),
   };
 }

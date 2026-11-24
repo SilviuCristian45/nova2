@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { canAccessCoachRoute, isCoachRoute, parseUserRole } from "@/lib/coach/types"
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -58,6 +59,21 @@ export async function proxy(request: NextRequest) {
   url.pathname = "/"
   return NextResponse.redirect(url)
 }
+
+  // Restrict /coach/** routes to authenticated users with role = 'coach'.
+  if (user && isCoachRoute(path)) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+    const role = profileError ? "client" : parseUserRole(profile?.role)
+    if (!canAccessCoachRoute(role)) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/"
+      return NextResponse.redirect(url)
+    }
+  }
   return supabaseResponse
 }
 

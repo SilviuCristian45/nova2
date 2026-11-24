@@ -2,10 +2,12 @@
 
 import { Text, useLanguage } from "@/app/components/language-provider"
 import { useOffline } from "@/lib/offline/client"
-import { AlertTriangle, Download, Loader2, Upload } from "lucide-react"
+import type { UserRole } from "@/lib/coach/types"
+import { AlertTriangle, Award, Download, Loader2, Upload } from "lucide-react"
+import Link from "next/link"
 import { useActionState, useState, type ReactNode } from "react"
-import { deleteAccount, deleteAllData, updateEmail, updatePassword, updateProfile, type ActionResult } from "./actions"
-import { Button, Card, CardTitle, Message, Segmented, Select, buttonClass as buttonRecipe, inputClass as inputRecipe } from "@/app/components/ui"
+import { activateCoachRole, deleteAccount, deleteAllData, updateCoachProfile, updateEmail, updatePassword, updateProfile, type ActionResult } from "./actions"
+import { Badge, Button, Card, CardTitle, Message, Segmented, Select, Textarea, buttonClass as buttonRecipe, inputClass as inputRecipe } from "@/app/components/ui"
 
 const inputClass = inputRecipe()
 const labelClass = "pl-0.5 text-[13px] font-medium text-muted"
@@ -82,6 +84,147 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           <Submit pending={pending}><Text ro="Salvează profilul" en="Save profile" /></Submit>
           <Status state={state} />
         </div>
+      </form>
+    </Section>
+  )
+}
+
+type CoachProfileFormData = {
+  displayName: string
+  bio: string
+  specialties: string
+  isPublic: boolean
+  acceptingClients: boolean
+}
+
+export function CoachRoleSection({
+  role,
+  migrationMissing,
+  defaultDisplayName,
+  coachProfile,
+}: {
+  role: UserRole
+  migrationMissing: boolean
+  defaultDisplayName: string
+  coachProfile: CoachProfileFormData | null
+}) {
+  const { t } = useLanguage()
+  const [activateState, activateAction, activatePending] = useActionState(activateCoachRole, {})
+  const [profileState, profileAction, profilePending] = useActionState(updateCoachProfile, {})
+
+  if (role !== "coach") {
+    return (
+      <Section
+        title={<span className="flex items-center gap-2"><Award className="size-5 text-lime-text" /><Text ro="Mod Antrenor" en="Coach mode" /></span>}
+        description={
+          <Text
+            ro="Activează rolul de antrenor pentru a crea programe, gestiona clienți și oferi feedback. Îți poți loga în continuare și propriile antrenamente."
+            en="Activate Coach mode to build programs, manage clients, and give feedback. You can still log your own workouts."
+          />
+        }
+      >
+        {migrationMissing ? (
+          <Message tone="gold">
+            <Text
+              ro="Rulează migrația SQL pentru platforma de antrenor (202611240001_coach_platform.sql) înainte de activare."
+              en="Apply the Coach platform SQL migration (202611240001_coach_platform.sql) before activating."
+            />
+          </Message>
+        ) : (
+          <form action={activateAction} className="flex flex-col gap-3">
+            <Field label={<Text ro="Nume afișat ca antrenor" en="Coach display name" />}>
+              <input
+                name="coachDisplayName"
+                defaultValue={defaultDisplayName}
+                maxLength={80}
+                placeholder={t("ex. Alex Popescu", "e.g. Alex Smith")}
+                className={inputClass}
+              />
+            </Field>
+            <Submit pending={activatePending}>
+              <Text ro="Activează modul Antrenor" en="Activate Coach mode" />
+            </Submit>
+            <Status state={activateState} />
+          </form>
+        )}
+      </Section>
+    )
+  }
+
+  return (
+    <Section
+      title={
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <Award className="size-5 text-lime-text" />
+            <Text ro="Profil Antrenor" en="Coach profile" />
+          </span>
+          <Badge tone="lime"><Text ro="Antrenor" en="Coach" /></Badge>
+        </span>
+      }
+      description={
+        <Text
+          ro="Datele publice afișate în directorul de antrenori. Datele personale din profil (vârstă, înălțime) rămân private."
+          en="Public details shown in the coach directory. Personal profile details (age, height) stay private."
+        />
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-inner p-3">
+        <p className="text-sm text-soft">
+          <Text ro="Accesează dashboard-ul dedicat antrenorilor." en="Open the dedicated coach workspace." />
+        </p>
+        <Link href="/coach" className={buttonRecipe({ variant: "secondary", small: true })}>
+          <Text ro="Deschide Zona Antrenor" en="Open Coach Studio" />
+        </Link>
+      </div>
+      <form action={profileAction} className="flex flex-col gap-3">
+        <Field label={<Text ro="Nume public antrenor" en="Public coach name" />}>
+          <input
+            name="coachDisplayName"
+            required
+            maxLength={80}
+            defaultValue={coachProfile?.displayName ?? defaultDisplayName}
+            className={inputClass}
+          />
+        </Field>
+        <Field label={<Text ro="Descriere / Bio" en="Bio" />}>
+          <Textarea
+            name="coachBio"
+            maxLength={1000}
+            defaultValue={coachProfile?.bio ?? ""}
+            placeholder={t("Experiență, certificări, stil de antrenament...", "Experience, certifications, coaching style...")}
+          />
+        </Field>
+        <Field label={<Text ro="Specializări (separate prin virgulă)" en="Specialties (comma-separated)" />}>
+          <input
+            name="coachSpecialties"
+            defaultValue={coachProfile?.specialties ?? ""}
+            placeholder={t("Hipertrofie, Forță, Slăbire", "Hypertrophy, Strength, Fat loss")}
+            className={inputClass}
+          />
+        </Field>
+        <label className="flex items-center gap-2.5 rounded-md bg-inner px-3.5 py-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="isPublic"
+            defaultChecked={coachProfile?.isPublic ?? false}
+            className="size-4 accent-[var(--lime)]"
+          />
+          <Text ro="Afișează profilul în directorul public (/explore)" en="Show profile in public directory (/explore)" />
+        </label>
+        <label className="flex items-center gap-2.5 rounded-md bg-inner px-3.5 py-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="acceptingClients"
+            defaultChecked={coachProfile?.acceptingClients ?? true}
+            className="size-4 accent-[var(--lime)]"
+          />
+          <Text ro="Accept clienți noi" en="Accepting new clients" />
+        </label>
+        <Submit pending={profilePending}>
+          <Text ro="Salvează profilul de antrenor" en="Save coach profile" />
+        </Submit>
+        <Status state={profileState} />
       </form>
     </Section>
   )

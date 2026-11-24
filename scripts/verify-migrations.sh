@@ -21,7 +21,7 @@ for f in supabase/migrations/*.sql; do
 done
 
 # Every table the app queries must exist, with RLS on.
-expected="cardio_sessions daily_checkin daily_steps daily_weight foods google_drive_backups meal_items meal_templates meals offline_sync_receipts profiles progress_photos user_targets workout_drafts workout_sets workouts"
+expected="cardio_sessions coach_client_notes coach_profiles daily_checkin daily_steps daily_weight enrollments foods google_drive_backups meal_items meal_templates meals notifications offline_sync_receipts profiles program_workout_cardio program_workout_exercises program_workouts programs progress_photos user_targets weekly_checkins workout_drafts workout_feedback workout_sets workouts"
 actual=$(psql -At -c "select string_agg(relname, ' ' order by relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r'")
 [ "$actual" = "$expected" ] || { echo "tables differ:"; echo " expected: $expected"; echo " actual:   $actual"; exit 1; }
 no_rls=$(psql -At -c "select string_agg(relname, ' ') from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity")

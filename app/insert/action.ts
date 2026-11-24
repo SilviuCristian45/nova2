@@ -3,14 +3,15 @@
 import { getLanguage } from "@/app/language"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
-import { isValidWorkoutDate, saveWorkoutArgs, type SaveCardio, type SaveSet } from "@/lib/workout-save"
+import { isValidWorkoutDate, saveWorkoutArgs, type SaveCardio, type SaveProgramLink, type SaveSet } from "@/lib/workout-save"
 
 export async function saveWorkout(
   mode: "strength" | "cardio",
   split: string,
   date: string, // the client's local date (see localDate()), not the server's UTC day
   sets: SaveSet[],
-  cardioEntries: SaveCardio[]
+  cardioEntries: SaveCardio[],
+  programLink?: SaveProgramLink,
 ) {
   const { t } = await getLanguage()
 
@@ -27,7 +28,10 @@ export async function saveWorkout(
   if (!user) return { error: t("Nu ești autentificat.", "You are not signed in.") }
 
   // 2. Antrenamentul și copiii lui se creează într-o singură tranzacție SQL: un eșec nu lasă un antrenament gol
-  const { error } = await supabase.rpc("save_workout", saveWorkoutArgs(mode, split, date, sets, cardioEntries))
+  const { error } = await supabase.rpc(
+    "save_workout",
+    saveWorkoutArgs(mode, split, date, sets, cardioEntries, programLink),
+  )
   if (error) return { error: t("Eroare la salvarea antrenamentului: ", "Could not save the workout: ") + error.message }
 
   // 3. Curățăm cache-ul aplicației ca la întoarcere să avem datele noi

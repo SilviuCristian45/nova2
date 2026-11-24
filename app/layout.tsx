@@ -10,7 +10,9 @@ import { UnitsProvider } from "./components/units-provider";
 import { OfflineProvider } from "@/lib/offline/client";
 import { OfflineStatus } from "./components/offline-status";
 import { DriveAutoSync } from "./components/drive-auto-sync";
+import { NotificationBell } from "./components/notification-bell";
 import { driveConfigured } from "@/lib/google-drive";
+import { createClient } from "@/lib/supabase/server";
 import { pageWidth } from "./components/ui";
 
 const geistSans = Geist({
@@ -54,6 +56,25 @@ export default async function RootLayout({
 }>) {
   const { language } = await getLanguage();
   const weightUnit = await getWeightUnit();
+
+  let initialUnread = 0;
+  let signedIn = false;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      signedIn = true;
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .is("read_at", null);
+      initialUnread = count ?? 0;
+    }
+  } catch {
+    // Gracefully skip if unauthenticated or offline shell.
+  }
+
   return (
     <html
       lang={language}
@@ -70,7 +91,8 @@ export default async function RootLayout({
           <LanguageProvider initialLanguage={language}>
             <UnitsProvider initialUnit={weightUnit}>
             <OfflineProvider>
-            <div className={`${pageWidth} flex justify-end gap-2 px-5 pt-3 lg:px-8`}>
+            <div className={`${pageWidth} flex items-center justify-end gap-2 px-5 pt-3 lg:px-8`}>
+              {signedIn && <NotificationBell initialUnread={initialUnread} />}
               <LanguageSelector />
               <ThemeToggle />
             </div>
