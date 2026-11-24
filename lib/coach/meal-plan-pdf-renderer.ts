@@ -328,7 +328,10 @@ export async function renderMealPlanPdf(
       const mealHeading = meal.timeLabel ? `${meal.title}  ·  ${meal.timeLabel}` : meal.title;
       ctx!.fillText(mealHeading, MARGIN_X + 20, y + 29);
 
-      const typeAndMacro = `${mealTypeLabel(meal.mealType, t)}  ·  ${mealTotals.kcal} kcal (P ${mealTotals.protein}g / C ${mealTotals.carbs}g / ${t("G", "F")} ${mealTotals.fat}g)`;
+      const typeLabel = mealTypeLabel(meal.mealType, t, meal.position);
+      const redundantPrefix = meal.title.trim().toLowerCase().startsWith(typeLabel.toLowerCase());
+      const macroText = `${mealTotals.kcal} kcal (P ${mealTotals.protein}g / C ${mealTotals.carbs}g / ${t("G", "F")} ${mealTotals.fat}g)`;
+      const typeAndMacro = redundantPrefix ? macroText : `${typeLabel}  ·  ${macroText}`;
       ctx!.font = `700 16px ${FONT}`;
       ctx!.fillStyle = COLORS.limeText;
       ctx!.textAlign = "right";

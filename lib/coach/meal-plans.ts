@@ -12,8 +12,10 @@ export type MealPlanGoal = (typeof MEAL_PLAN_GOALS)[number];
 export const MEAL_PLAN_STATUSES = ["draft", "active", "archived"] as const;
 export type MealPlanStatus = (typeof MEAL_PLAN_STATUSES)[number];
 
-export const MEAL_PLAN_MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+export const MEAL_PLAN_MEAL_TYPES = ["Meal", "Breakfast", "Lunch", "Dinner", "Snack"] as const;
 export type MealPlanMealType = (typeof MEAL_PLAN_MEAL_TYPES)[number];
+
+export type DiaryMealType = "Breakfast" | "Lunch" | "Dinner" | "Snack";
 
 export type MacroTotals = {
   kcal: number;
@@ -167,13 +169,28 @@ export function mealPlanStatusLabel(status: MealPlanStatus, t: Translator): stri
   }
 }
 
-export function mealTypeLabel(type: MealPlanMealType, t: Translator): string {
+export function mealTypeLabel(type: MealPlanMealType, t: Translator, position?: number): string {
   switch (type) {
+    case "Meal":
+      return position && position > 0
+        ? t(`Masa ${position}`, `Meal ${position}`)
+        : t("Masă numerotată", "Numbered meal");
     case "Breakfast": return t("Mic dejun", "Breakfast");
     case "Lunch": return t("Prânz", "Lunch");
     case "Dinner": return t("Cină", "Dinner");
     case "Snack": return t("Gustare", "Snack");
   }
+}
+
+// Maps any meal plan meal_type (including numbered 'Meal') to a valid public.meals diary slot.
+export function toDiaryMealType(type: MealPlanMealType | string, position = 1): DiaryMealType {
+  if (type === "Breakfast" || type === "Lunch" || type === "Dinner" || type === "Snack") {
+    return type;
+  }
+  if (position <= 1) return "Breakfast";
+  if (position === 2) return "Lunch";
+  if (position === 3) return "Dinner";
+  return "Snack";
 }
 
 function round1(value: number): number {

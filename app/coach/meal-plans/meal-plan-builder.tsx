@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  ListOrdered,
   Loader2,
   Plus,
   Save,
@@ -109,17 +110,45 @@ function defaultMeal(
   };
 }
 
-function defaultDay(t: (ro: string, en: string) => string, title?: string): DraftDay {
+function defaultDay(
+  t: (ro: string, en: string) => string,
+  title?: string,
+  numbered = false,
+): DraftDay {
   return {
     key: nextKey("day"),
     title: title ?? t("Zilnic", "Daily"),
     notes: "",
-    meals: [
-      defaultMeal("Breakfast", t("Mic dejun", "Breakfast"), "08:00"),
-      defaultMeal("Lunch", t("Prânz", "Lunch"), "13:00"),
-      defaultMeal("Dinner", t("Cină", "Dinner"), "19:30"),
-    ],
+    meals: numbered
+      ? [
+          defaultMeal("Meal", t("Masa 1", "Meal 1"), "08:00"),
+          defaultMeal("Meal", t("Masa 2", "Meal 2"), "12:00"),
+          defaultMeal("Meal", t("Masa 3", "Meal 3"), "16:00"),
+          defaultMeal("Meal", t("Masa 4", "Meal 4"), "20:00"),
+        ]
+      : [
+          defaultMeal("Breakfast", t("Mic dejun", "Breakfast"), "08:00"),
+          defaultMeal("Lunch", t("Prânz", "Lunch"), "13:00"),
+          defaultMeal("Dinner", t("Cină", "Dinner"), "19:30"),
+        ],
   };
+}
+
+const DEFAULT_MEAL_TITLE_RE = /^(mic dejun|prânz|pranz|cină|cina|gustare|breakfast|lunch|dinner|snack|masa\s+\d+|meal\s+\d+)$/i;
+
+function renumberTitle(existingTitle: string, index: number, t: (ro: string, en: string) => string): string {
+  const base = t(`Masa ${index + 1}`, `Meal ${index + 1}`);
+  const trimmed = existingTitle.trim();
+  if (!trimmed || DEFAULT_MEAL_TITLE_RE.test(trimmed)) return base;
+  const dashIdx = trimmed.search(/\s+[—–-]\s+/);
+  if (dashIdx > 0) {
+    const prefix = trimmed.slice(0, dashIdx).trim();
+    const suffix = trimmed.slice(dashIdx);
+    if (DEFAULT_MEAL_TITLE_RE.test(prefix)) {
+      return `${base}${suffix}`.slice(0, 120);
+    }
+  }
+  return base;
 }
 
 function parseOptInt(raw: string): number | null {
@@ -566,7 +595,7 @@ export function MealPlanBuilder({
         id: m.id ?? m.key,
         position: mi + 1,
         mealType: m.mealType,
-        title: m.title.trim() || mealTypeLabel(m.mealType, t),
+        title: m.title.trim() || mealTypeLabel(m.mealType, t, mi + 1),
         timeLabel: m.timeLabel.trim() || null,
         notes: m.notes.trim() || null,
         items: m.items.map((it, ii) => ({
@@ -594,7 +623,8 @@ export function MealPlanBuilder({
   function addDay(presetTitle?: string) {
     if (days.length >= 14) return;
     const label = presetTitle ?? `${t("Ziua", "Day")} ${days.length + 1}`;
-    const next = defaultDay(t, label);
+    const useNumbered = Boolean(activeDay && activeDay.meals.length > 0 && activeDay.meals.every((m) => m.mealType === "Meal"));
+    const next = defaultDay(t, label, useNumbered);
     setDays((prev) => [...prev, next]);
     setActiveDayIndex(days.length);
   }
@@ -626,14 +656,26 @@ export function MealPlanBuilder({
     setActiveDayIndex(Math.max(0, safeDayIndex - 1));
   }
 
-  function addMealToActiveDay(type: MealPlanMealType = "Snack") {
-    const label = mealTypeLabel(type, t);
+  function addMealToActiveDay(type: MealPlanMealType = "Meal") {
+    const nextNumber = (activeDay?.meals.length ?? 0) + 1;
+    const label = mealTypeLabel(type, t, nextNumber);
     const created = defaultMeal(type, label);
     updateDay(safeDayIndex, (d) => ({
       ...d,
       meals: [...d.meals.map((m) => ({ ...m, expanded: false })), created],
     }));
     setAdderMealKey(created.key);
+  }
+
+  function numberAllMealsInActiveDay() {
+    updateDay(safeDayIndex, (d) => ({
+      ...d,
+      meals: d.meals.map((m, idx) => ({
+        ...m,
+        mealType: "Meal",
+        title: renumberTitle(m.title, idx, t),
+      })),
+    }));
   }
 
   function duplicateMeal(mealIdx: number) {
@@ -1042,6 +1084,9 @@ export function MealPlanBuilder({
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap gap-1.5">
+                <Button variant="secondary" small icon={ListOrdered} onClick={numberAllMealsInActiveDay}>
+                  <Text ro="Numerotează mesele (Masa 1, 2, 3...)" en="Number meals (Meal 1, 2, 3...)" />
+                </Button>
                 <Button variant="outline" small icon={Copy} disabled={days.length >= 14} onClick={duplicateActiveDay}>
                   <Text ro="Duplică ziua" en="Duplicate day" />
                 </Button>
@@ -1142,10 +1187,10 @@ export function MealPlanBuilder({
                     }
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <Badge tone="lime">{mealTypeLabel(meal.mealType, t)}</Badge>
+                    <Badge tone="lime">{mealTypeLabel(meal.mealType, t, mealIdx + 1)}</Badge>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-semibold">
-                        {meal.title || mealTypeLabel(meal.mealType, t)}
+                        {meal.title || mealTypeLabel(meal.mealType, t, mealIdx + 1)}
                         {meal.timeLabel ? ` · ${meal.timeLabel}` : ""}
                       </span>
                       <span className="text-xs text-muted tabular-nums">
@@ -1213,17 +1258,23 @@ export function MealPlanBuilder({
                         <Select
                           title={t("Tip masă", "Meal type")}
                           value={meal.mealType}
-                          onChange={(v) =>
+                          onChange={(v) => {
+                            const nextType = v as MealPlanMealType;
                             updateDay(safeDayIndex, (d) => ({
                               ...d,
-                              meals: d.meals.map((m) =>
-                                m.key === meal.key ? { ...m, mealType: v as MealPlanMealType } : m,
-                              ),
-                            }))
-                          }
+                              meals: d.meals.map((m, idx) => {
+                                if (m.key !== meal.key) return m;
+                                const nextTitle =
+                                  !m.title.trim() || DEFAULT_MEAL_TITLE_RE.test(m.title.trim())
+                                    ? mealTypeLabel(nextType, t, idx + 1)
+                                    : m.title;
+                                return { ...m, mealType: nextType, title: nextTitle };
+                              }),
+                            }));
+                          }}
                           options={MEAL_PLAN_MEAL_TYPES.map((mt) => ({
                             value: mt,
-                            label: mealTypeLabel(mt, t),
+                            label: mealTypeLabel(mt, t, mt === "Meal" ? mealIdx + 1 : undefined),
                           }))}
                         />
                       </Field>
@@ -1240,7 +1291,7 @@ export function MealPlanBuilder({
                               ),
                             }))
                           }
-                          placeholder={t("ex. Mic dejun — Opțiunea 1", "e.g. Breakfast — Option 1")}
+                          placeholder={t("ex. Masa 1 / Pre-workout / Mic dejun", "e.g. Meal 1 / Pre-workout / Breakfast")}
                         />
                       </Field>
                       <Field label={<Text ro="Ora / Moment" en="Time / Timing" />}>
@@ -1446,13 +1497,13 @@ export function MealPlanBuilder({
                 {MEAL_PLAN_MEAL_TYPES.map((mt) => (
                   <Button
                     key={mt}
-                    variant="secondary"
+                    variant={mt === "Meal" ? "primary" : "secondary"}
                     small
                     icon={Plus}
                     disabled={activeDay.meals.length >= 12}
                     onClick={() => addMealToActiveDay(mt)}
                   >
-                    {mealTypeLabel(mt, t)}
+                    {mealTypeLabel(mt, t, mt === "Meal" ? activeDay.meals.length + 1 : undefined)}
                   </Button>
                 ))}
               </div>

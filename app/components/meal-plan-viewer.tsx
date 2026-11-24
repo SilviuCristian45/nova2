@@ -264,7 +264,7 @@ export function MealPlanViewer({
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge tone="lime">{mealTypeLabel(meal.mealType, t)}</Badge>
+                        <Badge tone="lime">{mealTypeLabel(meal.mealType, t, meal.position)}</Badge>
                         {meal.timeLabel && (
                           <Badge className="gap-1">
                             <Clock className="size-3" />

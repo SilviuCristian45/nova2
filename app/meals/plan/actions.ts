@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getLanguage } from "@/app/language";
+import { toDiaryMealType } from "@/lib/coach/meal-plans";
 import { localDate } from "@/lib/daily-metrics";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +20,7 @@ export async function logPlanMealTodayAction(
   const { data: planMeal, error: mealErr } = await supabase
     .from("meal_plan_meals")
     .select(
-      "id, meal_type, title, meal_plan_items(id, position, food_id, name, brand, grams, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g)",
+      "id, position, meal_type, title, meal_plan_items(id, position, food_id, name, brand, grams, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g)",
     )
     .eq("id", mealId)
     .maybeSingle();
@@ -56,7 +57,7 @@ export async function logPlanMealTodayAction(
     .insert({
       user_id: user.id,
       performed_on: today,
-      meal_type: planMeal.meal_type as string,
+      meal_type: toDiaryMealType(planMeal.meal_type as string, Number(planMeal.position) || 1),
       notes: planMeal.title as string,
     })
     .select("id")
