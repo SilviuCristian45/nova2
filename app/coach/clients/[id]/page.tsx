@@ -20,10 +20,13 @@ import {
   ClientDetail,
   type ClientDailyCheckin,
   type ClientEnrollmentDetail,
+  type ClientMealPlanSummary,
   type ClientTargets,
   type ClientWorkoutDetail,
+  type CoachMealPlanTemplateOption,
   type CoachProgramOption,
 } from "./client-detail";
+import type { MealPlanGoal, MealPlanStatus } from "@/lib/coach/meal-plans";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +225,7 @@ export default async function CoachClientDetailPage({
     { data: dailyCheckinsData },
     { data: weeklyCheckinsData },
     { data: coachNoteData },
+    { data: coachMealPlansData },
   ] = await Promise.all([
     coach.supabase.from("profiles").select("display_name").eq("id", clientId).maybeSingle(),
     coach.supabase
@@ -257,6 +261,11 @@ export default async function CoachClientDetailPage({
       .eq("coach_id", coach.userId)
       .eq("client_id", clientId)
       .maybeSingle(),
+    coach.supabase
+      .from("meal_plans")
+      .select("id, assigned_client_id, title, goal, status, target_kcal, target_protein_g, target_carbs_g, target_fat_g, share_token, updated_at")
+      .eq("coach_id", coach.userId)
+      .order("updated_at", { ascending: false }),
   ]);
 
   // Resolve titles for program_workouts linked to logged workouts.
@@ -385,6 +394,42 @@ export default async function CoachClientDetailPage({
     (weeklyCheckinsData ?? []) as WeeklyCheckin[],
   );
 
+  type RawCoachPlanRow = {
+    id: string;
+    assigned_client_id: string | null;
+    title: string;
+    goal: MealPlanGoal;
+    status: MealPlanStatus;
+    target_kcal: number | null;
+    target_protein_g: number | null;
+    target_carbs_g: number | null;
+    target_fat_g: number | null;
+    share_token: string | null;
+    updated_at: string;
+  };
+  const allCoachMealPlans = (coachMealPlansData ?? []) as RawCoachPlanRow[];
+  const clientMealPlans: ClientMealPlanSummary[] = allCoachMealPlans
+    .filter((p) => p.assigned_client_id === clientId)
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      goal: p.goal,
+      status: p.status,
+      targetKcal: p.target_kcal,
+      targetProteinG: p.target_protein_g,
+      targetCarbsG: p.target_carbs_g,
+      targetFatG: p.target_fat_g,
+      hasPublicLink: Boolean(p.share_token),
+      updatedAt: p.updated_at,
+    }));
+  const mealPlanTemplates: CoachMealPlanTemplateOption[] = allCoachMealPlans
+    .filter((p) => p.assigned_client_id === null)
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      targetKcal: p.target_kcal,
+    }));
+
   return (
     <Screen back="/coach/clients" title={clientName}>
       <ClientDetail
@@ -403,6 +448,8 @@ export default async function CoachClientDetailPage({
         dailyCheckins={(dailyCheckinsData ?? []) as ClientDailyCheckin[]}
         weeklyCheckins={weeklyCheckins}
         coachPrograms={coachPrograms}
+        clientMealPlans={clientMealPlans}
+        mealPlanTemplates={mealPlanTemplates}
         initialNote={(coachNoteData?.note as string | undefined) ?? ""}
         initialNoteUpdatedAt={(coachNoteData?.updated_at as string | undefined) ?? null}
       />

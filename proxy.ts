@@ -5,7 +5,9 @@ import { canAccessCoachRoute, isCoachRoute, parseUserRole } from "@/lib/coach/ty
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // /api/drive/cron has no session: it checks its own CRON_SECRET.
+  // /plan/[token] serves public read-only shared meal plans via a revocable token.
   if (path === "/offline" || path === "/privacy" || path === "/api/drive/cron" || path === "/sw.js" || path === "/manifest.json" ||
+    path.startsWith("/plan/") ||
     /^\/(?:workbox|worker|fallback)-[^/]+\.js$/.test(path)) {
     return NextResponse.next();
   }

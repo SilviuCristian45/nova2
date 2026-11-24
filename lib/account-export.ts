@@ -31,7 +31,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
 
   const [
     profile, targets, draft, workouts, sets, cardio, meals, mealItems, ownFoods, templates, steps, weights,
-    dailyCheckin, progressPhotos, enrollments, weeklyCheckins, workoutFeedback, notifications,
+    dailyCheckin, progressPhotos, enrollments, weeklyCheckins, workoutFeedback, notifications, assignedMealPlans,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_targets").select("*").eq("user_id", userId).maybeSingle(),
@@ -53,6 +53,7 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     optional("weekly_checkins", "week_start", "client_id"),
     optional("workout_feedback", "created_at", "author_id"),
     optional("notifications", "created_at", "user_id"),
+    optional("meal_plans", "created_at", "assigned_client_id"),
   ])
   for (const single of [profile, targets, draft]) if (single.error) throw new Error(single.error.message)
 
@@ -89,6 +90,10 @@ export async function buildExport(supabase: SupabaseClient, account: ExportAccou
     weekly_checkins: weeklyCheckins,
     workout_feedback: workoutFeedback,
     notifications,
+    // Omit share_token from export so revocable share links are never leaked in backups.
+    meal_plans: assignedMealPlans.map((plan) =>
+      Object.fromEntries(Object.entries(plan).filter(([key]) => key !== "share_token")),
+    ),
     google_drive_backup: driveBackup
       ? { email: driveBackup.email, frequency: driveBackup.frequency, last_backup_at: driveBackup.last_backup_at }
       : null,

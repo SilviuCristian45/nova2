@@ -6,7 +6,7 @@ import { pickNextProgramWorkout } from "@/lib/coach/programs"
 import { mondayOfWeek } from "@/lib/coach/interactions"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Award, ChevronRight, ClipboardCheck, ClipboardList, Play, Settings } from "lucide-react"
+import { Award, ChevronRight, ClipboardCheck, ClipboardList, Play, Settings, Utensils } from "lucide-react"
 import { SignOutButton } from "./components/sign-out-button"
 import { createClient } from "@/lib/supabase/server"
 import { getDailySteps } from "./steps/steps"
@@ -63,7 +63,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const today = localDate()
   const weekStart = mondayOfWeek(today)
 
-  const [{ data: allWorkouts }, authRole, todaySteps, todayGoal, { data: activeEnrollmentRows }, { data: weeklyCheckinRow }] = await Promise.all([
+  const [{ data: allWorkouts }, authRole, todaySteps, todayGoal, { data: activeEnrollmentRows }, { data: weeklyCheckinRow }, { data: activeMealPlanRow }] = await Promise.all([
     supabase.from("workouts").select("performed_on").eq("user_id", user.id),
     getCurrentAuthRole(),
     getDailySteps(today),
@@ -80,6 +80,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       .select("id, reviewed_at, coach_reply")
       .eq("client_id", user.id)
       .eq("week_start", weekStart)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("meal_plans")
+      .select("id, title, target_kcal, target_protein_g, target_carbs_g, target_fat_g")
+      .eq("assigned_client_id", user.id)
+      .eq("status", "active")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -269,6 +277,36 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   </div>
                 </details>
               )}
+            </Card>
+          )}
+          {activeMealPlanRow && (
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-lime-text">
+                    <Utensils className="size-3.5" />
+                    <Text ro="Plan alimentar activ" en="Active meal plan" />
+                  </span>
+                  <h2 className="text-[18px] font-semibold tracking-[-0.3px]">
+                    {activeMealPlanRow.title as string}
+                  </h2>
+                  {(activeMealPlanRow.target_kcal !== null || activeMealPlanRow.target_protein_g !== null) && (
+                    <p className="text-xs text-muted tabular-nums">
+                      {activeMealPlanRow.target_kcal !== null ? `${activeMealPlanRow.target_kcal} kcal` : ""}
+                      {activeMealPlanRow.target_protein_g !== null ? ` · P ${activeMealPlanRow.target_protein_g}g` : ""}
+                      {activeMealPlanRow.target_carbs_g !== null ? ` · C ${activeMealPlanRow.target_carbs_g}g` : ""}
+                      {activeMealPlanRow.target_fat_g !== null ? ` · ${t("G", "F")} ${activeMealPlanRow.target_fat_g}g` : ""}
+                    </p>
+                  )}
+                </div>
+                {activeMealPlanRow.target_kcal !== null && (
+                  <Badge tone="lime">{activeMealPlanRow.target_kcal as number} kcal</Badge>
+                )}
+              </div>
+              <Link href="/meals/plan" className={buttonClass({ variant: "secondary", small: true })}>
+                <Utensils className="size-4" />
+                <Text ro="Vezi planul alimentar" en="View meal plan" />
+              </Link>
             </Card>
           )}
           {hasActiveCoach && (

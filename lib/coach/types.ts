@@ -28,6 +28,8 @@ export const NOTIFICATION_TYPES = [
   "weekly_checkin_submitted",
   "weekly_checkin_reviewed",
   "client_pr",
+  "meal_plan_assigned",
+  "meal_plan_updated",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

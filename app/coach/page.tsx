@@ -11,6 +11,7 @@ import {
   Trophy,
   UserPlus,
   Users,
+  Utensils,
 } from "lucide-react";
 import { Text } from "@/app/components/language-provider";
 import { getLanguage } from "@/app/language";
@@ -85,6 +86,7 @@ export default async function CoachHomePage() {
     coachProfile,
     { data: enrollmentsData },
     { data: programsData },
+    { data: mealPlansData },
     { data: pendingNotifs },
     { data: unreviewedCheckinsData },
   ] = await Promise.all([
@@ -98,6 +100,10 @@ export default async function CoachHomePage() {
     coach.supabase
       .from("programs")
       .select("id, title, status")
+      .eq("coach_id", coach.userId),
+    coach.supabase
+      .from("meal_plans")
+      .select("id, status, assigned_client_id")
       .eq("coach_id", coach.userId),
     coach.supabase
       .from("notifications")
@@ -117,6 +123,7 @@ export default async function CoachHomePage() {
 
   const enrollments = (enrollmentsData ?? []) as EnrollmentRow[];
   const programs = (programsData ?? []) as { id: string; title: string; status: string }[];
+  const mealPlansCount = (mealPlansData ?? []).length;
   const programMap = new Map(programs.map((p) => [p.id, p.title]));
   const publishedCount = programs.filter((p) => p.status === "published").length;
 
@@ -282,8 +289,15 @@ export default async function CoachHomePage() {
             <ClipboardList className="size-4" />
             <Text ro="Programe" en="Programs" /> ({programs.length})
           </Link>
+          <Link href="/coach/meal-plans" className={buttonClass({ variant: "outline", small: true })}>
+            <Utensils className="size-4" />
+            <Text ro="Planuri alimentare" en="Meal plans" /> ({mealPlansCount})
+          </Link>
           <Link href="/coach/programs/new" className={buttonClass({ small: true })}>
             <Text ro="+ Program nou" en="+ New program" />
+          </Link>
+          <Link href="/coach/meal-plans/new" className={buttonClass({ variant: "secondary", small: true })}>
+            <Text ro="+ Plan alimentar" en="+ Meal plan" />
           </Link>
         </div>
       </div>

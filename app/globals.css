@@ -114,3 +114,16 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   font-size: 15px;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0c0c0d !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}

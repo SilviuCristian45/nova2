@@ -235,5 +235,34 @@ export function formatNotification(
         tone: "lime",
       };
     }
+
+    case "meal_plan_assigned": {
+      const planTitle = str(p, "plan_title");
+      const coachName = str(p, "coach_name");
+      return {
+        title: t("Plan alimentar nou", "New meal plan"),
+        body: planTitle
+          ? t(
+              `${coachName || "Antrenorul"} ți-a asignat planul alimentar „${planTitle}”.`,
+              `${coachName || "Your coach"} assigned you the meal plan "${planTitle}".`,
+            )
+          : t("Antrenorul ți-a asignat un plan alimentar nou.", "Your coach assigned you a new meal plan."),
+        tone: "lime",
+      };
+    }
+
+    case "meal_plan_updated": {
+      const planTitle = str(p, "plan_title");
+      return {
+        title: t("Plan alimentar actualizat", "Meal plan updated"),
+        body: planTitle
+          ? t(
+              `Antrenorul a actualizat planul alimentar „${planTitle}”.`,
+              `Your coach updated your meal plan "${planTitle}".`,
+            )
+          : t("Antrenorul ți-a actualizat planul alimentar.", "Your coach updated your meal plan."),
+        tone: "ice",
+      };
+    }
   }
 }

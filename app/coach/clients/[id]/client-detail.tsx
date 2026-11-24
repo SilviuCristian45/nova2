@@ -9,7 +9,9 @@ import {
   ChevronRight,
   Copy,
   Dumbbell,
+  Globe,
   Lock,
+  Plus,
   Save,
   Trophy,
   Utensils,
@@ -45,9 +47,16 @@ import {
   type NutritionPeriodSummary,
 } from "@/lib/coach/analytics";
 import { enrollmentStatusLabel } from "@/lib/coach/programs";
+import {
+  mealPlanGoalLabel,
+  mealPlanStatusLabel,
+  type MealPlanGoal,
+  type MealPlanStatus,
+} from "@/lib/coach/meal-plans";
 import type { EnrollmentStatus, WeeklyCheckinWithPhotos } from "@/lib/coach/types";
 import type { DailyWeight } from "@/lib/daily-metrics";
 import { ClientCharts } from "./client-charts";
+import { cloneMealPlanForClientAction } from "../../meal-plans/actions";
 import {
   assignProgramToClientAction,
   cloneProgramForClientAction,
@@ -113,6 +122,25 @@ export type CoachProgramOption = {
   isCustomForClient: boolean;
 };
 
+export type ClientMealPlanSummary = {
+  id: string;
+  title: string;
+  goal: MealPlanGoal;
+  status: MealPlanStatus;
+  targetKcal: number | null;
+  targetProteinG: number | null;
+  targetCarbsG: number | null;
+  targetFatG: number | null;
+  hasPublicLink: boolean;
+  updatedAt: string;
+};
+
+export type CoachMealPlanTemplateOption = {
+  id: string;
+  title: string;
+  targetKcal: number | null;
+};
+
 type TabKey = "overview" | "workouts" | "nutrition" | "program";
 
 const WORKOUTS_PER_PAGE = 8;
@@ -133,6 +161,8 @@ export function ClientDetail({
   dailyCheckins,
   weeklyCheckins,
   coachPrograms,
+  clientMealPlans,
+  mealPlanTemplates,
   initialNote,
   initialNoteUpdatedAt,
 }: {
@@ -151,6 +181,8 @@ export function ClientDetail({
   dailyCheckins: ClientDailyCheckin[];
   weeklyCheckins: WeeklyCheckinWithPhotos[];
   coachPrograms: CoachProgramOption[];
+  clientMealPlans: ClientMealPlanSummary[];
+  mealPlanTemplates: CoachMealPlanTemplateOption[];
   initialNote: string;
   initialNoteUpdatedAt: string | null;
 }) {
@@ -185,6 +217,11 @@ export function ClientDetail({
   const [savingNote, setSavingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteSaved, setNoteSaved] = useState(false);
+
+  // Meal plan clone state
+  const [cloneMealPlanId, setCloneMealPlanId] = useState(mealPlanTemplates[0]?.id ?? "");
+  const [cloningMealPlan, setCloningMealPlan] = useState(false);
+  const [mealPlanError, setMealPlanError] = useState<string | null>(null);
 
   const allSets = workouts.flatMap((w) => w.workout_sets);
   const periodAvgRir = averageRir(allSets);
@@ -265,6 +302,24 @@ export function ClientDetail({
       }
     } finally {
       setProgramBusy(null);
+    }
+  }
+
+  async function handleCloneMealPlan() {
+    if (!cloneMealPlanId) return;
+    setCloningMealPlan(true);
+    setMealPlanError(null);
+    try {
+      const res = await cloneMealPlanForClientAction(cloneMealPlanId, clientId);
+      if (res.error) {
+        setMealPlanError(res.error);
+        return;
+      }
+      if (res.planId) {
+        router.push(`/coach/meal-plans/${res.planId}`);
+      }
+    } finally {
+      setCloningMealPlan(false);
     }
   }
 
@@ -564,7 +619,116 @@ export function ClientDetail({
 
       {/* TAB 3: Nutrition */}
       {tab === "nutrition" && (
-        !shareNutrition ? (
+        <div className="flex flex-col gap-4">
+          {/* Coach Meal Plans assigned to this client (always available regardless of diary sharing) */}
+          <Card>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <CardTitle
+                description={
+                  <Text
+                    ro="Creează un plan alimentar personalizat, clonează un șablon sau exportă PDF direct pentru acest client."
+                    en="Create a custom meal plan, clone a template, or export PDF directly for this client."
+                  />
+                }
+              >
+                <span className="flex items-center gap-2">
+                  <Utensils className="size-5 text-lime-text" />
+                  <Text ro="Planuri alimentare client" en="Client meal plans" />
+                </span>
+              </CardTitle>
+              <Link
+                href={`/coach/meal-plans/new?clientId=${clientId}`}
+                className={buttonClass({ small: true })}
+              >
+                <Plus className="size-4" />
+                <Text ro="Plan alimentar nou" en="New meal plan" />
+              </Link>
+            </div>
+
+            {mealPlanError && <Message>{mealPlanError}</Message>}
+
+            {clientMealPlans.length === 0 ? (
+              <p className="rounded-md bg-inner px-3.5 py-3 text-sm text-muted">
+                <Text
+                  ro="Acest client nu are încă un plan alimentar asignat."
+                  en="This client does not have an assigned meal plan yet."
+                />
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {clientMealPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-inner p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-foreground">{plan.title}</span>
+                        <Badge tone={plan.status === "active" ? "lime" : plan.status === "draft" ? "gold" : undefined}>
+                          {mealPlanStatusLabel(plan.status, t)}
+                        </Badge>
+                        <Badge tone="ice">{mealPlanGoalLabel(plan.goal, t)}</Badge>
+                        {plan.hasPublicLink && (
+                          <Badge tone="lime" className="gap-1">
+                            <Globe className="size-3" />
+                            <Text ro="Link" en="Link" />
+                          </Badge>
+                        )}
+                      </div>
+                      {(plan.targetKcal !== null || plan.targetProteinG !== null) && (
+                        <p className="mt-1 text-xs text-muted tabular-nums">
+                          {plan.targetKcal !== null ? `${plan.targetKcal} kcal` : ""}
+                          {plan.targetProteinG !== null ? ` · P ${plan.targetProteinG}g` : ""}
+                          {plan.targetCarbsG !== null ? ` · C ${plan.targetCarbsG}g` : ""}
+                          {plan.targetFatG !== null ? ` · ${t("G", "F")} ${plan.targetFatG}g` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <Link
+                      href={`/coach/meal-plans/${plan.id}`}
+                      className={buttonClass({ variant: "secondary", small: true })}
+                    >
+                      <Text ro="Editează & Export PDF" en="Edit & Export PDF" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {mealPlanTemplates.length > 0 && (
+              <div className="flex flex-col gap-2.5 rounded-md bg-inner p-3.5">
+                <p className="text-sm font-semibold">
+                  <Text ro="Clonează un șablon pentru acest client" en="Clone a template for this client" />
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex-1">
+                    <Select
+                      searchable
+                      title={t("Selectează șablonul", "Select template")}
+                      value={cloneMealPlanId}
+                      onChange={setCloneMealPlanId}
+                      options={mealPlanTemplates.map((tpl) => ({
+                        value: tpl.id,
+                        label: tpl.title,
+                        subtitle: tpl.targetKcal ? `${tpl.targetKcal} kcal` : undefined,
+                      }))}
+                    />
+                  </div>
+                  <Button
+                    variant="secondary"
+                    small
+                    icon={Copy}
+                    busy={cloningMealPlan}
+                    onClick={() => void handleCloneMealPlan()}
+                  >
+                    <Text ro="Clonează & personalizează" en="Clone & customize" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+        {!shareNutrition ? (
           <Card>
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-inner text-muted">
@@ -669,7 +833,8 @@ export function ClientDetail({
               </Card>
             )}
           </div>
-        )
+        )}
+        </div>
       )}
 
       {/* TAB 4: Program Management & Private Coach Notes */}
