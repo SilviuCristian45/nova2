@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Area,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -24,7 +25,19 @@ const tooltipStyle = {
   color: "var(--foreground)",
   borderRadius: "14px",
   padding: "10px 12px",
+  boxShadow: "0 10px 28px -6px rgba(0, 0, 0, 0.2)",
 };
+const chartCursor = { stroke: "var(--chart-axis)", strokeDasharray: "4 4", strokeOpacity: 0.6 };
+const SHOW_DOTS_MAX = 20;
+
+function makeDot(stroke: string, show: boolean) {
+  if (!show) return false;
+  return { r: 3.5, fill: "var(--card)", stroke, strokeWidth: 2 };
+}
+
+function makeActiveDot(fill: string) {
+  return { r: 6, fill, stroke: "var(--card)", strokeWidth: 2.5 };
+}
 
 export function ClientCharts({
   workouts,
@@ -96,31 +109,72 @@ export function ClientCharts({
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={strengthSeries} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                    <XAxis dataKey="date" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} />
-                    <YAxis yAxisId="left" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} unit={` ${unit}`} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line
+                  <ComposedChart data={strengthSeries} margin={{ top: 10, right: 8, left: -12, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="client-strength-fill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--lime-text)" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="var(--lime-text)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
+                      dy={8}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
+                      domain={[0, "auto"]}
+                      unit={` ${unit}`}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                      tick={{ fill: "var(--ice-text)", fontSize: 11 }}
+                      domain={[0, "auto"]}
+                    />
+                    <Tooltip
+                      cursor={chartCursor}
+                      contentStyle={tooltipStyle}
+                      labelStyle={{ color: "var(--muted)", fontSize: 12 }}
+                      itemStyle={{ fontWeight: 600 }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: 14, fontSize: 12 }} iconType="circle" />
+                    <Area
                       yAxisId="left"
                       type="monotone"
                       dataKey="weight"
                       name={`${t("Greutate", "Weight")} (${unit})`}
-                      stroke="var(--ice)"
-                      strokeWidth={2.5}
-                      dot={{ r: 3.5 }}
+                      stroke="var(--lime-text)"
+                      strokeWidth={2.75}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="url(#client-strength-fill)"
+                      dot={makeDot("var(--lime-text)", strengthSeries.length <= SHOW_DOTS_MAX)}
+                      activeDot={makeActiveDot("var(--lime-text)")}
+                      animationDuration={500}
                     />
                     <Line
                       yAxisId="right"
                       type="monotone"
                       dataKey="reps"
                       name={t("Repetări", "Reps")}
-                      stroke="var(--lime)"
-                      strokeDasharray="4 4"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
+                      stroke="var(--ice-text)"
+                      strokeDasharray="5 4"
+                      strokeWidth={2.25}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      dot={makeDot("var(--ice-text)", strengthSeries.length <= SHOW_DOTS_MAX)}
+                      activeDot={makeActiveDot("var(--ice-text)")}
+                      animationDuration={500}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -150,22 +204,46 @@ export function ClientCharts({
         ) : (
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={weightSeries} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                <XAxis dataKey="label" tick={{ fill: "var(--chart-axis)", fontSize: 12 }} />
+              <ComposedChart data={weightSeries} margin={{ top: 10, right: 8, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="client-weight-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--coral-text)" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="var(--coral-text)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
+                  dy={8}
+                />
                 <YAxis
-                  domain={["dataMin - 1", "dataMax + 1"]}
-                  tick={{ fill: "var(--chart-axis)", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[(min: number) => Math.max(0, Math.floor(min - 1)), (max: number) => Math.ceil(max + 1)]}
+                  tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
                   unit={` ${unit}`}
                 />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Line
+                <Tooltip
+                  cursor={chartCursor}
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: "var(--muted)", fontSize: 12 }}
+                  itemStyle={{ fontWeight: 600 }}
+                />
+                <Area
                   type="monotone"
                   dataKey="value"
                   name={`${t("Greutate", "Weight")} (${unit})`}
-                  stroke="var(--coral)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3.5 }}
+                  stroke="var(--coral-text)"
+                  strokeWidth={2.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="url(#client-weight-fill)"
+                  dot={makeDot("var(--coral-text)", weightSeries.length <= SHOW_DOTS_MAX)}
+                  activeDot={makeActiveDot("var(--coral-text)")}
+                  animationDuration={500}
                 />
               </ComposedChart>
             </ResponsiveContainer>

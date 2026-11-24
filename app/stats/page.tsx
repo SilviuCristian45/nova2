@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
 import {
-  ComposedChart, Scatter, Line, XAxis, YAxis,
+  ComposedChart, Area, Scatter, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import { EXERCISES, CARDIO_ACTIVITIES } from "@/lib/workout-data";
@@ -36,15 +36,27 @@ type ChartPoint = {
   sleep?: number | null;
 };
 const PAGE_SIZE = 1000;
-// Tooltips look like an inner surface: filled, no border.
+// Tooltips look like an inner surface: filled, no border, subtle elevation.
 const tooltipStyle = {
   backgroundColor: "var(--inner)",
   border: "none",
   color: "var(--foreground)",
   borderRadius: "14px",
   padding: "10px 12px",
+  boxShadow: "0 10px 28px -6px rgba(0, 0, 0, 0.2)",
 };
 const tooltipClass = "rounded-md bg-inner px-3 py-2.5 text-sm font-semibold shadow-lg";
+const showDotsThreshold = 24;
+const chartCursor = { stroke: "var(--chart-axis)", strokeDasharray: "4 4", strokeOpacity: 0.6 };
+
+function makeDot(stroke: string, show: boolean) {
+  if (!show) return false;
+  return { r: 3.5, fill: "var(--card)", stroke, strokeWidth: 2 };
+}
+
+function makeActiveDot(fill: string) {
+  return { r: 6, fill, stroke: "var(--card)", strokeWidth: 2.5 };
+}
 
 export default function StatsPage() {
   return <Suspense><StatsContent /></Suspense>;
@@ -327,27 +339,40 @@ function StatsContent() {
           <div className="h-[300px] w-full min-w-0 sm:h-[380px] lg:h-[460px]">
             <ResponsiveContainer width="100%" height="100%">
               {checkinMode ? (
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+                <ComposedChart data={chartData} margin={{ top: 12, right: 12, left: -10, bottom: 10 }}>
                   <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
                   <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} domain={[1, 10]} ticks={[1, 3, 5, 7, 10]} allowDecimals={false} />
-                  <Tooltip cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "4 4" }}
+                  <Tooltip cursor={chartCursor}
                     contentStyle={tooltipStyle} labelStyle={{ color: "var(--muted)", fontSize: 12 }} itemStyle={{ fontWeight: 600 }} />
                   <Legend wrapperStyle={{ paddingTop: 25, fontSize: 12 }} iconType="circle" />
-                  <Line dataKey="energy" name={t("Energie", "Energy")} stroke="var(--lime-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
-                  <Line dataKey="satiety" name={t("Sațietate", "Satiety")} stroke="var(--coral-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
-                  <Line dataKey="sleep" name={t("Somn", "Sleep")} stroke="var(--ice-text)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                  <Line type="monotone" dataKey="energy" name={t("Energie", "Energy")} stroke="var(--lime-text)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                    dot={makeDot("var(--lime-text)", chartData.length <= showDotsThreshold)} activeDot={makeActiveDot("var(--lime-text)")} connectNulls animationDuration={500} />
+                  <Line type="monotone" dataKey="satiety" name={t("Sațietate", "Satiety")} stroke="var(--coral-text)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                    dot={makeDot("var(--coral-text)", chartData.length <= showDotsThreshold)} activeDot={makeActiveDot("var(--coral-text)")} connectNulls animationDuration={500} />
+                  <Line type="monotone" dataKey="sleep" name={t("Somn", "Sleep")} stroke="var(--ice-text)" strokeWidth={2.25} strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round"
+                    dot={makeDot("var(--ice-text)", chartData.length <= showDotsThreshold)} activeDot={makeActiveDot("var(--ice-text)")} connectNulls animationDuration={500} />
                 </ComposedChart>
               ) : measurementMode ? (
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+                <ComposedChart data={chartData} margin={{ top: 12, right: 12, left: -10, bottom: 10 }}>
+                  <defs>
+                    <linearGradient id="stats-measurement-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)"} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)"} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
                   <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }}
                     allowDecimals={mode === "weight"}
-                    domain={mode === "steps" ? [0, (max: number) => Math.max(max, stepsGoal) + 2000] : ["auto", "auto"]}
+                    domain={
+                      mode === "steps"
+                        ? [0, (max: number) => Math.max(max, stepsGoal) + 2000]
+                        : [(min: number) => Math.max(0, Math.floor(min - 1)), (max: number) => Math.ceil(max + 1)]
+                    }
                     unit={mode === "weight" ? ` ${unit}` : undefined} />
                   <Tooltip
-                    cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "6 6" }}
+                    cursor={chartCursor}
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
                       const point = payload[0].payload as ChartPoint;
@@ -367,12 +392,26 @@ function StatsContent() {
                     }}
                   />
                   <Legend wrapperStyle={{ paddingTop: 25, fontSize: 12 }} iconType="circle" />
-                  {mode === "steps" && <Line dataKey="target" name={t("Obiectiv zilnic", "Daily goal")} stroke="var(--chart-axis)" strokeDasharray="6 6" dot={false} activeDot={false} />}
-                  <Line dataKey="value" name={mode === "steps" ? t("Pași efectuați", "Steps recorded") : t(`Greutate (${unit})`, `Weight (${unit})`)}
-                    stroke={mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)"} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  {mode === "steps" && <Line type="monotone" dataKey="target" name={t("Obiectiv zilnic", "Daily goal")} stroke="var(--chart-axis)" strokeWidth={1.75} strokeDasharray="6 6" strokeLinecap="round" dot={false} activeDot={false} />}
+                  <Area type="monotone" dataKey="value" name={mode === "steps" ? t("Pași efectuați", "Steps recorded") : t(`Greutate (${unit})`, `Weight (${unit})`)}
+                    stroke={mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)"} strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round"
+                    fill="url(#stats-measurement-fill)"
+                    dot={makeDot(mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)", chartData.length <= showDotsThreshold)}
+                    activeDot={makeActiveDot(mode === "steps" ? "var(--lime-text)" : "var(--lilac-text)")}
+                    animationDuration={500} />
                 </ComposedChart>
               ) : (
-                <ComposedChart data={chartData} margin={{ top: 10, right: 5, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="stats-strength-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--lime-text)" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="var(--lime-text)" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="stats-cardio-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--coral-text)" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="var(--coral-text)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="4 4" vertical={false} />
                   <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "var(--chart-axis)" }} dy={10} />
                   <YAxis yAxisId="primary" width={52} fontSize={10} tickLine={false} axisLine={false}
@@ -381,18 +420,31 @@ function StatsContent() {
                   {mode === "strength" && <YAxis yAxisId="reps" orientation="right" width={32}
                     fontSize={10} tickLine={false} axisLine={false} allowDecimals={false}
                     tick={{ fill: "var(--ice-text)" }} domain={[0, "auto"]} />}
-                  <Tooltip cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "4 4" }}
+                  <Tooltip cursor={chartCursor}
                     contentStyle={tooltipStyle} labelStyle={{ color: "var(--muted)", fontSize: 12 }} itemStyle={{ fontWeight: 600 }} />
                   <Legend wrapperStyle={{ paddingTop: 20, fontSize: 12 }} iconType="circle" />
                   {mode === "strength" ? (<>
-                    <Line yAxisId="primary" dataKey="weight" name={t(`Greutate ridicată (${unit})`, `Lifted weight (${unit})`)}
-                      stroke="var(--lime-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    <Line yAxisId="reps" dataKey="reps" name={t("Repetări", "Reps")}
-                      stroke="var(--ice-text)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Area yAxisId="primary" type="monotone" dataKey="weight" name={t(`Greutate ridicată (${unit})`, `Lifted weight (${unit})`)}
+                      stroke="var(--lime-text)" strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round"
+                      fill="url(#stats-strength-fill)"
+                      dot={makeDot("var(--lime-text)", chartData.length <= showDotsThreshold)}
+                      activeDot={makeActiveDot("var(--lime-text)")}
+                      animationDuration={500} />
+                    <Line yAxisId="reps" type="monotone" dataKey="reps" name={t("Repetări", "Reps")}
+                      stroke="var(--ice-text)" strokeWidth={2.25} strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round"
+                      dot={makeDot("var(--ice-text)", chartData.length <= showDotsThreshold)}
+                      activeDot={makeActiveDot("var(--ice-text)")}
+                      animationDuration={500} />
                     {hasBodyWeights && <Scatter yAxisId="primary" dataKey="bodyWeight"
                       name={t(`Greutate corporală (${unit})`, `Body weight (${unit})`)} fill="var(--lilac-text)" />}
-                  </>) : <Line yAxisId="primary" dataKey="duration" name={t("Durată (min)", "Duration (min)")}
-                    stroke="var(--coral-text)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />}
+                  </>) : (
+                    <Area yAxisId="primary" type="monotone" dataKey="duration" name={t("Durată (min)", "Duration (min)")}
+                      stroke="var(--coral-text)" strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round"
+                      fill="url(#stats-cardio-fill)"
+                      dot={makeDot("var(--coral-text)", chartData.length <= showDotsThreshold)}
+                      activeDot={makeActiveDot("var(--coral-text)")}
+                      animationDuration={500} />
+                  )}
                 </ComposedChart>
               )}
             </ResponsiveContainer>
