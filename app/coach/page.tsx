@@ -24,7 +24,7 @@ import {
 } from "@/lib/coach/analytics";
 import { localDate } from "@/lib/daily-metrics";
 import { exerciseName } from "@/lib/exercise-catalog";
-import { workoutLabelText } from "@/app/components/workout-label";
+import { WorkoutLabel } from "@/app/components/workout-label";
 import { CoachCheckinReviewList, type CoachCheckinItem } from "@/app/components/coach-checkin-review";
 import { WorkoutFeedbackThread } from "@/app/components/workout-feedback";
 import type { FeedbackThreadItem } from "@/app/feedback/actions";
@@ -495,7 +495,7 @@ export default async function CoachHomePage() {
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-foreground">{labelClient(w.user_id)}</p>
                           <p className="text-xs text-muted">
-                            {w.workout_mode === "cardio" ? "Cardio" : workoutLabelText(w.split, t)} · {dateText}
+                            {w.workout_mode === "cardio" ? "Cardio" : <WorkoutLabel value={w.split} />} · {dateText}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
